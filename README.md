@@ -28,12 +28,11 @@ Bamboo or TFS exists, but they have yet to be written.
 ## Installation
    Clone this repository in a suitable location.
    You must have a working Python 2.7.x available in your environment.
-
-...
+'''
     git clone https://github.com/klehman-rally/bldeif.git
     cd bldeif
     python setup.py install
-...
+'''
 
 ## Configuration
     Configuration of the bldeif connector is done via a YAML file which should be in the config subdirectory.
