@@ -1,0 +1,74 @@
+
+  The essential machinery for being able to reflect an external CI/Build system's job activity 
+  in Agile Central is operable.
+
+    The primary features of the Jenkins BLD Connector for Agile Central at this time are:
+
+        Job Build information from Jenkins is reflected in Agile Central in Build records
+           (each of which is tied to an AC BuildDefinition record)
+       
+        Configuration is via a YAML file
+            3 sections
+                o  AgileCentral system id/creds, workspace and project info 
+                o  Jenkins system id/creds, facility for policy based job inclusion/exclusion 
+                   via regexes for multiple views/jobs, ability to specify AC targeted project.
+                o  Service - to specify Preview status, logging level, policy for jobs 
+                   whose name doesn't appear in the specified project.
+
+            provides facility to economically cover interesting jobs on a Jenkins instance
+            in a single relatively small and easily understood file.
+
+
+        Cacheing of AC BuildDefinition info
+            reduces time spent getting infrequently changed data
+
+        Can extend to have the connector write in the last processed build time on a
+        per Jenkins job basis in the time_file.
+
+        Jenkins Job URI is written to the BuildDefinition at creation time 
+          (if one is created in the course of running the connector)
+       
+        Jenkins Job Build URI is written to the Build record 
+          (enables AC user to click on link and see Jenkins page for the specific job)
+
+        You can run multiple configs per invocation.
+
+        If your team/project morphs into another AC project, you might not have to
+        update your config file(s) if you've set the Service -> StrictProject to False
+          (If you have a BuildDefinition for the job in question associated with another
+           Project that the account accessing Agile Central can find, and the original
+           Project is moribund or has been renamed, the connector will post the Builds
+           to be associated with the BuildDefinition with the Name of the Jenkins job.)
+
+#---------------------------------------------------------------------------------------------------
+
+  What remains to be done?
+
+      More industrial sized testing for processing multiple Jenkins Views
+
+      Ability to handle Jenkins instances that have the CloudBees Folders plugin.
+         (in this context a folder is really just a job, that happens to have subsidiary jobs)
+
+         The probable way to handle this is to permit 
+         Folder: <name> type entries in the config file
+
+         As to what is contained in a Folder section though, that's an area for investigation.
+
+      Linkage of Builds to Changeset items
+         Jenkins provides information about any VCS id/comments and affected files that led to
+         the triggering of a Jenkins Build.
+         It may be feasible for the Jenkins BLD Connector to determine whether there are any
+         AC Changesets present that match the Jenkins info and use that information in the 
+         Build record posted to AC in the Changesets collection.
+
+        Alternatively, if the VCS Changeset info in Jenkins is not reflected in Agile Central,
+        it might be feasible to create those AC Changeset items and then include that 
+        information in the Build record posted to AC in the Changesets collection.
+
+      Run some tests against almci Jenkins instance, pick some folders, set up some includes/excludes
+      and have the AgileCentral section point to the trial AC stack, 
+    
+      Put it in the hands of the 10 Foot Pole team and get some feedback.
+        
+
+

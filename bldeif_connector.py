@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+
+##########################################################################################
+#
+# bldeif  -- Record builds from a build system in CA Agile Central
+#
+USAGE = """
+Usage: python bldeif_connector.py <config_file.yml>
+ 
+       where the config file named must have content in YAML format with 2 major sections;
+         one for the AgileCentral system, one for the Build system (Jenkins?) with
+         identification and connection credentials, policy specifications for
+         determining which jobs are to be processed.
+         for the Service configuration
+"""
+##########################################################################################
+
+import sys
+import re
+import traceback
+import inspect
+
+from bldeif.bldeif_connector_runner import BuildConnectorRunner
+from bldeif.utils.eif_exception     import ConfigurationError, FatalCondition
+
+##########################################################################################
+
+def main(args):
+
+    try:
+        connector_runner = BuildConnectorRunner(args)
+        connector_runner.run()
+    except ConfigurationError, msg:
+        # raising a ConfigurationError will cause an ERROR to be logged
+        sys.stderr.write('ERROR: bldeif_connector detected a fatal configuration error. See log file\n')
+        sys.exit(1)
+    except FatalCondition, msg:
+        # raising the FatalCondition will cause an ERROR to be logged
+        sys.stderr.write('ERROR: bldeif_connector encountered a FATAL condition. See log file\n')
+        sys.exit(2)
+    except Exception, msg:
+        sys.stderr.write('ERROR: bldeif_connector encountered an ERROR condition.\n')
+        # blurt out a formatted stack trace
+        excp_type, excp_value, tb = sys.exc_info()
+        traceback.print_tb(tb)
+        mo = re.search(r"'(?P<ex_name>.+)'", str(excp_type))
+        if mo:
+            excp_type = mo.group('ex_name').replace('exceptions.', '').replace('bldeif.utils.', '')
+        sys.stderr.write('%s: %s\n' % (excp_type, str(excp_value)))
+        sys.exit(3)
+    sys.exit(0)
+
+##########################################################################################
+##########################################################################################
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
