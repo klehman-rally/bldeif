@@ -28,11 +28,11 @@ Bamboo or TFS exists, but they have yet to be written.
 ## Installation
    Clone this repository in a suitable location.
    You must have a working Python 2.7.x available in your environment.
-'''
+```
     git clone https://github.com/klehman-rally/bldeif.git
     cd bldeif
     python setup.py install
-'''
+```
 
 ## Configuration
     Configuration of the bldeif connector is done via a YAML file which should be in the config subdirectory.
@@ -43,9 +43,9 @@ Bamboo or TFS exists, but they have yet to be written.
 ## Operation
 
     Run the connector using the jenaco.py script (or jenaco sym link) and one or more configuration file names.
-...
+```
     jenaco project_x 
-...
+```
 
 ## Troubleshooting
 
@@ -67,10 +67,12 @@ Bamboo or TFS exists, but they have yet to be written.
     This is a reference implementation for Jenkins.  To support a different build systems, you'll need to 
     develop a connection spoke for your build system that can support a call to getRecentBuilds (ref_timestamp).
     That method needs to return a list of Build items, where a Build item has the following attributes:
+```
         job_name
         build number
         result
         timestamp
+```
 
 ## License
 
