@@ -26,8 +26,8 @@ one for Jenkins.   The opportunity to swap out a Jenkins spoke for another build
 Bamboo or TFS exists, but they have yet to be written.
 
 ## Installation
-   Clone this repository in a suitable location.
-   You must have a working Python 2.7.x available in your environment.
+Clone this repository in a suitable location.
+You must have a working Python 2.7.x available in your environment.
 ```
     git clone https://github.com/klehman-rally/bldeif.git
     cd bldeif
@@ -35,38 +35,34 @@ Bamboo or TFS exists, but they have yet to be written.
 ```
 
 ## Configuration
-    Configuration of the bldeif connector is done via a YAML file which should be in the config subdirectory.
-    There is a sample configuration file name `sample.yml` in the config subdir that you can use as a template.
-    Simply copy it to a file with a name reflecting your intended usage or environment, and edit the file
-    substituting with values relevant to your situation.
+Configuration of the bldeif connector is done via a YAML file which should be in the config subdirectory.
+There is a sample configuration file name `sample.yml` in the config subdir that you can use as a template.
+Simply copy it to a file with a name reflecting your intended usage or environment, and edit the file
+substituting with values relevant to your situation.
 
 ## Operation
-
-    Run the connector using the jenaco.py script (or jenaco sym link) and one or more configuration file names.
+Run the connector using the jenaco.py script (or jenaco sym link) and one or more configuration file names.
 ```
     jenaco project_x 
 ```
 
 ## Troubleshooting
-
-    A log is written into the log directory named for the configuration file that is being processed.
-    You can control the extent of logging by specifying the level in the config file.  Under the 'Service' 
-    section, modify the LogLevel setting (valid values are ERROR, WARN, INFO, DEBUG).
-    The log can help you pinpoint problem areas and in some scenarios (typically when logging at DEBUG level)
-    you can see values being used in the processing.
+A log is written into the log directory named for the configuration file that is being processed.
+You can control the extent of logging by specifying the level in the config file.  Under the 'Service' 
+section, modify the LogLevel setting (valid values are ERROR, WARN, INFO, DEBUG).
+The log can help you pinpoint problem areas and in some scenarios (typically when logging at DEBUG level)
+you can see values being used in the processing.
 
 ## Development
-
-    You'll need a Python 2.7.x installed, a valid subscription and credentials to CA Agile Central and 
-    a working Jenkins installation that supports the Jenkins REST API.
+You'll need a Python 2.7.x installed, a valid subscription and credentials to CA Agile Central and 
+a working Jenkins installation that supports the Jenkins REST API.
 
 ## Contributing
 
 ## Extensions
-
-    This is a reference implementation for Jenkins.  To support a different build systems, you'll need to 
-    develop a connection spoke for your build system that can support a call to getRecentBuilds (ref_timestamp).
-    That method needs to return a list of Build items, where a Build item has the following attributes:
+This is a reference implementation for Jenkins.  To support a different build systems, you'll need to 
+develop a connection spoke for your build system that can support a call to getRecentBuilds (ref_timestamp).
+That method needs to return a list of Build items, where a Build item has the following attributes:
 ```
         job_name
         build number
@@ -75,7 +71,6 @@ Bamboo or TFS exists, but they have yet to be written.
 ```
 
 ## License
-
 This code is provided as open source under the terms of the [BSD license](http://opensource.org/licenses/BSD-3-Clause).
 
 
