@@ -39,9 +39,9 @@ JenkinsBuildConnector:
               AgileCentral_Project: Analytics World
 
         Folders:
-            - Abracadabra
-              exlude: barymetrics,preprocessing
-            - Der Splodget
+            - Folder: Abracadabra
+              exclude: barymetrics,preprocessing
+            - Folder: Der Splodget
  
      Service:
         Preview: False

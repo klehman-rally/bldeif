@@ -334,7 +334,15 @@ class JenkinsBuild(object):
         whole, millis    = divmod(self.duration, 1000)
         hours, leftover  = divmod(whole,  3600)
         minutes, secs    = divmod(leftover, 60)
-        self.elapsed     = "%02d:%02d:%02d.%03d" % (hours, minutes, secs, millis)
+        if hours:
+            duration = "%d:%02d:%02d.%03d" % (hours, minutes, secs, millis)
+        else:
+            if minutes >= 10:
+                duration = "%02d:%02d.%03d" % (minutes, secs, millis)
+            else:
+                duration = " %d:%02d.%03d" % (minutes, secs, millis)
+
+        self.elapsed = "%12s" % duration
 
         total = (self.timestamp + self.duration) / 1000
         self.finished    = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(total))

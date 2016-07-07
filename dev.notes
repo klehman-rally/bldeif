@@ -40,19 +40,22 @@
            Project is moribund or has been renamed, the connector will post the Builds
            to be associated with the BuildDefinition with the Name of the Jenkins job.)
 
+      Ability to handle Jenkins instances that have the CloudBees Folders plugin.
+         (in this context a folder is really just a job, that happens to have subsidiary jobs)
+
+         The current way to handle these is to have
+         Folders:
+            - Folder: <name> 
+              # you can settings associated with the above folder, for instance
+              #AgileCentral_Project: <some project name>
+              #exclude: regex1,regex2 etc
+            - Folder: <some other name> 
+
 #---------------------------------------------------------------------------------------------------
 
   What remains to be done?
 
       More industrial sized testing for processing multiple Jenkins Views
-
-      Ability to handle Jenkins instances that have the CloudBees Folders plugin.
-         (in this context a folder is really just a job, that happens to have subsidiary jobs)
-
-         The probable way to handle this is to permit 
-         Folder: <name> type entries in the config file
-
-         As to what is contained in a Folder section though, that's an area for investigation.
 
       Linkage of Builds to Changeset items
          Jenkins provides information about any VCS id/comments and affected files that led to

@@ -175,16 +175,19 @@ class BLDConnector(object):
                                                  recent_bld_builds, 
                                                  bld_ref_time)
             self.log.info("unrecorded Builds count: %d" % len(unrecorded_builds))
-            self.log.info("no more than %d builds will be recorded on this run" % self.max_builds)
+            self.log.info("no more than %d builds per job will be recorded on this run" % self.max_builds)
             
             recorded_builds = OrderedDict()
             added_count = 0
+            builds_posted = {}
             # sort the unrecorded_builds into build chrono order, oldest to most recent, then project and job
             unrecorded_builds.sort(key=lambda build_info: (build_info[1].timestamp, build_info[2], build_info[1]))   
             for job, build, project, view in unrecorded_builds:
-                if added_count == self.max_builds:
-                    break        
-                #desc = '%s %-32.32s # %5.5s | %-8.8s | %s  not yet reflected in Agile Central'
+                if not job in builds_posted:
+                    builds_posted[job] = 0
+                builds_posted[job] += 1
+                if builds_posted[job] > self.max_builds:
+                    continue
                 desc = '%s %s #%s | %s | %s  not yet reflected in Agile Central'
                 cts = time.strftime("%Y-%m-%d %H:%M:%S Z", time.gmtime(build.timestamp/1000.0))
                 self.log.debug(desc % (pm_tag, job, build.number, build.result, cts))
@@ -200,6 +203,7 @@ class BLDConnector(object):
                                     ('Uri',      job_url)
                                    ])
 
+
                 if preview_mode:
                     continue
 
@@ -214,7 +218,6 @@ class BLDConnector(object):
                         if not recorded_builds.has_key(job):
                             recorded_builds[job] = []
                         recorded_builds[job].append(acb)
-                        added_count += 1
                     else:
                         self.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, job))
                 except Exception as msg:

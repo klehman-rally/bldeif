@@ -102,29 +102,33 @@ class AgileCentralConnection(BLDConnection):
        #if https_proxy not in ["", None]:
        #    self.log.info("Proxy for HTTPS targets: %s" % https_proxy)
 ####
-	    
+    
         self.log.info("Connecting to AgileCentral")
         custom_headers = self.get_custom_headers()
 
         try:
-##            before = time.time()
+            before = time.time()
 ##            print("")
 ##            print("before call to pyral.Rally(): %s    using workspace name: %s" % (before, self.workspace_name))
-            self.agicen = Rally(self.server, username=self.username, password=self.password, apikey=self.apikey,
-                                workspace=self.workspace_name,
-                                version=self.rallyWSAPIVersion(),
-                                http_headers=custom_headers,
-                                logger=self.restapi_logger,
-                                warn=False)
-##            after = time.time()
+##            print("   credentials:  username |%s|  password |%s|  apikey |%s|" % (self.username, self.password, self.apikey))
+            if self.apikey and not (self.username and self.password):
+                self.agicen = Rally(self.server,  apikey=self.apikey, workspace=self.workspace_name,
+                                    version=self.rallyWSAPIVersion(), http_headers=custom_headers,
+                                    logger=self.restapi_logger, warn=False, debug=True)
+            else:
+                self.agicen = Rally(self.server,  username=self.username, password=self.password, workspace=self.workspace_name,
+                                    version=self.rallyWSAPIVersion(), http_headers=custom_headers,
+                                    logger=self.restapi_logger, warn=False, debug=True)
+            after = time.time()
 ##            print("after  call to pyral.Rally(): %s" % after)
 ##            print("initial Rally connect elapsed time: %6.3f  seconds" % (after - before))
 ##            sys.stdout.flush()
+##
             if self.restapi_debug:
                 self.agicen.enableLogging('agicen_builds.log')
         except Exception, msg:
             self.log.debug(msg)
-            raise UnrecoverableException("Unable to connect to Agile Central at %s as user %s" % \
+            raise ConfigurationError("Unable to connect to Agile Central at %s as user %s" % \
                                          (self.server, self.username))
         self.log.info("Connected to Agile Central server: %s" % self.server)    
 
@@ -143,6 +147,7 @@ class AgileCentralConnection(BLDConnection):
                       "available for your credentials as user: %s" 
             raise ConfigurationError(problem % (self.workspace_name, self.username))
         self.log.info("    Workspace: %s" % self.workspace_name)
+        self.log.info("    Project  : %s" % self.project_name)
         wksp = self.agicen.getWorkspace()
         self.workspace_ref = wksp.ref
 
@@ -160,13 +165,14 @@ class AgileCentralConnection(BLDConnection):
 ##        print("after  call to agicen get Project: %s" % after)
 ##        print("agicen.get Project  elapsed time: %6.3f  seconds  for  %d Projects" % ((after - before), len(project_names)))
 ##        print("")
+        self.log.info("    %d sub-projects" % len(project_names))
 
         return True
 
 
     def disconnect(self):
         """
-            Just reset our rally instance variable to None
+            Just reset our agicen instance variable to None
         """
         self.agicen = None
 
@@ -183,10 +189,7 @@ class AgileCentralConnection(BLDConnection):
             Obtain all Builds created in Agile Central at or after the ref_time parameter
             (which is a struct_time object)
              in Python, ref_time will be a struct_time item:
-               (tm_year, tm_mon, tm_mday, 
-                tm_hour, tm_min, tm_sec,
-                tm_wday, tm_yday, tm_isdst)
-               )
+               (tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, tm_wday, tm_yday, tm_isdst)
         """
         ref_time_readable = time.strftime("%Y-%m-%d %H:%M:%S Z", ref_time)
         ref_time_iso      = time.strftime("%Y-%m-%dT%H:%M:%SZ",  ref_time)
@@ -198,20 +201,10 @@ class AgileCentralConnection(BLDConnection):
         fetch_fields = "ObjectID,CreationDate,Number,Start,Status,Duration,BuildDefinition,Name," +\
                        "Workspace,Project,Uri,Message,Changesets"
 
-        response = self.agicen.get('Build', 
-                                   #fetch=fetch_fields, 
-                                   fetch=True,
-                                   query=selectors, 
-                                   workspace=self.workspace_name, 
-                                   project=self.project_name,
-                                   projectScopeDown=True,
-                                   order="CreationDate",
-                                   pagesize=200, limit=2000 
-                                  )
         try:
             response = self.agicen.get('Build', 
-                                       #fetch=fetch_fields, 
-                                       fetch=True,
+                                       fetch=fetch_fields, 
+                                      #fetch=True,
                                        query=selectors, 
                                        workspace=self.workspace_name, 
                                        project=self.project_name,
