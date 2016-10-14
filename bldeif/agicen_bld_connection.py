@@ -8,7 +8,7 @@ import string  # for the digits chars
 import urllib  # for the quote function
 
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError
-from connection import BLDConnection
+from bldeif.connection import BLDConnection
 
 from pyral import Rally, rallySettings, RallyRESTAPIError
 
@@ -126,7 +126,7 @@ class AgileCentralConnection(BLDConnection):
 ##
             if self.restapi_debug:
                 self.agicen.enableLogging('agicen_builds.log')
-        except Exception, msg:
+        except Exception as msg:
             self.log.debug(msg)
             raise ConfigurationError("Unable to connect to Agile Central at %s as user %s" % \
                                          (self.server, self.username))
@@ -213,7 +213,7 @@ class AgileCentralConnection(BLDConnection):
                                        pagesize=200, limit=2000 
                                       )
             self._checkForProblems(response)
-        except Exception, msg:
+        except Exception as msg:
             excp_type, excp_value, tb = sys.exc_info()
             mo = re.search(r"'(?P<ex_name>.+)'", str(excp_type))
             if mo:
@@ -371,7 +371,7 @@ class AgileCentralConnection(BLDConnection):
             build = MockBuild(int_work_item)
             #build = self.agicen.create('Build', int_work_item)
             self.log.debug("  Created Build: %s #%s" % (build.BuildDefinition.Name, build.number))
-        except Exception, msg:
+        except Exception as msg:
             excp_type, excp_value, tb = sys.exc_info()
             mo = re.search(r"'(?P<ex_name>.+)'", str(excp_type))
             if mo:

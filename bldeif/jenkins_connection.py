@@ -18,7 +18,7 @@ from bldeif.utils.eif_exception import ConfigurationError, OperationalError
 
 ############################################################################################
 
-__version__ = "0.3.5"
+__version__ = "0.4.0"
 
 ACTION_WORD_PATTERN    = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')

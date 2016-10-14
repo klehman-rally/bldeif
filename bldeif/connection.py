@@ -1,7 +1,9 @@
 
+import re
+
 from collections import OrderedDict
-#from bldeif.utils.ordered_dict    import OrderedDict
-#from bldeif.utils.piya_exceptions import ConfigurationError
+import bldeif.utils.eif_exceptions
+ConfigurationError = bldeif.utils.eif_exceptions.ConfigurationError
 
 #############################################################################################################
 
@@ -51,7 +53,7 @@ class BLDConnection(object):
         """
             abstract, provider should return a non-empty string with name of the specific connector
         """
-        raise NotImplementedError, "A BLDConnection subclass must implement the name method"
+        raise NotImplementedError("A BLDConnection subclass must implement the name method")
 
     #Placeholder to put the version of the connector
     def version(self):
@@ -59,11 +61,11 @@ class BLDConnection(object):
             abstract, provider should return a non-empty string with version 
             identification of the specific connector
         """
-        raise NotImplementedError, "All descendants of the BLDConnection class need to implement version()"
+        raise NotImplementedError("All descendants of the BLDConnection class need to implement version()")
         #Should return a string
 
     def getBackendVersion(self):
-        raise NotImplementedError, "All descendants of the BLDConnection class need to implement getBackendVersion()"
+        raise NotImplementedError("All descendants of the BLDConnection class need to implement getBackendVersion()")
         #Should return a string representing the version of the back-end system the instance of this class is connected to
 
     def connect(self):
@@ -73,7 +75,7 @@ class BLDConnection(object):
             just mean that the target and credentials are adequate to post a request and
             receive a non-error response.
         """
-        raise NotImplementedError, "All descendants of the BLDConnection class need to implement connect()"
+        raise NotImplementedError("All descendants of the BLDConnection class need to implement connect()")
         #Should return True or False
 
     def disconnect(self):
@@ -83,7 +85,7 @@ class BLDConnection(object):
             As many connectors are stateless, the disconnection may be as easy as 
             resetting an instance variable to None
         """
-        raise NotImplementedError, "All descendants of the BLDConnection class need to implement disconnect()"
+        raise NotImplementedError("All descendants of the BLDConnection class need to implement disconnect()")
         #Should return True or False
 
     def fieldExists(self, field_name):
@@ -91,7 +93,7 @@ class BLDConnection(object):
             Return a boolean truth value (True/False) depending on whether the targeted
             field_name exists for the current connection on a Build
         """
-        raise NotImplementedError, "All descendants of the BLDConnection class need to implement fieldExists(field_name)"
+        raise NotImplementedError("All descendants of the BLDConnection class need to implement fieldExists(field_name)")
 
 
     def validate(self):
