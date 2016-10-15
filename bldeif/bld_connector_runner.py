@@ -26,7 +26,7 @@ from bldeif.utils.eif_exception import OperationalError, logAllExceptions
 ############################################################################################################
 
 ARCHITECTURE_ACRONYM = 'eif'
-__version__ = "0.3.2"
+__version__ = "0.4.1"
 
 EXISTENCE_PROCLAMATION = """
 ************************************************************************************************************************
@@ -134,6 +134,8 @@ class BuildConnectorRunner(object):
                 self.log = ActivityLogger(lf_name)
                 logAllExceptions(True, self.log)
                 self._operateService(config_file_path)
+        except Exception as msg:
+            self.log.error(msg)
         finally:
             try:
                 if own_lock: self.releaseLock()
@@ -261,8 +263,8 @@ class BuildConnectorRunner(object):
             config = Konfabulator(config_file, self.log)
         except NonFatalConfigurationError as msg:
             pass # info for this will have already been logged or blurted
-        except:
-            raise
+        except Exception as msg:
+            raise ConfigurationError(msg)
         svc_conf = config.topLevel('Service')
         self.preview = False
         if svc_conf and svc_conf.get('Preview', None) == True:

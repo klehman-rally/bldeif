@@ -28,9 +28,11 @@ class Fuzzer(object):
     def encode(target):
         if not target:
             return target
-        if not type(target) == types.StringType:
+        if not type(target) == str:  # could we ever use something like str(target) or something more elegantgType
             return target
-        chars = [char for char in base64.b64encode(target) if ord(char) != 10]
+        bytes_for_encoding = target.encode('UTF-8', 'ignore')
+        b64_encoded_string = base64.b64encode(bytes_for_encoding).decode('UTF-8')
+        chars = [char for char in b64_encoded_string if ord(char) != 10]
         return '%s%s' % (Fuzzer.ENCODED, Fuzzer.SEPARATOR.join(chars))
     
     fuzz = encode
@@ -92,13 +94,13 @@ class Fuzzer(object):
 
 def test():
     fuzz_target = 'kipster-t@netflix.net'
-    print "fuzz target: |%s|" % fuzz_target
+    print("fuzz target: |%s|" % fuzz_target)
     encoded = Fuzzer.encode(fuzz_target)
-    print "     target   encoded: |%s|" % encoded
+    print("     target   encoded: |%s|" % encoded)
     decoded = Fuzzer.decode(encoded)
-    print "     encoding decoded: |%s|" % decoded
+    print("     encoding decoded: |%s|" % decoded)
     fooled = Fuzzer.isEncoded('encod-e-d-V-2-7-b-G-s-9-M')
-    print "  was i fooled? %s" % fooled
+    print("  was i fooled? %s" % fooled)
 
 ########################################################################################
 ########################################################################################

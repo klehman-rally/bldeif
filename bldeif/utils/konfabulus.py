@@ -48,7 +48,7 @@ class Konfabulator(object):
         content = []
         try:
             cf = open(config_file_name, 'r')
-        except IOError, msg:
+        except IOError as msg:
             raise ConfigurationError('Unable to open %s for reading, %s' % (config_file_name, msg))
         content = cf.read()
         self.content = content
@@ -56,9 +56,9 @@ class Konfabulator(object):
 
         try:
             complete_config = yaml.load(content)
-            top_key = complete_config.keys()[0]
+            top_key = list(complete_config.keys())[0]
             self.config = complete_config[top_key]
-        except Exception, msg:
+        except Exception as msg:
             raise ConfigurationError('Unable to parse %s successfully, %s' % (config_file_name, msg))
 
         conf_lines = [line for line in content.split('\n') if line and not re.search(r'^\s*#', line)]
@@ -98,7 +98,7 @@ class Konfabulator(object):
                     raise ConfigurationError(problem)
                 else:
                     self.top_level_sequence.append(header)
-            except ConfigurationError, msg:
+            except ConfigurationError as msg:
                 pass
 
         # defuzz the passwords if they are fuzzed, and if they are not, fuzz them in the file
@@ -166,8 +166,8 @@ class Konfabulator(object):
         conf_lines = []
         try:
             cf = open(self.config_file_name, 'r')
-        except IOError, msg:
-            raise ConfigurationError('Unable to open %s for reading, %s' % (config_file_name, msg))
+        except IOError as msg:
+            raise ConfigurationError('Unable to open %s for reading, %s' % (self.config_file_name, msg))
         conf_lines = cf.readlines()
         cf.close()
 
@@ -197,25 +197,25 @@ class Konfabulator(object):
         bkup_name = "%s.bak" % self.config_file_name
         try:
             shutil.copy2(self.config_file_name, bkup_name)
-        except Exception, msg:
+        except Exception as msg:
             self.log.warn("Unable to write a temporary backup file '%s' with config info: %s" % (bkup_name, msg))
             return False
 
         try:
             os.remove(self.config_file_name)
-        except Exception, msg:
+        except Exception as msg:
             self.log.warn("Unable to remove config file prior to replacement with password encoded version of the file: %s" % msg)
             return False
 
         try:
             os.rename(enc_file_name, self.config_file_name)
-        except Exception, msg:
+        except Exception as msg:
             self.log.error("Unable to rename config file with password encoded to standard config filename of %s: %s" % (self.config_file_name, msg))
             return False
 
         try:
             os.remove(bkup_name)
-        except Exception, msg:
+        except Exception as msg:
             self.log.warn("Unable to remove temporary backup file for config: %s" % msg)
             return False
 
@@ -230,7 +230,7 @@ class Konfabulator(object):
             self.log.fatal('Configuration does not specify exactly 2 Connections')
             return None, None
 
-        with open(config_file, 'r') as cf:
+        with open(self.config_file, 'r') as cf:
             lines = cf.readlines()
             conn_lines = []
             for line in lines:

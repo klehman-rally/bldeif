@@ -2,8 +2,7 @@
 import re
 
 from collections import OrderedDict
-import bldeif.utils.eif_exceptions
-ConfigurationError = bldeif.utils.eif_exceptions.ConfigurationError
+from bldeif.utils.eif_exception import ConfigurationError
 
 #############################################################################################################
 

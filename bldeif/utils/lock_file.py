@@ -4,7 +4,7 @@ import os
 import time
 import re
 
-from proctbl import ProcTable
+from  bldeif.utils.proctbl import ProcTable
 
 #########################################################################################
 
@@ -62,7 +62,7 @@ class LockFile(object):
         try:
             with open(filename, 'r') as lf:
                 holder = lf.read().strip()
-        except Exception, msg:
+        except Exception as msg:
             raise Exception('Unable to read contents of lock file %s: %s' % \
                                           (filename, msg))
         if not holder:
@@ -70,7 +70,7 @@ class LockFile(object):
         try:
             pid, lock_time = holder.split(' ', 1)
             pid = int(pid)
-        except Exception, msg:
+        except Exception as msg:
             raise Exception("lock file '%s' purported pid '%s' is not an integer value" % (filename, pid))
 
         return holder
@@ -89,7 +89,7 @@ class LockFile(object):
             lf_entry = "%d %s\n" % (pid, timestamp)
             with open(filename, 'w') as lf:
                 lf.write(lf_entry)
-        except Exception, msg:
+        except Exception as msg:
             raise Exception('Unable to create lock file %s: %s' % (filename, msg))
 
     @staticmethod
@@ -101,7 +101,7 @@ class LockFile(object):
             return True
         try:
             os.remove(filename)
-        except Exception, msg:
+        except Exception as msg:
             raise Exception('Unable to remove lock file %s: %s' % (filename, msg))
         return True
 
