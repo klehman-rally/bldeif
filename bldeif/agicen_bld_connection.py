@@ -111,14 +111,10 @@ class AgileCentralConnection(BLDConnection):
 ##            print("")
 ##            print("before call to pyral.Rally(): %s    using workspace name: %s" % (before, self.workspace_name))
 ##            print("   credentials:  username |%s|  password |%s|  apikey |%s|" % (self.username, self.password, self.apikey))
-            if self.apikey and not (self.username and self.password):
-                self.agicen = Rally(self.server,  apikey=self.apikey, workspace=self.workspace_name,
-                                    version=self.rallyWSAPIVersion(), http_headers=custom_headers,
-                                    logger=self.restapi_logger, warn=False, debug=True)
-            else:
-                self.agicen = Rally(self.server,  username=self.username, password=self.password, workspace=self.workspace_name,
-                                    version=self.rallyWSAPIVersion(), http_headers=custom_headers,
-                                    logger=self.restapi_logger, warn=False, debug=True)
+            self.agicen = Rally(self.server, username=self.username, password=self.password, apikey=self.apikey,
+                                workspace=self.workspace_name, project=self.project_name,
+                                version=self.rallyWSAPIVersion(), http_headers=custom_headers,
+                                logger=self.restapi_logger, warn=False, debug=True)
             after = time.time()
 ##            print("after  call to pyral.Rally(): %s" % after)
 ##            print("initial Rally connect elapsed time: %6.3f  seconds" % (after - before))
@@ -181,7 +177,7 @@ class AgileCentralConnection(BLDConnection):
         self.integration_name    = header_info['name']
         self.integration_vendor  = header_info['vendor']
         self.integration_version = header_info['version']
-        if header_info.has_key('other_version'):
+        if 'other_version' in header_info:
             self.integration_other_version = header_info['other_version']
 
     def getRecentBuilds(self, ref_time):
@@ -227,9 +223,9 @@ class AgileCentralConnection(BLDConnection):
         for build in response:
             project    = build.BuildDefinition.Project.Name
             build_name = build.BuildDefinition.Name
-            if not builds.has_key(project):
+            if project not in builds:
                 builds[project] = {}
-            if not builds[project].has_key(build_name):
+            if build_name not in builds[project]:
                 builds[project][build_name] = []
             builds[project][build_name].append(build)
         return builds
@@ -269,7 +265,7 @@ class AgileCentralConnection(BLDConnection):
 ##
             project  = build_defn.Project.Name
             job_name = build_defn.Name
-            if not self.build_def.has_key(project):
+            if not project in self.build_def:
                 self.build_def[project] = {}
             self.build_def[project][job_name] = build_defn
 
@@ -282,7 +278,7 @@ class AgileCentralConnection(BLDConnection):
             Return the ObjectID for the BuildDefinition corresponding to the job (and project)
         """
         # consult the "quick lookup" cache
-        if self.job_bdf.has_key(job):
+        if job in self.job_bdf:
             return self.job_bdf[job]
 
         # do we have a "heavy cache" populated?  If not, do it now...
@@ -293,8 +289,8 @@ class AgileCentralConnection(BLDConnection):
         no_entry = False
         # OK, the job is not in the "quick lookup" cache
         # so look in the "heavy cache" to see if the job exists for the given project
-        if self.build_def.has_key(project):
-            if self.build_def[project].has_key(job):
+        if project in self.build_def:
+            if job in self.build_def[project]:
                 self.job_bdf[job] = self.build_def[project][job] 
                 return self.job_bdf[job]
 

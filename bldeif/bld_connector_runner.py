@@ -198,6 +198,9 @@ class BuildConnectorRunner(object):
         self.log.info("Time File value %s --- Now %s" % (last_run_zulu, now_zulu))
 
         self.connector = BLDConnector(config, self.log)
+        ##
+        self.log.debug("Got a BLDConnector instance, calling the BLDConnector.run ...")
+        ##
         status, builds = self.connector.run(last_run, self.extension)
 
         finished = time.time()

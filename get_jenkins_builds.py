@@ -97,7 +97,7 @@ try:
 except Exception as ex:
     # does ex include the following text?  
     #  Max retries exceeded with url: /manage .* nodename nor servname provided, or not known'
-    print sys.exc_info[0] # or 1 or 2 for the exception text
+    print (sys.exc_info[0]) # or 1 or 2 for the exception text
 
 ref_timestamp = (2016, 3, 1, 0, 0, 0, 5, 0, -1)
 

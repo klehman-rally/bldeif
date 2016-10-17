@@ -57,14 +57,14 @@ def main(args):
     except Exception as ex:
         # does ex include the following text?  
         #  Max retries exceeded with url: /manage .* nodename nor servname provided, or not known'
-        print sys.exc_info()[0] # 0 is the Exception instance
-        print sys.exc_info()[1] # 1 is the Exception text
+        print(sys.exc_info()[0]) # 0 is the Exception instance
+        print(sys.exc_info()[1]) # 1 is the Exception text
 
     ref_timestamp = (2016, 6, 1, 0, 0, 0, 5, 0, -1)
 
-    #top_level_folders = sorted(jenkins.view_folders[u'All'].keys())
+    #top_level_folders = sorted(jenkins.view_folders['All'].keys())
     #for folder_name in top_level_folders:
-    #    folder = jenkins.view_folders[u'All'][folder_name]
+    #    folder = jenkins.view_folders['All'][folder_name]
     #    print(folder.info())
 
     builds = jenkins.getRecentBuilds(ref_timestamp)

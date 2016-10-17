@@ -280,10 +280,10 @@ class BLDConnector(object):
             for job, builds in jobs.items():
                 for build in builds:
                     # look first for a matching project key in agicen_builds
-                    if agicen_builds.has_key(project):
+                    if project in agicen_builds:
                         job_builds = agicen_builds[project]
                         # now look for a matching job in job_builds
-                        if job_builds.has_key(job):
+                        if job in job_builds:
                             ac_build_nums = [int(bld.Number) for bld in job_builds[job]]
                             if build.number in ac_build_nums:
                                 reflected_builds.append((job, build, project, view))
