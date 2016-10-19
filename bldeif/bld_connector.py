@@ -75,6 +75,7 @@ class BLDConnector(object):
     def internalizeConfig(self, config):
         self.agicen_conf = config.topLevel('AgileCentral')
         self.bld_conf    = config.topLevel(self.bld_name)
+        self.agicen_conf['Project'] = self.bld_conf['AgileCentral_DefaultBuildProject']
         self.svc_conf    = config.topLevel('Service')
 
         self.strict_project = self.svc_conf.get('StrictProject', False)
@@ -170,10 +171,9 @@ class BLDConnector(object):
             agicen_ref_time, bld_ref_time = self.getRefTimes(last_run)
             recent_agicen_builds = agicen.getRecentBuilds(agicen_ref_time)
             recent_bld_builds    =    bld.getRecentBuilds(bld_ref_time)
-            unrecorded_builds \
-                = self._identifyUnrecordedBuilds(recent_agicen_builds, 
-                                                 recent_bld_builds, 
-                                                 bld_ref_time)
+            unrecorded_builds    = self._identifyUnrecordedBuilds(recent_agicen_builds,
+                                                                  recent_bld_builds,
+                                                                  bld_ref_time)
             self.log.info("unrecorded Builds count: %d" % len(unrecorded_builds))
             self.log.info("no more than %d builds per job will be recorded on this run" % self.max_builds)
             
@@ -203,16 +203,12 @@ class BLDConnector(object):
                                     ('Uri',      job_url)
                                    ])
 
-
                 if preview_mode:
                     continue
 
-##
-                build_defn = agicen.ensureBuildDefinitionExistence(job, project, self.strict_project, job_uri)
                 try:
-##
-                    #build_defn = agicen.ensureBuildDefinitionExistence(job, project, self.strict_project, job_uri)
-                    if not agicen.buildExists(job, build_defn, build.number):
+                    build_defn = agicen.ensureBuildDefinitionExistence(job, project, self.strict_project, job_uri)
+                    if not agicen.buildExists(build_defn, build.number):
                         info['BuildDefinition'] = build_defn
                         acb = agicen_build = agicen.createBuild(info)
                         if not recorded_builds.has_key(job):

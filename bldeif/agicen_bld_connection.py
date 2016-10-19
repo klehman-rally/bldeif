@@ -63,7 +63,8 @@ class AgileCentralConnection(BLDConnection):
         return "Rally WSAPI %s" % self.rallyWSAPIVersion()
 
     def internalizeConfig(self, config):
-        super(AgileCentralConnection, self).internalizeConfig(config)
+        #super(AgileCentralConnection, self).internalizeConfig(config)
+        super().internalizeConfig(config)
 
         server = config.get('Server', False)
         if not server:
@@ -76,7 +77,7 @@ class AgileCentralConnection(BLDConnection):
 
         self.apikey          = config.get("APIKey", config.get("API_Key", None))
         self.workspace_name  = config.get("Workspace", None)
-        self.project_name    = config.get("DefaultProject",   None)
+        self.project_name    = config.get("Project",   None)
         self.restapi_debug   = config.get("Debug", False)
         self.restapi_logger  = self.log
         #self.restapi_logger = self.log if self.restapi_debug else None
@@ -145,7 +146,9 @@ class AgileCentralConnection(BLDConnection):
         self.log.info("    Workspace: %s" % self.workspace_name)
         self.log.info("    Project  : %s" % self.project_name)
         wksp = self.agicen.getWorkspace()
+        prjt  = self.agicen.getProject()
         self.workspace_ref = wksp.ref
+        self.project_ref   = prjt.ref
 
         # find all of the Projects under the AgileCentral_Project
 ##        before = time.time()
@@ -155,6 +158,8 @@ class AgileCentralConnection(BLDConnection):
                                    project=self.project_name,
                                    projectScopeDown=True,
                                    pagesize=200)
+        if response.errors or response.resultCount == 0:
+            raise ConfigurationError('Unable to locate a Project with the name: %s in the target Workspace' % self.project_name)
 
         project_names = [proj.Name for proj in response]
 ##        after = time.time()
@@ -251,10 +256,11 @@ class AgileCentralConnection(BLDConnection):
                                   query='Name != "Default Build Definition"',
                                   #workspace=self.workspace_ref, 
                                   workspace=self.workspace_name, 
-                                  project=None, 
+                                  #project=None,
+                                  project=self.project_name,
                                   projectScopeUp=False, projectScopeDown=True, 
-                                   order='Project.Name,Name')
-        
+                                  order='Project.Name,Name')
+
         if response.errors:
             raise OperationalError(str(response.errors))
 
@@ -270,7 +276,7 @@ class AgileCentralConnection(BLDConnection):
             self.build_def[project][job_name] = build_defn
 
 
-    def ensureBuildDefinitionExistence(self, job, project, strict_project):
+    def ensureBuildDefinitionExistence(self, job, project, strict_project, job_uri):
         """
             use the self.build_def dict keyed by project at first level, job name at second level
             to determine if the job has a BuildDefinition for it.
@@ -316,18 +322,21 @@ class AgileCentralConnection(BLDConnection):
         # At this point we haven't found a match for the job in the "heavy cache".
         # So, create a BuildDefinition for the job with the given project
         bdf_info = {'Workspace' : self.workspace_ref,
-                    'Project'   : project,  # or self.agicen.get('Project', fetch='Name', query='Name = "%s"' % project)
+                    'Project'   : self.project_ref,
                     'Name'      : job,
                     #'Description' : ".......",
+                    'Uri'       : job_uri
                     #'Uri'      : maybe something like {base_url}/job/{job} where base_url comes from other spoke conn
                    }
         try:
-           #build_defn = self.agicen.create('BuildDefinition', bdf_info)
             print("Would be creating a BuildDefinition for job '%s' in Project '%s' ..." % (job, project))
-            build_defn = "builddefinition/#12345-9876"
+            build_defn = self.agicen.create('BuildDefinition', bdf_info)
+            print("hello")
         except Exception as msg:
             raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))        
         # Put the freshly minted BuildDefinition in the "heavy" and "quick lookup" cache and return it
+        if project not in self.build_def:
+            self.build_def[project] = {}
         self.build_def[project][job] = build_defn
         self.job_bdf = build_defn
         return build_defn
@@ -349,7 +358,7 @@ class AgileCentralConnection(BLDConnection):
         # Uri is link to the originating build system job number page
 
         int_work_item['Workspace']       = self.workspace_ref 
-        #int_work_item['BuildDefinition'] = self.build_definition_ref
+        int_work_item['BuildDefinition'] = int_work_item['BuildDefinition'].ref
 
         return int_work_item
 
@@ -361,11 +370,11 @@ class AgileCentralConnection(BLDConnection):
         base_uri = base_uri[:-1] if base_uri and base_uri.endswith('/') else base_uri
 
         # then reassign int_work_item['Uri'] with the base_uri and the leading chunk of int_work_item['Revision']
-        int_work_item['Uri'] = '%s/rev/%s' % (base_uri, int_work_item['Revision'][:16])
+        #int_work_item['Uri'] = '%s/rev/%s' % (base_uri, int_work_item['Revision'][:16])  # we will look at it later - we need uri for tracibility
 
         try:
-            build = MockBuild(int_work_item)
-            #build = self.agicen.create('Build', int_work_item)
+            #build = MockBuild(int_work_item)
+            build = self.agicen.create('Build', int_work_item)
             self.log.debug("  Created Build: %s #%s" % (build.BuildDefinition.Name, build.number))
         except Exception as msg:
             excp_type, excp_value, tb = sys.exc_info()

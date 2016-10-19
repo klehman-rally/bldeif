@@ -25,6 +25,7 @@ config_chunk = """
 
         AgileCentral_Workspace: Rally
         AgileCentral_Project: Engineering
+        AgileCentralDefaultBuildProject: Engineering
 
        #Views:
             #- View: WRK EIF
@@ -81,8 +82,8 @@ alt_chunk = """
         LogLevel: DEBUG
 """
 
-#conf = yaml.load(config_chunk)
-conf = yaml.load(alt_chunk)
+conf = yaml.load(config_chunk)
+#conf = yaml.load(alt_chunk)
 jenkconf = conf['Jenkins']
 
 #pprint(jenkconf)

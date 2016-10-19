@@ -77,8 +77,8 @@ class JenkinsConnection(BLDConnection):
         self.api_token        = config.get("API_Token", '')
         self.debug            = config.get("Debug",     False)
         self.max_items        = config.get("MaxItems",  1000)
-        self.ac_workspace     = config.get("AgileCentral_Workspace", None)
-        self.ac_project       = config.get("AgileCentral_Project",   None)
+        #self.ac_workspace     = config.get("AgileCentral_Workspace", None)
+        self.ac_project       = config.get("AgileCentral_DefaultBuildProject", None)
         self.views            = config.get("Views",   [])
         self.jobs             = config.get("Jobs",    [])
         self.folders          = config.get("Folders", [])
@@ -207,7 +207,7 @@ class JenkinsConnection(BLDConnection):
            #print "folder_conf: %s" % repr(folder_conf)
             folder_display_name = folder_conf['Folder']
            #print("config item for folder display name: %s --> %s" % (folder_display_name, repr(folder_conf)))
-            ac_project = folder_conf.get('AgileCentral_Project', self.ac_project)
+            ac_project = folder_conf.get('AgileCentral_BuildProject', self.ac_project)
            #print "  AgileCentral_Project: %s" % ac_project
 
             fits = [(dn, f) for dn, f in self.view_folders['All'].items() if str(dn) == folder_display_name]
@@ -238,7 +238,7 @@ class JenkinsConnection(BLDConnection):
 
         for view in self.views:
             view_name = view['View']
-            ac_project = view.get('AgileCentral_Project', 'DefaultProject')
+            ac_project = view.get('AgileCentral_BuildProject', self.ac_project)  #'DefaultProject' ?
             #print(view_name)
             #print("view info: %s" % repr(view))
             key = '%s::%s' % (view_name, ac_project)
@@ -250,7 +250,7 @@ class JenkinsConnection(BLDConnection):
 
         for job in self.jobs:
             job_name = job['Job']
-            ac_project = job.get('AgileCentral_Project', 'DefaultProject')
+            ac_project = job.get('AgileCentral_BuildProject', self.ac_project)
             key = 'All::%s' % ac_project
             if key not in builds:
                 builds[key] = {}
