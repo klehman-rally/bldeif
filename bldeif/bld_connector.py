@@ -185,39 +185,66 @@ class BLDConnector(object):
             for job, build, project, view in unrecorded_builds:
                 if not job in builds_posted:
                     builds_posted[job] = 0
-                builds_posted[job] += 1
+                #builds_posted[job] += 1
                 if builds_posted[job] > self.max_builds:
                     continue
+                builds_posted[job] += 1
                 desc = '%s %s #%s | %s | %s  not yet reflected in Agile Central'
                 cts = time.strftime("%Y-%m-%d %H:%M:%S Z", time.gmtime(build.timestamp/1000.0))
                 self.log.debug(desc % (pm_tag, job, build.number, build.result, cts))
                 job_uri = bld.constructJobUri(job)
                 job_url = bld.constructJobBuildUrl(job, build.number)
                 start_time = datetime.utcfromtimestamp(build.timestamp / 1000.0).strftime('%Y-%m-%dT%H:%M:%SZ')
-                info = OrderedDict([
-                                    ('Name',     job),
-                                    ('Number',   build.number),
-                                    ('Status',   str(build.result)),
-                                    ('Start',    start_time),
-                                    ('Duration', build.duration / 1000.0),
-                                    ('Uri',      job_url)
-                                   ])
+                build_data = [ ('Number', build.number), ('Status', str(build.result)), ('Start', start_time), ('Duration', build.duration / 1000.0), ('Uri', job_url) ]
+                info = OrderedDict(build_data)
 
                 if preview_mode:
                     continue
 
                 try:
                     build_defn = agicen.ensureBuildDefinitionExistence(job, project, self.strict_project, job_uri)
+                except Exception as msg:
+                    print ("U-u-uge problem #1")
+                    raise OperationalError(msg)
+                try:
+                    be = agicen.buildExists(build_defn, build.number)
+                except Exception as msg:
+                    print ("U-u-uge problem #2")
+                    raise OperationalError(msg)
+                if be:
+                    self.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, job))
+                    continue
+
+                try:
+                    info['BuildDefinition'] = build_defn
+                    acb = agicen_build = agicen.createBuild(info)
+                except Exception as msg:
+                    print ("U-u-uge problem #3")
+                    raise OperationalError(msg)
+                try:
+                    if job not in recorded_builds:
+                        recorded_builds[job] = []
+                    recorded_builds[job].append(acb)
+                except Exception as msg:
+                    print ("U-u-uge problem #42")
+                    raise OperationalError(msg)
+
+
+                """
+                try:
+                    build_defn = agicen.ensureBuildDefinitionExistence(job, project, self.strict_project, job_uri)
                     if not agicen.buildExists(build_defn, build.number):
                         info['BuildDefinition'] = build_defn
                         acb = agicen_build = agicen.createBuild(info)
-                        if not recorded_builds.has_key(job):
+                        if job not in recorded_builds:
                             recorded_builds[job] = []
                         recorded_builds[job].append(acb)
                     else:
                         self.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, job))
                 except Exception as msg:
                     raise OperationalError(msg)
+                """
+
             status = True
         except OperationalError:
             # already resulted in a log message

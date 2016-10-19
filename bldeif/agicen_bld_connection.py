@@ -281,7 +281,7 @@ class AgileCentralConnection(BLDConnection):
             use the self.build_def dict keyed by project at first level, job name at second level
             to determine if the job has a BuildDefinition for it.
 
-            Return the ObjectID for the BuildDefinition corresponding to the job (and project)
+            Returns a pyral BuildDefinition instance corresponding to the job (and project)
         """
         # consult the "quick lookup" cache
         if job in self.job_bdf:
@@ -306,37 +306,49 @@ class AgileCentralConnection(BLDConnection):
         # if strict_project == False, then if the job exists in the "heavy cache" for some project (not the project parm)
         # then we'd grab the BuildDefinition ObjectID that exists in the "heavy cache" for the 
         # other project and this job name,  and stick it in the "quick lookup" cache
-        if not strict_project:
+        if strict_project == False:
             # and we find a job name match in the "heavy cache", use it and update the "quick lookup" cache, and return
             hits = []
-            for proj in self.build_def.keys():
-                for job_name in self.build_def[proj]:
-                    if job_name == job:
-                        hits.append(self.build_def[proj][job_name])
-            if hits: # there could be multiple, so we'll take the one having the most recent build
-                hits.sort(key=lambda build_defn: build_defn.LastBuild)
-                build_defn = hits[-1] # this will be the BuildDefinition with the most recent build
-                self.job_bdf[job] = build_defn
-                return build_defn
+            try:
+                for proj in self.build_def.keys():
+                    for job_name in self.build_def[proj]:
+                        if job_name == job:
+                            hits.append(self.build_def[proj][job_name])
+                if hits: # there could be multiple, so we'll take the one having the most recent build
+                    hits.sort(key=lambda build_defn: build_defn.LastBuild)
+            except Exception as msg:
+                print ("U-u-uge problem #6")
+                raise OperationalError(msg)
+            try:
+                if hits:
+                    build_defn = hits[-1] # this will be the BuildDefinition with the most recent build
+                    self.job_bdf[job] = build_defn
+                    return build_defn
+            except Exception as msg:
+                print("U-u-uge problem #7")
+                raise OperationalError(msg)
 
         # At this point we haven't found a match for the job in the "heavy cache".
         # So, create a BuildDefinition for the job with the given project
         bdf_info = {'Workspace' : self.workspace_ref,
                     'Project'   : self.project_ref,
                     'Name'      : job,
-                    #'Description' : ".......",
                     'Uri'       : job_uri
                     #'Uri'      : maybe something like {base_url}/job/{job} where base_url comes from other spoke conn
                    }
         try:
             print("Would be creating a BuildDefinition for job '%s' in Project '%s' ..." % (job, project))
             build_defn = self.agicen.create('BuildDefinition', bdf_info)
-            print("hello")
         except Exception as msg:
+            print("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
             raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))        
         # Put the freshly minted BuildDefinition in the "heavy" and "quick lookup" cache and return it
-        if project not in self.build_def:
-            self.build_def[project] = {}
+        try:
+            if project not in self.build_def:
+                self.build_def[project] = {}
+        except Exception as msg:
+            print('Way bad iter problem?  %s' % msg)
+
         self.build_def[project][job] = build_defn
         self.job_bdf = build_defn
         return build_defn
@@ -369,14 +381,11 @@ class AgileCentralConnection(BLDConnection):
         base_uri = int_work_item['Uri']
         base_uri = base_uri[:-1] if base_uri and base_uri.endswith('/') else base_uri
 
-        # then reassign int_work_item['Uri'] with the base_uri and the leading chunk of int_work_item['Revision']
-        #int_work_item['Uri'] = '%s/rev/%s' % (base_uri, int_work_item['Revision'][:16])  # we will look at it later - we need uri for tracibility
-
         try:
-            #build = MockBuild(int_work_item)
             build = self.agicen.create('Build', int_work_item)
-            self.log.debug("  Created Build: %s #%s" % (build.BuildDefinition.Name, build.number))
+            self.log.debug("  Created Build: %s #%s" % (build.BuildDefinition.Name, build.Number))
         except Exception as msg:
+            print("abc._createInternal detected an Exception, {0}".format(sys.exc_info()[1]))
             excp_type, excp_value, tb = sys.exc_info()
             mo = re.search(r"'(?P<ex_name>.+)'", str(excp_type))
             if mo:
@@ -387,19 +396,24 @@ class AgileCentralConnection(BLDConnection):
         return build
 
 
-    def buildExists(self, build_name, number):
+    # def buildExists(self, build_name, number):
+    #     """
+    #         Issue a query against Build to obtain the Build identified by build_name and number.
+    #         Return a boolean indication of whether such an item exists.
+    #     """
+    #     criteria = ['BuildDefinition.Name = %s' % build_name, 'Number = %s' % number ]
+    #     response = self.agicen.get('Build', fetch="CreationDate,Number,Name,BuildDefinition",  query=criteria,
+    #                                         workspace=self.workspace_name,  project=self.project_name, projectScopeDown=True)
+    #     return response.status_code == 200 and response.resultCount > 0
+
+
+    def buildExists(self, build_defn, number):
         """
-            Issue a query against Build to obtain the Build identified by build_name and number.
+            Issue a query against Build to obtain the Build identified by build_defn.Name and number.
             Return a boolean indication of whether such an item exists.
         """
-        criteria = ['BuildDefinition.Name = %s' % build_name,
-                    'Number = %s' % number
-                   ]
-        response = self.agicen.get('Build', fetch="CreationDate,Number,Name,BuildDefinition", 
-                                            query=criteria,
-                                            workspace=self.workspace_name, 
-                                            project=self.project_name,
-                                            projectScopeDown=True) 
+        criteria = ['BuildDefinition.Name = %s' % build_defn.Name, 'Number = %s' % number]
+        response = self.agicen.get('Build', fetch="CreationDate,Number,Name,BuildDefinition", query=criteria,
+                                            workspace=self.workspace_name, project=self.project_name, projectScopeDown=True)
         return response.status_code == 200 and response.resultCount > 0
-
 
