@@ -81,8 +81,8 @@ class TimeFile(object):
         """
         if not timehack:
             timehack = time.time()
-        if type(timehack) in [types.StringType, types.UnicodeType] and timehack.count('-') > 0:
-            timehack = str(timehack).replace('T', ' ')[:19] + " Z"
+        if type(timehack) == str and timehack.count('-') > 0:
+            timehack = timehack.replace('T', ' ')[:19] + " Z"
         else:
             timehack = time.strftime(STD_TS_FORMAT, time.gmtime(timehack))
         with open(self.filename, "w") as f:

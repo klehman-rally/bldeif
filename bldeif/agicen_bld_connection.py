@@ -306,6 +306,7 @@ class AgileCentralConnection(BLDConnection):
         # if strict_project == False, then if the job exists in the "heavy cache" for some project (not the project parm)
         # then we'd grab the BuildDefinition ObjectID that exists in the "heavy cache" for the 
         # other project and this job name,  and stick it in the "quick lookup" cache
+        """
         if strict_project == False:
             # and we find a job name match in the "heavy cache", use it and update the "quick lookup" cache, and return
             hits = []
@@ -319,14 +320,12 @@ class AgileCentralConnection(BLDConnection):
             except Exception as msg:
                 print ("U-u-uge problem #6")
                 raise OperationalError(msg)
-            try:
-                if hits:
-                    build_defn = hits[-1] # this will be the BuildDefinition with the most recent build
-                    self.job_bdf[job] = build_defn
-                    return build_defn
-            except Exception as msg:
-                print("U-u-uge problem #7")
-                raise OperationalError(msg)
+
+            if hits:
+                build_defn = hits[-1] # this will be the BuildDefinition with the most recent build
+                self.job_bdf[job] = build_defn
+                return build_defn
+        """
 
         # At this point we haven't found a match for the job in the "heavy cache".
         # So, create a BuildDefinition for the job with the given project
@@ -337,10 +336,10 @@ class AgileCentralConnection(BLDConnection):
                     #'Uri'      : maybe something like {base_url}/job/{job} where base_url comes from other spoke conn
                    }
         try:
-            print("Would be creating a BuildDefinition for job '%s' in Project '%s' ..." % (job, project))
+            self.log.debug("Would be creating a BuildDefinition for job '%s' in Project '%s' ..." % (job, project))
             build_defn = self.agicen.create('BuildDefinition', bdf_info)
         except Exception as msg:
-            print("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
+            self.log.error("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
             raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))        
         # Put the freshly minted BuildDefinition in the "heavy" and "quick lookup" cache and return it
         try:
@@ -350,7 +349,7 @@ class AgileCentralConnection(BLDConnection):
             print('Way bad iter problem?  %s' % msg)
 
         self.build_def[project][job] = build_defn
-        self.job_bdf = build_defn
+        self.job_bdf[job] = build_defn
         return build_defn
 
 
@@ -383,7 +382,7 @@ class AgileCentralConnection(BLDConnection):
 
         try:
             build = self.agicen.create('Build', int_work_item)
-            self.log.debug("  Created Build: %s #%s" % (build.BuildDefinition.Name, build.Number))
+            self.log.debug("  Created Build: %-26.26s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
         except Exception as msg:
             print("abc._createInternal detected an Exception, {0}".format(sys.exc_info()[1]))
             excp_type, excp_value, tb = sys.exc_info()
@@ -394,17 +393,6 @@ class AgileCentralConnection(BLDConnection):
             raise OperationalError(msg)
 
         return build
-
-
-    # def buildExists(self, build_name, number):
-    #     """
-    #         Issue a query against Build to obtain the Build identified by build_name and number.
-    #         Return a boolean indication of whether such an item exists.
-    #     """
-    #     criteria = ['BuildDefinition.Name = %s' % build_name, 'Number = %s' % number ]
-    #     response = self.agicen.get('Build', fetch="CreationDate,Number,Name,BuildDefinition",  query=criteria,
-    #                                         workspace=self.workspace_name,  project=self.project_name, projectScopeDown=True)
-    #     return response.status_code == 200 and response.resultCount > 0
 
 
     def buildExists(self, build_defn, number):

@@ -221,9 +221,10 @@ class BuildConnectorRunner(object):
             return
 
         # we've added builds successfully, so update the Time File (config/<config>_time.file)
-        last_job_name = [k for k,v in builds.items()][-1]  #builds is an OrderedDict, so the last job name is the last key added
-        last_job = builds[last_job_name][-1] # builds[last_job_name] is a list, take the last one
-        last_build_timestamp = str(last_job.Start).replace('T', ' ')[:19]
+        #last_job_name = [k for k,v in builds.items()][-1]  #builds is an OrderedDict, so the last job name is the last key added
+        #last_job = builds[last_job_name][-1] # builds[last_job_name] is a list, take the last one
+        #last_build_timestamp = last_job.Start.replace('T', ' ')[:19]
+        last_build_timestamp = min([v[-1].Start for k,v in builds.items()]).replace('T', ' ')[:19]
         self.time_file.write(last_build_timestamp) 
         self.log.info("time file written with value of %s Z" % last_build_timestamp)
 
@@ -247,7 +248,7 @@ class BuildConnectorRunner(object):
         """
         for build in builds:
             preview_reminder = "(Preview Mode)" if self.preview else ""
-            factoid = "%d builds posted for job %s" % (len(builds[build]), build)
+            factoid = "%3d builds posted for job %s" % (len(builds[build]), build)
             self.log.info("%s: %s %s" % (config_name, factoid, preview_reminder))
         hours, rem = divmod(elapsed, 3600)
         mins, secs = divmod(rem, 60)
