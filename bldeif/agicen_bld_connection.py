@@ -82,6 +82,26 @@ class AgileCentralConnection(BLDConnection):
         self.restapi_logger  = self.log
         #self.restapi_logger = self.log if self.restapi_debug else None
 
+    def validate(self):
+        satisfactory = True
+
+        if self.username_required:
+            if not self.username and not self.apikey:
+                self.log.error("<Username> is required in the config file")
+                satisfactory = False
+            else:
+                self.log.debug(
+                    '%s - user entry "%s" detected in config file' % (self.__class__.__name__, self.username))
+
+        if self.password_required:
+            if not self.password and not self.apikey:
+                self.log.error("<Password> is required in the config file")
+                satisfactory = False
+            else:
+                self.log.debug('%s - password entry detected in config file' % self.__class__.__name__)
+
+        return satisfactory
+
     def setSourceIdentification(self, other_name, other_version):
         self.other_name = other_name
         self.integration_other_version  = other_version
@@ -336,7 +356,7 @@ class AgileCentralConnection(BLDConnection):
                     #'Uri'      : maybe something like {base_url}/job/{job} where base_url comes from other spoke conn
                    }
         try:
-            self.log.debug("Would be creating a BuildDefinition for job '%s' in Project '%s' ..." % (job, project))
+            self.log.debug("Creating a BuildDefinition for job '%s' in Project '%s' ..." % (job, project))
             build_defn = self.agicen.create('BuildDefinition', bdf_info)
         except Exception as msg:
             self.log.error("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
@@ -382,7 +402,7 @@ class AgileCentralConnection(BLDConnection):
 
         try:
             build = self.agicen.create('Build', int_work_item)
-            self.log.debug("  Created Build: %-26.26s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
+            self.log.debug("  Created Build: %-36.36s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
         except Exception as msg:
             print("abc._createInternal detected an Exception, {0}".format(sys.exc_info()[1]))
             excp_type, excp_value, tb = sys.exc_info()

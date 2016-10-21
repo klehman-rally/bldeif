@@ -103,11 +103,11 @@ class JenkinsConnection(BLDConnection):
         jenkins_info = response.json()
 
         self.all_views = [str(view['name']) for view in jenkins_info['views']]
-        for view in self.all_views:
-            self.log.debug("View: {0}".format(view))
+        #for view in self.all_views:
+         #   self.log.debug("View: {0}".format(view))
         self.all_jobs  = [str( job['name']) for job  in jenkins_info['jobs']]
-        for job in self.all_jobs:
-            self.log.debug("Job: {0}".format(job))
+        #for job in self.all_jobs:
+        #    self.log.debug("Job: {0}".format(job))
         self.primary_view = jenkins_info['primaryView']['name']
 
         self.view_folders['All'] = self.getViewFolders('All')
@@ -140,6 +140,7 @@ class JenkinsConnection(BLDConnection):
         
         urlovals = {'prefix' : self.base_url, 'view' : urllib.parse.quote(view['View'])}
         view_jobs_url = VIEW_JOBS_URL.format(**urlovals)
+        #self.log.debug("view: %s  req_url: %s" % (view, view_jobs_url))
         response = requests.get(view_jobs_url)
         jenk_jobs = response.json()
         jobs = [str(job['name']) for job in jenk_jobs.get('jobs', None)]
@@ -171,17 +172,18 @@ class JenkinsConnection(BLDConnection):
 
         urlovals = {'prefix' : self.base_url, 'view' : quote(view)}
         view_job_folders_url = VIEW_FOLDERS_URL.format(**urlovals)
+        #self.log.debug("view: %s  req_url: %s" % (view, view_job_folders_url))
         response = requests.get(view_job_folders_url)
         jenk_stuff = response.json()
         jenk_jobs = [job for job in jenk_stuff.get('jobs', None)]
         view_folders = {}
-        self.log.debug('Folders:')
+        #self.log.debug('Folders:')
         for job in jenk_jobs:
             if not 'jobs' in job:
                 continue
             jenkins_folder = JenkinsJobsFolder(job['displayName'], job['name'], job['url'], job['jobs'])
             view_folders[jenkins_folder.displayName] = jenkins_folder
-            self.log.debug(jenkins_folder)
+            #self.log.debug(jenkins_folder)
         return view_folders
 
 
@@ -207,7 +209,7 @@ class JenkinsConnection(BLDConnection):
            #print "folder_conf: %s" % repr(folder_conf)
             folder_display_name = folder_conf['Folder']
            #print("config item for folder display name: %s --> %s" % (folder_display_name, repr(folder_conf)))
-            ac_project = folder_conf.get('AgileCentral_BuildProject', self.ac_project)
+            ac_project = folder_conf.get('AgileCentral_Project', self.ac_project)
            #print "  AgileCentral_Project: %s" % ac_project
 
             fits = [(dn, f) for dn, f in self.view_folders['All'].items() if str(dn) == folder_display_name]
@@ -238,7 +240,7 @@ class JenkinsConnection(BLDConnection):
 
         for view in self.views:
             view_name = view['View']
-            ac_project = view.get('AgileCentral_BuildProject', self.ac_project)  #'DefaultProject' ?
+            ac_project = view.get('AgileCentral_Project', self.ac_project)  #'DefaultProject' ?
             #print(view_name)
             #print("view info: %s" % repr(view))
             key = '%s::%s' % (view_name, ac_project)
@@ -250,13 +252,12 @@ class JenkinsConnection(BLDConnection):
 
         for job in self.jobs:
             job_name = job['Job']
-            ac_project = job.get('AgileCentral_BuildProject', self.ac_project)
+            ac_project = job.get('AgileCentral_Project', self.ac_project)
             key = 'All::%s' % ac_project
             if key not in builds:
                 builds[key] = {}
             builds[key][job_name] = self.getBuildHistory('All', job_name, ref_time)
             recent_builds_count += len(builds[key][job_name])
-
 
         log_msg = "recently added Jenkins Builds detected: %s"
         self.log.info(log_msg % recent_builds_count)
@@ -273,6 +274,7 @@ class JenkinsConnection(BLDConnection):
 
         urlovals = {'prefix' : self.base_url, 'view' : quote(view), 'job' : quote(job)}
         job_builds_url = JOB_BUILDS_URL.format(**urlovals)
+        #self.log.debug("view: %s  job: %s  req_url: %s" % (view, job, job_builds_url))
         response = requests.get(job_builds_url)
         result = response.json()
         raw_builds = result['builds']
@@ -280,23 +282,29 @@ class JenkinsConnection(BLDConnection):
         for brec in raw_builds:
             build = JenkinsBuild(job, brec)
             # only take those builds >= ref_time
-            if build.id_as_ts < ref_time:
+            build_started_time = time.gmtime(time.mktime(build.id_as_ts))
+            if build_started_time < ref_time:
                 break
             builds.append(build)
         return builds[::-1]
 
     def getFolderJobBuildHistory(self, folder_name, job, ref_time):
-        builds = []
+
         job_name = job['displayName']
         folder_job_builds_url = job['url'] + ('api/json?tree=builds[%s]' % FOLDER_JOB_BUILD_ATTRS)
        #print("    %s" % folder_job_builds_url)
+        self.log.debug("folder: %s  job: %s  req_url: %s" % (folder_name, job_name, folder_job_builds_url))
         response   = requests.get(folder_job_builds_url)
         result     = response.json()
-        for brec in result['builds']:
+        raw_builds = result['builds']
+        builds = []
+        for brec in raw_builds:
             #print(brec)
-            build = JenkinsBuild(job_name, brec)
+            build = JenkinsBuild(job_name, brec, job_folder=folder_name)
             # only take those builds >= ref_time
             build_utc_time_tuple = tuple(time.gmtime(int(str(build.timestamp)[:-3])))
+            # can we use this instead of the tuple?
+            # build_started_time = time.gmtime(time.mktime(build.id_as_ts))
             if build_utc_time_tuple < ref_time:
                 break
             builds.append(build)
@@ -311,7 +319,7 @@ class JenkinsConnection(BLDConnection):
 ##############################################################################################
 
 class JenkinsBuild(object):
-    def __init__(self, name, raw):
+    def __init__(self, name, raw, job_folder=None):
         """
         """
         self.name        = name

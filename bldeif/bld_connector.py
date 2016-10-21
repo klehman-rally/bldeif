@@ -182,6 +182,10 @@ class BLDConnector(object):
         # sort the unrecorded_builds into build chrono order, oldest to most recent, then project and job
         unrecorded_builds.sort(key=lambda build_info: (build_info[1].timestamp, build_info[2], build_info[1]))
         for job, build, project, view in unrecorded_builds:
+            if build.result == 'None':
+                #stragglers.append(build)
+                self.log.warn("%s #%s job/build was not processed because is still running" %(job, build.number))
+                continue
             #self.log.debug("current job: %s  build: %s" % (job, build))
             if not job in builds_posted:
                 builds_posted[job] = 0
@@ -226,8 +230,7 @@ class BLDConnector(object):
         agicen_lookback = self.agicen_conn.lookback
         bld_lookback    = self.bld_conn.lookback 
         agicen_ref_time = time.gmtime(last_run - agicen_lookback)
-        #bld_ref_time   = time.gmtime(last_run - bld_lookback)   # TODO: why doesn't this symmetry work?
-        bld_ref_time   = time.localtime(last_run - bld_lookback)
+        bld_ref_time    = time.gmtime(last_run - bld_lookback)
         return agicen_ref_time, bld_ref_time
 
 
