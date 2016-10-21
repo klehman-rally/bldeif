@@ -205,7 +205,8 @@ class AgileCentralConnection(BLDConnection):
         if 'other_version' in header_info:
             self.integration_other_version = header_info['other_version']
 
-    def getRecentBuilds(self, ref_time):
+    #def getRecentBuilds(self, ref_time):
+    def getRecentBuilds(self, ref_time, project):
         """
             Obtain all Builds created in Agile Central at or after the ref_time parameter
             (which is a struct_time object)
@@ -228,7 +229,8 @@ class AgileCentralConnection(BLDConnection):
                                       #fetch=True,
                                        query=selectors, 
                                        workspace=self.workspace_name, 
-                                       project=self.project_name,
+                                       #project=self.project_name,
+                                       project=project,
                                        projectScopeDown=True,
                                        order="CreationDate",
                                        pagesize=200, limit=2000 
@@ -269,7 +271,8 @@ class AgileCentralConnection(BLDConnection):
         return False
 
     
-    def _fillHeavyCache(self):
+    #def _fillHeavyCache(self):
+    def _fillHeavyCache(self,project): # have to fix duplication of build definitions in a target project
         response = self.agicen.get('BuildDefinition', 
                                   #fetch=True,
                                   fetch='ObjectID,Name,Project,LastBuild,Uri', 
@@ -277,7 +280,8 @@ class AgileCentralConnection(BLDConnection):
                                   #workspace=self.workspace_ref, 
                                   workspace=self.workspace_name, 
                                   #project=None,
-                                  project=self.project_name,
+                                  #project=self.project_name,
+                                  project=project,
                                   projectScopeUp=False, projectScopeDown=True, 
                                   order='Project.Name,Name')
 
@@ -308,9 +312,11 @@ class AgileCentralConnection(BLDConnection):
             return self.job_bdf[job]
 
         # do we have a "heavy cache" populated?  If not, do it now...
-        if not self.build_def:
+        #if not self.build_def:
+        if project not in self.build_def:  # to avoid build definition duplication
             self.log.debug("Detected build definition heavy cache is empty, populating ...")
-            self._fillHeavyCache()
+            #self._fillHeavyCache()
+            self._fillHeavyCache(project)
 
         no_entry = False
         # OK, the job is not in the "quick lookup" cache
@@ -349,8 +355,24 @@ class AgileCentralConnection(BLDConnection):
 
         # At this point we haven't found a match for the job in the "heavy cache".
         # So, create a BuildDefinition for the job with the given project
+
+        ############ find target project
+        query = "Name = %s" %project
+        response = self.agicen.get('Project', fetch='ObjectID', query=query, workspace=self.workspace_name,
+                                   project=self.project_name,
+                                   projectScopeDown=True,
+                                   pagesize=200)
+        if response.errors or response.resultCount == 0:
+            raise ConfigurationError(
+                'Unable to locate a Project with the name: %s in the target Workspace' % self.project_name)
+
+        project_oids = [proj.ObjectID for proj in response]
+        target_project_ref = "/project/%s" % project_oids[0]
+        #############
+
         bdf_info = {'Workspace' : self.workspace_ref,
-                    'Project'   : self.project_ref,
+                    #'Project'   : self.project_ref,
+                    'Project'   : target_project_ref,
                     'Name'      : job,
                     'Uri'       : job_uri
                     #'Uri'      : maybe something like {base_url}/job/{job} where base_url comes from other spoke conn
@@ -424,4 +446,5 @@ class AgileCentralConnection(BLDConnection):
         response = self.agicen.get('Build', fetch="CreationDate,Number,Name,BuildDefinition", query=criteria,
                                             workspace=self.workspace_name, project=self.project_name, projectScopeDown=True)
         return response.status_code == 200 and response.resultCount > 0
+
 

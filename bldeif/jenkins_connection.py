@@ -240,7 +240,7 @@ class JenkinsConnection(BLDConnection):
 
         for view in self.views:
             view_name = view['View']
-            ac_project = view.get('AgileCentral_Project', self.ac_project)  #'DefaultProject' ?
+            ac_project = view.get('AgileCentral_Project', self.ac_project)
             #print(view_name)
             #print("view info: %s" % repr(view))
             key = '%s::%s' % (view_name, ac_project)
