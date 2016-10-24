@@ -1,11 +1,7 @@
 
 import sys
 import re
-import types
 import time
-from calendar import timegm
-import string  # for the digits chars
-import urllib  # for the quote function
 
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError
 from bldeif.connection import BLDConnection
@@ -14,7 +10,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.1.2"
+__version__ = "0.4.1"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -63,7 +59,6 @@ class AgileCentralConnection(BLDConnection):
         return "Rally WSAPI %s" % self.rallyWSAPIVersion()
 
     def internalizeConfig(self, config):
-        #super(AgileCentralConnection, self).internalizeConfig(config)
         super().internalizeConfig(config)
 
         server = config.get('Server', False)
@@ -205,8 +200,8 @@ class AgileCentralConnection(BLDConnection):
         if 'other_version' in header_info:
             self.integration_other_version = header_info['other_version']
 
-    #def getRecentBuilds(self, ref_time):
-    def getRecentBuilds(self, ref_time, project):
+
+    def getRecentBuilds(self, ref_time, projects):
         """
             Obtain all Builds created in Agile Central at or after the ref_time parameter
             (which is a struct_time object)
@@ -218,24 +213,39 @@ class AgileCentralConnection(BLDConnection):
         self.log.info("Detecting recently added Agile Central Builds")
         selectors = ['CreationDate >= %s' % ref_time_iso]
         log_msg = '   recent Builds query: %s' %  ' and '.join(selectors)
-        self.log.info(log_msg) 
+        self.log.info(log_msg)
+        builds = {}
 
+        for project in projects:
+            response = self._retrieveBuilds(project, selectors)
+            log_msg = "  %d recently added Agile Central Builds detected for project: %s"
+            self.log.info(log_msg % (response.resultCount, project))
+
+            for build in response:
+                project_name = build.BuildDefinition.Project.Name
+                build_name   = build.BuildDefinition.Name
+                if project_name not in builds:
+                    builds[project_name] = {}
+                if build_name not in builds[project_name]:
+                    builds[project_name][build_name] = []
+                builds[project_name][build_name].append(build)
+
+        return builds
+
+
+    def _retrieveBuilds(self, project, selectors):
         fetch_fields = "ObjectID,CreationDate,Number,Start,Status,Duration,BuildDefinition,Name," +\
                        "Workspace,Project,Uri,Message,Changesets"
-
         try:
-            response = self.agicen.get('Build', 
-                                       fetch=fetch_fields, 
-                                      #fetch=True,
-                                       query=selectors, 
-                                       workspace=self.workspace_name, 
-                                       #project=self.project_name,
+            response = self.agicen.get('Build',
+                                       fetch=fetch_fields,
+                                       query=selectors,
+                                       workspace=self.workspace_name,
                                        project=project,
                                        projectScopeDown=True,
                                        order="CreationDate",
-                                       pagesize=200, limit=2000 
-                                      )
-            self._checkForProblems(response)
+                                       pagesize=200, limit=2000
+                                       )
         except Exception as msg:
             excp_type, excp_value, tb = sys.exc_info()
             mo = re.search(r"'(?P<ex_name>.+)'", str(excp_type))
@@ -244,31 +254,14 @@ class AgileCentralConnection(BLDConnection):
                 msg = '%s: %s\n' % (excp_type, str(excp_value))
             raise OperationalError(msg)
 
-        log_msg = "  %d recently added Agile Central Builds detected"
-        self.log.info(log_msg % response.resultCount)
-        builds = {}
-        for build in response:
-            project    = build.BuildDefinition.Project.Name
-            build_name = build.BuildDefinition.Name
-            if project not in builds:
-                builds[project] = {}
-            if build_name not in builds[project]:
-                builds[project][build_name] = []
-            builds[project][build_name].append(build)
-        return builds
-    
-    def _checkForProblems(self, response):
-        """
-            Examine the response to see if there is any content for the 'Errors' or 'Warnings' keys.
-            and raise an Exception in that case.
-
-            TODO: Maybe detection of errors/warnings should result in an OperationalError instead
-        """
+        # Examine the response to see if there is any content for the 'Errors' or 'Warnings' keys.
+        # and raise an Exception in that case.
         if response.errors:
             raise Exception(response.errors[0][:80])
         if response.warnings:
             raise Exception(response.warnings[0][:80])
-        return False
+
+        return response
 
     
     #def _fillHeavyCache(self):
@@ -356,8 +349,7 @@ class AgileCentralConnection(BLDConnection):
         # At this point we haven't found a match for the job in the "heavy cache".
         # So, create a BuildDefinition for the job with the given project
 
-        ############ find target project
-        query = "Name = %s" %project
+        query = "Name = %s" % project
         response = self.agicen.get('Project', fetch='ObjectID', query=query, workspace=self.workspace_name,
                                    project=self.project_name,
                                    projectScopeDown=True,
@@ -368,10 +360,9 @@ class AgileCentralConnection(BLDConnection):
 
         project_oids = [proj.ObjectID for proj in response]
         target_project_ref = "/project/%s" % project_oids[0]
-        #############
+
 
         bdf_info = {'Workspace' : self.workspace_ref,
-                    #'Project'   : self.project_ref,
                     'Project'   : target_project_ref,
                     'Name'      : job,
                     'Uri'       : job_uri
@@ -382,13 +373,11 @@ class AgileCentralConnection(BLDConnection):
             build_defn = self.agicen.create('BuildDefinition', bdf_info)
         except Exception as msg:
             self.log.error("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
-            raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))        
+            raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
+
         # Put the freshly minted BuildDefinition in the "heavy" and "quick lookup" cache and return it
-        try:
-            if project not in self.build_def:
-                self.build_def[project] = {}
-        except Exception as msg:
-            print('Way bad iter problem?  %s' % msg)
+        if project not in self.build_def:
+            self.build_def[project] = {}
 
         self.build_def[project][job] = build_defn
         self.job_bdf[job] = build_defn
@@ -396,7 +385,6 @@ class AgileCentralConnection(BLDConnection):
 
 
     def preCreate(self, int_work_item):
-        """
         """
         # transform the CommitTimestamp from epoch seconds into ISO-8601'ish format
         #timestamp = int_work_item['CommitTimestamp']
@@ -409,6 +397,7 @@ class AgileCentralConnection(BLDConnection):
         # get Start in to iso8601 format
         # Duration is in seconds.milliseconds format
         # Uri is link to the originating build system job number page
+        """
 
         int_work_item['Workspace']       = self.workspace_ref 
         int_work_item['BuildDefinition'] = int_work_item['BuildDefinition'].ref

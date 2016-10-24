@@ -6,11 +6,9 @@ import re
 import time
 import calendar
 
-from subprocess   import Popen, STDOUT, PIPE
 from pprint import pprint
 
 import requests
-import json
 
 #from connection import BLDConnection
 from bldeif.connection import BLDConnection

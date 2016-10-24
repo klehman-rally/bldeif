@@ -81,27 +81,29 @@ class BLDConnector(object):
         self.strict_project = self.svc_conf.get('StrictProject', False)
         self.max_builds     = self.svc_conf.get('MaxBuilds', 20)
 
+        default_project = self.agicen_conf['Project']
+
         ############ create a list of AgileCentral_Project values #########
-        self.target_projects = []
+        self.target_projects = [default_project]  # the default project always is considered for obtaining build info
 
         if "Views" in self.bld_conf:
             self.views = self.bld_conf["Views"]
             for view in self.views:
                 view_name = view['View']
-                self.target_projects.append(view.get('AgileCentral_Project', None))
+                self.target_projects.append(view.get('AgileCentral_Project', default_project))
 
         if "Folders" in self.bld_conf:
             self.folders = self.bld_conf["Folders"]
             for folder_conf in self.folders:
                 folder_display_name = folder_conf['Folder']
-                self.target_projects.append(folder_conf.get('AgileCentral_Project', None))
+                self.target_projects.append(folder_conf.get('AgileCentral_Project', default_project))
 
         if "Jobs" in self.bld_conf:
             self.jobs = self.bld_conf["Jobs"]
             for job in self.jobs:
                 job_name = job['Job']
-                self.target_projects.append(job.get('AgileCentral_Project', None))
-
+                self.target_projects.append(job.get('AgileCentral_Project', default_project))
+        self.target_projects = set(self.target_projects)  # to obtain unique project names
 
 
     def establishConnections(self):
@@ -192,11 +194,7 @@ class BLDConnector(object):
 
 
         agicen_ref_time, bld_ref_time = self.getRefTimes(last_run)
-        #recent_agicen_builds = agicen.getRecentBuilds(agicen_ref_time)
-
-        for project in self.target_projects:
-            recent_agicen_builds = agicen.getRecentBuilds(agicen_ref_time, project)
-
+        recent_agicen_builds = agicen.getRecentBuilds(agicen_ref_time, self.target_projects)
         recent_bld_builds    =    bld.getRecentBuilds(bld_ref_time)
         unrecorded_builds    = self._identifyUnrecordedBuilds(recent_agicen_builds,
                                                                 recent_bld_builds,
