@@ -4,13 +4,9 @@ import urllib
 import socket
 import re
 import time
-import calendar
-
-from pprint import pprint
 
 import requests
 
-#from connection import BLDConnection
 from bldeif.connection import BLDConnection
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError
 
@@ -42,7 +38,7 @@ FOLDER_JOB_BUILD_URL  = "{prefix}/job/{folder_name}/jobs/{job_name}/{number}/api
 class JenkinsConnection(BLDConnection):
 
     def __init__(self, config, logger):
-        super(JenkinsConnection, self).__init__(logger)
+        super().__init__(logger)
         self.jenkins = None
         self.internalizeConfig(config) 
         self.backend_version = ""
@@ -64,7 +60,7 @@ class JenkinsConnection(BLDConnection):
         return self.backend_version
 
     def internalizeConfig(self, config):
-        super(JenkinsConnection, self).internalizeConfig(config)
+        super().internalizeConfig(config)
         self.protocol         = config.get('Protocol',  'http')
         self.server           = config.get('Server',    socket.gethostname())
         self.port             = config.get('Port',      8080)
@@ -75,7 +71,6 @@ class JenkinsConnection(BLDConnection):
         self.api_token        = config.get("API_Token", '')
         self.debug            = config.get("Debug",     False)
         self.max_items        = config.get("MaxItems",  1000)
-        #self.ac_workspace     = config.get("AgileCentral_Workspace", None)
         self.ac_project       = config.get("AgileCentral_DefaultBuildProject", None)
         self.views            = config.get("Views",   [])
         self.jobs             = config.get("Jobs",    [])
@@ -118,7 +113,7 @@ class JenkinsConnection(BLDConnection):
         jenkins_url = "%s/manage" % self.base_url
         self.log.debug(jenkins_url)
         response = requests.get(jenkins_url)
-        self.log.debug(response.headers)
+        #self.log.debug(response.headers)
         extract = [value for key, value in response.headers.items() if key.lower() == 'x-jenkins']
         if extract:
             version = extract.pop(0)
@@ -273,18 +268,10 @@ class JenkinsConnection(BLDConnection):
         urlovals = {'prefix' : self.base_url, 'view' : quote(view), 'job' : quote(job)}
         job_builds_url = JOB_BUILDS_URL.format(**urlovals)
         #self.log.debug("view: %s  job: %s  req_url: %s" % (view, job, job_builds_url))
-        response = requests.get(job_builds_url)
-        result = response.json()
-        raw_builds = result['builds']
-        builds = []
-        for brec in raw_builds:
-            build = JenkinsBuild(job, brec)
-            # only take those builds >= ref_time
-            build_started_time = time.gmtime(time.mktime(build.id_as_ts))
-            if build_started_time < ref_time:
-                break
-            builds.append(build)
-        return builds[::-1]
+        raw_builds = requests.get(job_builds_url).json()['builds']
+        qualifying_builds = self.extractQualifyingBuilds(job, None, ref_time, raw_builds)
+        return qualifying_builds
+
 
     def getFolderJobBuildHistory(self, folder_name, job, ref_time):
 
@@ -292,21 +279,25 @@ class JenkinsConnection(BLDConnection):
         folder_job_builds_url = job['url'] + ('api/json?tree=builds[%s]' % FOLDER_JOB_BUILD_ATTRS)
        #print("    %s" % folder_job_builds_url)
         self.log.debug("folder: %s  job: %s  req_url: %s" % (folder_name, job_name, folder_job_builds_url))
-        response   = requests.get(folder_job_builds_url)
-        result     = response.json()
-        raw_builds = result['builds']
+        raw_builds = requests.get(folder_job_builds_url).json()['builds']
+        qualifying_builds = self.extractQualifyingBuilds(job_name, folder_name, ref_time, raw_builds)
+        return qualifying_builds
+
+
+    def extractQualifyingBuilds(self, job_name, folder_name, ref_time, raw_builds):
         builds = []
         for brec in raw_builds:
             #print(brec)
             build = JenkinsBuild(job_name, brec, job_folder=folder_name)
             # only take those builds >= ref_time
-            build_utc_time_tuple = tuple(time.gmtime(int(str(build.timestamp)[:-3])))
-            # can we use this instead of the tuple?
-            # build_started_time = time.gmtime(time.mktime(build.id_as_ts))
-            if build_utc_time_tuple < ref_time:
+            if self.jobBeforeRefTime(build, ref_time):
                 break
             builds.append(build)
         return builds[::-1]
+
+    def jobBeforeRefTime(self, build, ref_time):
+        build_started_time = time.gmtime(time.mktime(build.id_as_ts))
+        return build_started_time < ref_time  # when true build time is older than ref_time, don't consider this job
 
     def constructJobUri(self, job_name):
         return "{0}/job/{1}".format(self.base_url, job_name)
@@ -330,7 +321,7 @@ class JenkinsBuild(object):
         self.timestamp   = raw['timestamp']
 
         if re.search('^\d+$', self.id_str):
-            self.id_as_ts =     self.timestamp
+            self.id_as_ts =   time.gmtime(self.timestamp/1000)
             self.id_str   = str(self.timestamp)
             self.Id       = self.id_str
         else:
