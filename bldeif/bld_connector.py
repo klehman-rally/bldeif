@@ -13,7 +13,7 @@ from bldeif.utils.claslo          import ClassLoader
 
 ##############################################################################################
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 PLUGIN_SPEC_PATTERN       = re.compile(r'^(?P<plugin_class>\w+)\s*\((?P<plugin_config>[^\)]*)\)\s*$')
 PLAIN_PLUGIN_SPEC_PATTERN = re.compile(r'(?P<plugin_class>\w+)\s*$')
@@ -193,11 +193,12 @@ class BLDConnector(object):
         agicen_ref_time, bld_ref_time = self.getRefTimes(last_run)
         recent_agicen_builds = agicen.getRecentBuilds(agicen_ref_time, self.target_projects)
         recent_bld_builds    =    bld.getRecentBuilds(bld_ref_time)
-        unrecorded_builds    = self._identifyUnrecordedBuilds(recent_agicen_builds,
-                                                                recent_bld_builds,
-                                                                bld_ref_time)
+        self._showBuildInformation(recent_agicen_builds, recent_bld_builds)
+        unrecorded_builds = self._identifyUnrecordedBuilds(recent_agicen_builds, recent_bld_builds)
         self.log.info("unrecorded Builds count: %d" % len(unrecorded_builds))
         self.log.info("no more than %d builds per job will be recorded on this run" % self.max_builds)
+        if self.svc_conf['VCSData']:
+            self.dumpChangesetInfo(unrecorded_builds)
 
         recorded_builds = OrderedDict()
         builds_posted = {}
@@ -227,6 +228,12 @@ class BLDConnector(object):
             if not agicen.buildExists(build_defn, build.number):
                 info['BuildDefinition'] = build_defn
                 agicen_build = agicen.createBuild(info)
+
+                # pull out any build.changeSets commit IDs and see if they match up with AgileCentral Changeset items Revision attribute
+                # if so, get all such commit IDs and their associated Changeset ObjectID, then
+                # add that "collection" as the Build's Changesets collection
+                self.populateChangesetsCollectionOnACBuild(build, agicen_build)
+
                 if job not in recorded_builds:
                     recorded_builds[job] = []
                 recorded_builds[job].append(agicen_build)
@@ -253,7 +260,24 @@ class BLDConnector(object):
         return agicen_ref_time, bld_ref_time
 
 
-    def _identifyUnrecordedBuilds(self, agicen_builds, bld_builds, ref_time):
+    def _showBuildInformation(self, agicen_builds, bld_builds):
+        ##
+        for project, job_builds in agicen_builds.items():
+            print("Agile Central project: %s" % project)
+            for job, builds in job_builds.items():
+                print("    %-36.36s : %3d build items" % (job, len(builds)))
+        print("")
+
+        ##
+        for view, job_builds in bld_builds.items():
+            print("Jenkins View: %s" % view)
+            for job, builds in job_builds.items():
+                print("    %-36.36s : %3d build items" % (job, len(builds)))
+        print("")
+        ##
+
+
+    def _identifyUnrecordedBuilds(self, agicen_builds, bld_builds):
         """
             If there are items in the agicen_builds for which there is  a counterpart in 
             the bld_builds, the information has already been reflected in Agile Central.  --> NOOP
@@ -264,20 +288,6 @@ class BLDConnector(object):
             If there are items in the agicen_builds for which there is no counterpart in 
             the bld_builds, information has been lost,  dat would be some bad... --> ERROR
         """
-##
-        for project, job_builds in agicen_builds.items():
-            print("Agile Central project: %s" % project)
-            for job, builds in job_builds.items():
-                print("    %-36.36s : %3d build items" % (job, len(builds)))
-        print("")
-
-##
-        for view, job_builds in bld_builds.items():
-            print("Jenkins View: %s" % view)
-            for job, builds in job_builds.items():
-                print("    %-36.36s : %3d build items" % (job, len(builds)))
-        print("")
-##
         reflected_builds   = []
         unrecorded_builds  = []
 
@@ -298,5 +308,23 @@ class BLDConnector(object):
                     
         return unrecorded_builds
 
-####################################################################################
 
+    def dumpChangesetInfo(self, builds):
+        for job, build, project, view in builds:
+            self.log.yuge(build)
+            for cs in build.changeSets:
+                self.log.yuge(str(cs))
+
+
+    def populateChangesetsCollectionOnACBuild(self, build, ac_build):
+        shas = set([cs.id for cs in build.changeSets])
+
+        bacs = []
+        for sha in shas:
+            ac_changeset = self.agicen_conn.retrieveChangeset(sha)
+            if ac_changeset:
+                bacs.append(ac_changeset)
+
+        self.agicen_conn.populateChangesetsCollectionOnBuild(ac_build, bacs)
+
+####################################################################################

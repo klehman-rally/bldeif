@@ -20,8 +20,8 @@ import re
 import traceback
 import inspect
 
-from bldeif.bldeif_connector_runner import BuildConnectorRunner
-from bldeif.utils.eif_exception     import ConfigurationError, FatalCondition
+from bldeif.bld_connector_runner import BuildConnectorRunner
+from bldeif.utils.eif_exception  import ConfigurationError, FatalError
 
 ##########################################################################################
 
@@ -30,15 +30,15 @@ def main(args):
     try:
         connector_runner = BuildConnectorRunner(args)
         connector_runner.run()
-    except ConfigurationError, msg:
+    except ConfigurationError as msg:
         # raising a ConfigurationError will cause an ERROR to be logged
-        sys.stderr.write('ERROR: bldeif_connector detected a fatal configuration error. See log file\n')
+        sys.stderr.write('ERROR: bldeif_connector detected a fatal configuration error. See log file.\n')
         sys.exit(1)
-    except FatalCondition, msg:
+    except FatalError as msg:
         # raising the FatalCondition will cause an ERROR to be logged
         sys.stderr.write('ERROR: bldeif_connector encountered a FATAL condition. See log file\n')
         sys.exit(2)
-    except Exception, msg:
+    except Exception as msg:
         sys.stderr.write('ERROR: bldeif_connector encountered an ERROR condition.\n')
         # blurt out a formatted stack trace
         excp_type, excp_value, tb = sys.exc_info()

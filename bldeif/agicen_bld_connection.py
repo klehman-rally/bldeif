@@ -10,7 +10,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -263,6 +263,14 @@ class AgileCentralConnection(BLDConnection):
 
         return response
 
+    def retrieveChangeset(self, sha):
+        query = 'Revision = %s' % sha
+        response = self.agicen.get('Changeset', fetch='ObjectID', query=query,
+                                    workspace=self.workspace_name,project=None)
+        # should we check for errors or warnings?
+        if response.resultCount > 0:
+            return response.next()
+        return None
 
     def _fillHeavyCache(self,project): # have to fix duplication of build definitions in a target project
         response = self.agicen.get('BuildDefinition', 
@@ -434,3 +442,7 @@ class AgileCentralConnection(BLDConnection):
         return response.status_code == 200 and response.resultCount > 0
 
 
+    def populateChangesetsCollectionOnBuild(self, build, changesets):
+        csrefs = [{ "_ref" : "changeset/%s" % cs.oid} for cs in changesets]
+        cs_coll_ref = build.Changesets
+        self.agicen.addCollection(cs_coll_ref, csrefs)

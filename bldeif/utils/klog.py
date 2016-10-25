@@ -230,7 +230,7 @@ class FileOutput(StreamOutput):
 #########################################################################################
 
 class ActivityLogger(object):
-    valid_levels = ['DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'CRITICAL', 'FATAL']
+    valid_levels = ['DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'CRITICAL', 'FATAL', 'YUGE']
     level_value  = {'DEBUG'    : 1,
                     'INFO'     : 2,
                     'WARN'     : 3,
@@ -238,6 +238,7 @@ class ActivityLogger(object):
                     'ERROR'    : 4,
                     'CRITICAL' : 5,
                     'FATAL'    : 6,
+                    'YUGE'     : 7,
                    }
     exception_level = 5
 
@@ -312,6 +313,9 @@ class ActivityLogger(object):
 
     def fatal(self, msg, exception_triggered=True):
         self.log(msg, 'FATAL', exception_triggered=exception_triggered)
+
+    def yuge(self, msg):
+        self.log(msg, 'YUGE')
 
     def write(self, msg, level=None):
       if not level or level not in ActivityLogger.valid_levels:

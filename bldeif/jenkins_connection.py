@@ -15,7 +15,7 @@ quote = urllib.parse.quote
 
 ############################################################################################
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
 ACTION_WORD_PATTERN    = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
@@ -25,11 +25,12 @@ JENKINS_URL      = "{prefix}/api/json"
 ALL_JOBS_URL     = "{prefix}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
 VIEW_JOBS_URL    = "{prefix}/view/{view}/api/json?depth=0&tree=jobs[name]"
 VIEW_FOLDERS_URL = "{prefix}/view/{view}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
-BUILD_ATTRS      = "number,id,fullDisplayName,timestamp,duration,result,url,changeSet[kind,items[*[*]]]"
+#BUILD_ATTRS      = "number,id,fullDisplayName,timestamp,duration,result,url,changeSet[kind,items[*[*]]]"
+BUILD_ATTRS      = "number,id,fullDisplayName,timestamp,duration,result,url,changeSet[kind,items[id,timestamp,date,msg]]"
 JOB_BUILDS_URL   = "{prefix}/view/{view}/job/{job}/api/json?tree=builds[%s]" % BUILD_ATTRS
 FOLDER_JOBS_URL  = "{prefix}/job/{folder_name}/api/json?tree=jobs[displayName,name,url]"
 #FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,changeSet[kind,items[*[*]]]"
-FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,changeSet[kind,items[timestamp,commitId,author[*],comment,paths[editType,file]]]"
+FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,changeSet[kind,items[id,timestamp,date,msg]]"
 FOLDER_JOB_BUILDS_MINIMAL_ATTRS = "number,id,timestamp,result"
 FOLDER_JOB_BUILDS_URL = "{prefix}/job/{folder_name}/jobs/{job_name}/api/json?tree=builds[%s]" % FOLDER_JOB_BUILD_ATTRS
 FOLDER_JOB_BUILD_URL  = "{prefix}/job/{folder_name}/jobs/{job_name}/{number}/api/json"
@@ -396,11 +397,15 @@ class JenkinsJobsFolder(object):
 class JenkinsChangeset(object):
     def __init__(self, vcs, wad):
         self.vcs       = vcs
-        self.commitId  = wad['commitId']
-        self.author    = wad['author']['fullName']
-        self.timestamp = wad['timestamp'] / 1000
-        self.comment   = wad['comment']
-        self.changes = [JenkinsChangesetFile(changeItem) for changeItem in wad['paths']]
+        self.commitId  = wad['id']
+        self.timestamp = wad['timestamp']
+        self.message   = wad['msg']
+        # self.changes = [JenkinsChangesetFile(changeItem) for changeItem in wad['paths']]
+
+    def __str__(self):
+        changeset = "   VCS %s  Commit ID # %s  Timestamp: %s  Message: %s " % \
+                (self.vcs, self.commitId, self.timestamp, self.message)
+        return changeset
 
 class JenkinsChangesetFile(object):
     def __init__(self, item):

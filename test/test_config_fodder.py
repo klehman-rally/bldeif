@@ -29,6 +29,7 @@ JenkinsBuildConnector:
         Preview       : False
         LogLevel      : DEBUG
         MaxBuilds     : 100   # current implementation is this is a per job maximum not total builds
+        VCSData       : False
 
 ...
 
