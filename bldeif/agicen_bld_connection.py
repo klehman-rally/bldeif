@@ -10,7 +10,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.4.1"
+__version__ = "0.5.1"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -263,8 +263,7 @@ class AgileCentralConnection(BLDConnection):
 
         return response
 
-    
-    #def _fillHeavyCache(self):
+
     def _fillHeavyCache(self,project): # have to fix duplication of build definitions in a target project
         response = self.agicen.get('BuildDefinition', 
                                   #fetch=True,
@@ -308,7 +307,6 @@ class AgileCentralConnection(BLDConnection):
         #if not self.build_def:
         if project not in self.build_def:  # to avoid build definition duplication
             self.log.debug("Detected build definition heavy cache is empty, populating ...")
-            #self._fillHeavyCache()
             self._fillHeavyCache(project)
 
         no_entry = False
@@ -365,8 +363,7 @@ class AgileCentralConnection(BLDConnection):
         bdf_info = {'Workspace' : self.workspace_ref,
                     'Project'   : target_project_ref,
                     'Name'      : job,
-                    'Uri'       : job_uri
-                    #'Uri'      : maybe something like {base_url}/job/{job} where base_url comes from other spoke conn
+                    'Uri'       : job_uri #something like {base_url}/job/{job} where base_url comes from other spoke conn
                    }
         try:
             self.log.debug("Creating a BuildDefinition for job '%s' in Project '%s' ..." % (job, project))

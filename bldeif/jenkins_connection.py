@@ -1,5 +1,6 @@
 
 import sys, os
+import datetime
 import urllib
 import socket
 import re
@@ -14,7 +15,7 @@ quote = urllib.parse.quote
 
 ############################################################################################
 
-__version__ = "0.4.1"
+__version__ = "0.5.1"
 
 ACTION_WORD_PATTERN    = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
@@ -24,11 +25,11 @@ JENKINS_URL      = "{prefix}/api/json"
 ALL_JOBS_URL     = "{prefix}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
 VIEW_JOBS_URL    = "{prefix}/view/{view}/api/json?depth=0&tree=jobs[name]"
 VIEW_FOLDERS_URL = "{prefix}/view/{view}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
-BUILD_ATTRS      = "number,id,fullDisplayName,timestamp,duration,result,changeSet[kind,items[*[*]]]"
+BUILD_ATTRS      = "number,id,fullDisplayName,timestamp,duration,result,url,changeSet[kind,items[*[*]]]"
 JOB_BUILDS_URL   = "{prefix}/view/{view}/job/{job}/api/json?tree=builds[%s]" % BUILD_ATTRS
 FOLDER_JOBS_URL  = "{prefix}/job/{folder_name}/api/json?tree=jobs[displayName,name,url]"
 #FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,changeSet[kind,items[*[*]]]"
-FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,changeSet[kind,items[timestamp,commitId,author[*],comment,paths[editType,file]]]"
+FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,changeSet[kind,items[timestamp,commitId,author[*],comment,paths[editType,file]]]"
 FOLDER_JOB_BUILDS_MINIMAL_ATTRS = "number,id,timestamp,result"
 FOLDER_JOB_BUILDS_URL = "{prefix}/job/{folder_name}/jobs/{job_name}/api/json?tree=builds[%s]" % FOLDER_JOB_BUILD_ATTRS
 FOLDER_JOB_BUILD_URL  = "{prefix}/job/{folder_name}/jobs/{job_name}/{number}/api/json"
@@ -299,11 +300,6 @@ class JenkinsConnection(BLDConnection):
         build_started_time = time.gmtime(time.mktime(build.id_as_ts))
         return build_started_time < ref_time  # when true build time is older than ref_time, don't consider this job
 
-    def constructJobUri(self, job_name):
-        return "{0}/job/{1}".format(self.base_url, job_name)
-
-    def constructJobBuildUrl(self, job_name, build_number):
-        return "{0}/job/{1}/{2}".format(self.base_url, job_name, build_number)
 
 ##############################################################################################
 
@@ -344,11 +340,21 @@ class JenkinsBuild(object):
 
         total = (self.timestamp + self.duration) / 1000
         self.finished    = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(total))
+        self.url         = raw['url']
         self.changeSets  = self.ripChangeSets(raw['changeSet']['kind'], raw['changeSet']['items'])
 
     def ripChangeSets(self, vcs, changesets):
         tank = [JenkinsChangeset(vcs, cs_info) for cs_info in changesets]
         return tank
+
+    def as_tuple_data(self):
+        start_time = datetime.datetime.utcfromtimestamp(self.timestamp / 1000.0).strftime('%Y-%m-%dT%H:%M:%SZ')
+        build_data = [('Number',   self.number),
+                      ('Status',   str(self.result)),
+                      ('Start',    start_time),
+                      ('Duration', self.duration / 1000.0),
+                      ('Uri',      self.url)]
+        return build_data
 
     def __repr__(self):
         name      = "name: %s"       % self.name
@@ -367,8 +373,8 @@ class JenkinsBuild(object):
             elapsed = '   ' + elapsed[3:]
         if elapsed.startswith('   00:'):
             elapsed = '      ' + elapsed[6:]
-        bstr = "%s Build # %5d   %-10.10s  Started: %s  Finished: %s   Duration: %s" % \
-                (self.name, self.number, self.result, self.started, self.finished, elapsed)
+        bstr = "%s Build # %5d   %-10.10s  Started: %s  Finished: %s   Duration: %s  URL: %s" % \
+                (self.name, self.number, self.result, self.started, self.finished, elapsed, self.url)
         return bstr
 
 class JenkinsJobsFolder(object):

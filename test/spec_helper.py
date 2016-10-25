@@ -10,6 +10,9 @@ from test_config_fodder import *
 
 from pprint import pprint
 
+from bldeif.utils.konfabulus import Konfabulator
+from bldeif.utils.klog       import ActivityLogger
+
 
 
 class AC_Creds_Inflator:

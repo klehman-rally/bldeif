@@ -6,19 +6,14 @@
 import sys, os, platform
 import time
 import re
-from datetime    import datetime
 from collections import OrderedDict
 
-import bldeif
-
-from bldeif.connection            import BLDConnection
-from bldeif.utils.klog            import ActivityLogger
 from bldeif.utils.eif_exception   import FatalError, ConfigurationError, OperationalError
 from bldeif.utils.claslo          import ClassLoader
 
 ##############################################################################################
 
-__version__ = "0.3.6"
+__version__ = "0.5.1"
 
 PLUGIN_SPEC_PATTERN       = re.compile(r'^(?P<plugin_class>\w+)\s*\((?P<plugin_config>[^\)]*)\)\s*$')
 PLAIN_PLUGIN_SPEC_PATTERN = re.compile(r'(?P<plugin_class>\w+)\s*$')
@@ -83,7 +78,9 @@ class BLDConnector(object):
 
         default_project = self.agicen_conf['Project']
 
-        ############ create a list of AgileCentral_Project values #########
+        # create a list of AgileCentral_Project values, start with the default project value
+        # and then add add as you see overrides in the config.
+        # eventually, we'll strip out any duplicates
         self.target_projects = [default_project]  # the default project always is considered for obtaining build info
 
         if "Views" in self.bld_conf:
@@ -208,7 +205,6 @@ class BLDConnector(object):
         unrecorded_builds.sort(key=lambda build_info: (build_info[1].timestamp, build_info[2], build_info[1]))
         for job, build, project, view in unrecorded_builds:
             if build.result == 'None':
-                #stragglers.append(build)
                 self.log.warn("%s #%s job/build was not processed because is still running" %(job, build.number))
                 continue
             #self.log.debug("current job: %s  build: %s" % (job, build))
@@ -218,18 +214,16 @@ class BLDConnector(object):
                 continue
 
             desc = '%s %s #%s | %s | %s  not yet reflected in Agile Central'
-            cts = time.strftime("%Y-%m-%d %H:%M:%S Z", time.gmtime(build.timestamp/1000.0))
-            #self.log.debug(desc % (pm_tag, job, build.number, build.result, cts))
-            job_uri = bld.constructJobUri(job)
-            job_url = bld.constructJobBuildUrl(job, build.number)
-            start_time = datetime.utcfromtimestamp(build.timestamp / 1000.0).strftime('%Y-%m-%dT%H:%M:%SZ')
-            build_data = [ ('Number', build.number), ('Status', str(build.result)), ('Start', start_time), ('Duration', build.duration / 1000.0), ('Uri', job_url) ]
+            bts = time.strftime("%Y-%m-%d %H:%M:%S Z", time.gmtime(build.timestamp/1000.0))
+            #self.log.debug(desc % (pm_tag, job, build.number, build.result, bts))
+            build_data = build.as_tuple_data()
             info = OrderedDict(build_data)
 
             if preview_mode:
                 continue
 
-            build_defn = agicen.ensureBuildDefinitionExistence(job, project, self.strict_project, job_uri)
+            build_job_uri = "/".join(build.url.split('/')[:-2])
+            build_defn = agicen.ensureBuildDefinitionExistence(job, project, self.strict_project, build_job_uri)
             if not agicen.buildExists(build_defn, build.number):
                 info['BuildDefinition'] = build_defn
                 agicen_build = agicen.createBuild(info)
