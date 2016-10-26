@@ -13,7 +13,7 @@ from bldeif.utils.claslo          import ClassLoader
 
 ##############################################################################################
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 PLUGIN_SPEC_PATTERN       = re.compile(r'^(?P<plugin_class>\w+)\s*\((?P<plugin_config>[^\)]*)\)\s*$')
 PLAIN_PLUGIN_SPEC_PATTERN = re.compile(r'(?P<plugin_class>\w+)\s*$')
@@ -226,13 +226,15 @@ class BLDConnector(object):
             build_job_uri = "/".join(build.url.split('/')[:-2])
             build_defn = agicen.ensureBuildDefinitionExistence(job, project, self.strict_project, build_job_uri)
             if not agicen.buildExists(build_defn, build.number):
-                info['BuildDefinition'] = build_defn
-                agicen_build = agicen.createBuild(info)
-
                 # pull out any build.changeSets commit IDs and see if they match up with AgileCentral Changeset items Revision attribute
                 # if so, get all such commit IDs and their associated Changeset ObjectID, then
                 # add that "collection" as the Build's Changesets collection
-                self.populateChangesetsCollectionOnACBuild(build, agicen_build)
+                vcs_commits = self.detectCommitsForJenkinsBuild(build)
+                info['BuildDefinition'] = build_defn
+                changesets = self.agicen_conn.matchToChangesets(vcs_commits)
+                if changesets:
+                    info['Changesets'] = changesets
+                agicen_build = agicen.createBuild(info)
 
                 if job not in recorded_builds:
                     recorded_builds[job] = []
@@ -316,7 +318,7 @@ class BLDConnector(object):
                 self.log.yuge(str(cs))
 
 
-    def populateChangesetsCollectionOnACBuild(self, build, ac_build):
+    def detectCommitsForJenkinsBuild(self, build):
         shas = set([cs.id for cs in build.changeSets])
 
         bacs = []
@@ -325,6 +327,6 @@ class BLDConnector(object):
             if ac_changeset:
                 bacs.append(ac_changeset)
 
-        self.agicen_conn.populateChangesetsCollectionOnBuild(ac_build, bacs)
+        return bacs
 
 ####################################################################################

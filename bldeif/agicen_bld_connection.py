@@ -10,7 +10,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -407,6 +407,10 @@ class AgileCentralConnection(BLDConnection):
         int_work_item['Workspace']       = self.workspace_ref 
         int_work_item['BuildDefinition'] = int_work_item['BuildDefinition'].ref
 
+        if int_work_item.get('Changesets', False):
+            collection_payload = [{'_ref': "changeset/%s" % changeset.oid} for changeset in int_work_item['Changesets']]
+            int_work_item['Changesets']= collection_payload
+
         return int_work_item
 
 
@@ -420,7 +424,7 @@ class AgileCentralConnection(BLDConnection):
             build = self.agicen.create('Build', int_work_item)
             self.log.debug("  Created Build: %-36.36s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
         except Exception as msg:
-            print("abc._createInternal detected an Exception, {0}".format(sys.exc_info()[1]))
+            print("AgileCentralConnection._createInternal detected an Exception, {0}".format(sys.exc_info()[1]))
             excp_type, excp_value, tb = sys.exc_info()
             mo = re.search(r"'(?P<ex_name>.+)'", str(excp_type))
             if mo:
@@ -445,4 +449,14 @@ class AgileCentralConnection(BLDConnection):
     def populateChangesetsCollectionOnBuild(self, build, changesets):
         csrefs = [{ "_ref" : "changeset/%s" % cs.oid} for cs in changesets]
         cs_coll_ref = build.Changesets
-        self.agicen.addCollection(cs_coll_ref, csrefs)
+        #self.agicen.addCollection(cs_coll_ref, csrefs)
+
+    def matchToChangesets(self, vcs_commits):
+        valid_changesets = []
+        for commit in vcs_commits:
+            query = ('Revision = "%s"' % commit)
+            response = self.agicen.get("Changeset", fetch="ObjectID", query=query, workspace=self.workspace_name, project=None)
+            if response.resultCount > 0:
+                changeset = response.next()
+                valid_changesets.append(changeset)
+        return valid_changesets
