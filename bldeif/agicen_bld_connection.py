@@ -97,6 +97,43 @@ class AgileCentralConnection(BLDConnection):
 
         return satisfactory
 
+    def validateProjects(self, target_projects):
+        """
+            make requests to AgileCentral to retrieve basic info for each project in target_projects.
+            If any project name in target_projects does NOT have a corresponding project in AgileCentral
+            raise and Exception naming the offending project.
+        """
+        query = self._construct_ored_Name_query(target_projects)
+        print(query[1:-1])
+        response = self.agicen.get('Project', fetch='Name,ObjectID', query=query[1:-1], workspace=self.workspace_name,
+                                   project=None, projectScopeDown=True, pagesize=200)
+        if response.errors or response.resultCount == 0:
+            raise ConfigurationError(
+                'Unable to locate a Project with the name: %s in the target Workspace: %s' % (self.project_name, self.workspace_name))
+        found_projects = [project for project in response]
+        found_project_names = [p.Name for p in found_projects]
+        bogus = [name for name in target_projects if name not in found_project_names]
+        if bogus:
+            problem = "These projects mentioned in the config were not located in AgileCentral Workspace %s: %s" % (self.workspace_name, ",".join(bogus))
+            raise Exception(problem)
+
+        # self._project_cache = {}
+        # for proj in found_projects:
+        #     self._project_cache[proj.Name] = proj.ref
+        self._project_cache = {proj.Name : proj.ref for proj in found_projects}
+        return True
+
+
+    def _construct_ored_Name_query(self, target_projects):
+        if not target_projects: return ''
+        initial = '(Name = "%s")' % target_projects[0]
+        or_string = initial
+        for project in target_projects[1:]:
+            or_string = '(%s OR (Name = "%s"))' % (or_string, project)
+        return or_string
+
+        #return "(%s)" % or_string[1:-1]
+
     def setSourceIdentification(self, other_name, other_version):
         self.other_name = other_name
         self.integration_other_version  = other_version
@@ -140,8 +177,8 @@ class AgileCentralConnection(BLDConnection):
                 self.agicen.enableLogging('agicen_builds.log')
         except Exception as msg:
             self.log.debug(msg)
-            raise ConfigurationError("Unable to connect to Agile Central at %s as user %s" % \
-                                         (self.server, self.username))
+            raise ConfigurationError("Unable to connect to Agile Central at %s: %s" % \
+                                         (self.server, msg))
         self.log.info("Connected to Agile Central server: %s" % self.server)    
 
 ##        before = time.time()
@@ -355,17 +392,19 @@ class AgileCentralConnection(BLDConnection):
         # At this point we haven't found a match for the job in the "heavy cache".
         # So, create a BuildDefinition for the job with the given project
 
-        query = "Name = %s" % project
-        response = self.agicen.get('Project', fetch='ObjectID', query=query, workspace=self.workspace_name,
-                                   project=self.project_name,
-                                   projectScopeDown=True,
-                                   pagesize=200)
-        if response.errors or response.resultCount == 0:
-            raise ConfigurationError(
-                'Unable to locate a Project with the name: %s in the target Workspace' % self.project_name)
+        # query = "Name = %s" % project
+        # response = self.agicen.get('Project', fetch='ObjectID', query=query, workspace=self.workspace_name,
+        #                            project=self.project_name,
+        #                            projectScopeDown=True,
+        #                            pagesize=200)
+        # if response.errors or response.resultCount == 0:
+        #     raise ConfigurationError(
+        #         'Unable to locate a Project with the name: %s in the target Workspace' % self.project_name)
+        #
+        # project_oids = [proj.ObjectID for proj in response]
+        # target_project_ref = "/project/%s" % project_oids[0]
 
-        project_oids = [proj.ObjectID for proj in response]
-        target_project_ref = "/project/%s" % project_oids[0]
+        target_project_ref = self._project_cache[project]
 
 
         bdf_info = {'Workspace' : self.workspace_ref,

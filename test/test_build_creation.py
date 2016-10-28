@@ -26,10 +26,6 @@ def setup_config(filename, simple=True):
     return logger, konf
 
 
-def test_me():
-    assert(1) == 1
-
-
 def test_create_build_with_no_commits():
     filename = "../config/intwin7.yml"
     logger, konf = setup_config(filename, False)

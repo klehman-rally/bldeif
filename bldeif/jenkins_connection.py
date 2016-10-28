@@ -68,7 +68,7 @@ class JenkinsConnection(BLDConnection):
         self.port             = config.get('Port',      8080)
         self.prefix           = config.get("Prefix",    '')
         self.auth             = config.get("Auth",      False)
-        self.user             = config.get("User",      '')
+        self.user             = config.get("Username",      '')
         self.password         = config.get("Password",  '')
         self.api_token        = config.get("API_Token", '')
         self.debug            = config.get("Debug",     False)
@@ -81,6 +81,14 @@ class JenkinsConnection(BLDConnection):
         self.all_views        = []
         self.all_jobs         = []
         self.view_folders     = {}
+        if self.user:
+            if self.api_token:
+                cred = self.api_token
+            else:
+                cred = self.password
+            self.creds = (self.user, cred)
+        else:
+            self.creds = None
 
 
     def connect(self):
@@ -94,7 +102,10 @@ class JenkinsConnection(BLDConnection):
         urlovals = {'prefix' : self.base_url}
         jenkins_url = JENKINS_URL.format(**urlovals)
         self.log.info("Jenkins initial query url: %s" % jenkins_url)
-        response = requests.get(jenkins_url)
+
+        response = requests.get(jenkins_url, auth=self.creds)
+        status = response.status_code
+        what = response
         jenkins_info = response.json()
 
         self.all_views = [str(view['name']) for view in jenkins_info['views']]
@@ -114,7 +125,7 @@ class JenkinsConnection(BLDConnection):
         version = None
         jenkins_url = "%s/manage" % self.base_url
         self.log.debug(jenkins_url)
-        response = requests.get(jenkins_url)
+        response = requests.get(jenkins_url, auth=self.creds)
         #self.log.debug(response.headers)
         extract = [value for key, value in response.headers.items() if key.lower() == 'x-jenkins']
         if extract:
@@ -136,7 +147,7 @@ class JenkinsConnection(BLDConnection):
         urlovals = {'prefix' : self.base_url, 'view' : urllib.parse.quote(view['View'])}
         view_jobs_url = VIEW_JOBS_URL.format(**urlovals)
         #self.log.debug("view: %s  req_url: %s" % (view, view_jobs_url))
-        response = requests.get(view_jobs_url)
+        response = requests.get(view_jobs_url, auth=self.creds)
         jenk_jobs = response.json()
         jobs = [str(job['name']) for job in jenk_jobs.get('jobs', None)]
 
@@ -168,7 +179,7 @@ class JenkinsConnection(BLDConnection):
         urlovals = {'prefix' : self.base_url, 'view' : quote(view)}
         view_job_folders_url = VIEW_FOLDERS_URL.format(**urlovals)
         #self.log.debug("view: %s  req_url: %s" % (view, view_job_folders_url))
-        response = requests.get(view_job_folders_url)
+        response = requests.get(view_job_folders_url, auth=self.creds)
         jenk_stuff = response.json()
         jenk_jobs = [job for job in jenk_stuff.get('jobs', None)]
         view_folders = {}
@@ -270,7 +281,7 @@ class JenkinsConnection(BLDConnection):
         urlovals = {'prefix' : self.base_url, 'view' : quote(view), 'job' : quote(job)}
         job_builds_url = JOB_BUILDS_URL.format(**urlovals)
         #self.log.debug("view: %s  job: %s  req_url: %s" % (view, job, job_builds_url))
-        raw_builds = requests.get(job_builds_url).json()['builds']
+        raw_builds = requests.get(job_builds_url, auth=self.creds).json()['builds']
         qualifying_builds = self.extractQualifyingBuilds(job, None, ref_time, raw_builds)
         return qualifying_builds
 
@@ -281,7 +292,7 @@ class JenkinsConnection(BLDConnection):
         folder_job_builds_url = job['url'] + ('api/json?tree=builds[%s]' % FOLDER_JOB_BUILD_ATTRS)
        #print("    %s" % folder_job_builds_url)
         self.log.debug("folder: %s  job: %s  req_url: %s" % (folder_name, job_name, folder_job_builds_url))
-        raw_builds = requests.get(folder_job_builds_url).json()['builds']
+        raw_builds = requests.get(folder_job_builds_url, auth=self.creds).json()['builds']
         qualifying_builds = self.extractQualifyingBuilds(job_name, folder_name, ref_time, raw_builds)
         return qualifying_builds
 

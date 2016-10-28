@@ -22,7 +22,7 @@ ARCHITECTURE_PKG = 'bldeif'
 
 ##############################################################################################
 
-class BLDConnector(object):
+class BLDConnector:
 
     def __init__(self, config, logger):
         self.config = config
@@ -100,7 +100,7 @@ class BLDConnector(object):
             for job in self.jobs:
                 job_name = job['Job']
                 self.target_projects.append(job.get('AgileCentral_Project', default_project))
-        self.target_projects = set(self.target_projects)  # to obtain unique project names
+        self.target_projects = list(set(self.target_projects))  # to obtain unique project names
 
 
     def establishConnections(self):
@@ -129,6 +129,9 @@ class BLDConnector(object):
 
         if not self.agicen_conn.validate():
             self.log.info("AgileCentralConnection validation failed")
+            return False
+        if not self.agicen_conn.validateProjects(self.target_projects):
+            self.log.info("AgileCentralConnection validation for Projects failed")
             return False
         self.log.info("AgileCentralConnection validation succeeded")
 
