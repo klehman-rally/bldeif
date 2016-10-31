@@ -10,7 +10,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.5.3"
+__version__ = "0.7.0"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -104,18 +104,18 @@ class AgileCentralConnection(BLDConnection):
             raise and Exception naming the offending project.
         """
         query = self._construct_ored_Name_query(target_projects)
-        print(query[1:-1])
         response = self.agicen.get('Project', fetch='Name,ObjectID', query=query[1:-1], workspace=self.workspace_name,
                                    project=None, projectScopeDown=True, pagesize=200)
         if response.errors or response.resultCount == 0:
             raise ConfigurationError(
                 'Unable to locate a Project with the name: %s in the target Workspace: %s' % (self.project_name, self.workspace_name))
         found_projects = [project for project in response]
-        found_project_names = [p.Name for p in found_projects]
+        found_project_names = list(set([p.Name for p in found_projects]))
         bogus = [name for name in target_projects if name not in found_project_names]
         if bogus:
             problem = "These projects mentioned in the config were not located in AgileCentral Workspace %s: %s" % (self.workspace_name, ",".join(bogus))
-            raise Exception(problem)
+            self.log.error(problem)
+            return False
 
         # self._project_cache = {}
         # for proj in found_projects:

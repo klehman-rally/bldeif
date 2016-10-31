@@ -93,4 +93,16 @@ def test_bad_services_config():
     assert re.match(expectedErrPattern, actualErrVerbiage) is not None
 
 
+def test_bad_containers():
+    filename = "wallace_gf.yml"
+    jenkin_struct = {
+        'Vistas': [{'Vista': 'Wendolene Ramsbottom', 'Allergies': 'Cheese'},
+                   {'View': 'Lady Tottington'},
+                   {'Job': 'Piella Bakewell'}]
 
+    }
+    expectedErrPattern = "Missing 'Vista'"
+    with pytest.raises(Exception) as excinfo:
+        logger, konf = sh.setup_config(filename, jenkin_struct)
+    actualErrVerbiage = excinfo.value.args[0]
+    assert expectedErrPattern in actualErrVerbiage

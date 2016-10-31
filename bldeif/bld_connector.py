@@ -13,7 +13,7 @@ from bldeif.utils.claslo          import ClassLoader
 
 ##############################################################################################
 
-__version__ = "0.5.3"
+__version__ = "0.7.0"
 
 PLUGIN_SPEC_PATTERN       = re.compile(r'^(?P<plugin_class>\w+)\s*\((?P<plugin_config>[^\)]*)\)\s*$')
 PLAIN_PLUGIN_SPEC_PATTERN = re.compile(r'(?P<plugin_class>\w+)\s*$')
@@ -63,7 +63,8 @@ class BLDConnector:
 
         self.establishConnections()
 
-        self.validate()  # basically just calls validate on both connection instances
+        if not self.validate():  # basically just calls validate on both connection instances
+            raise ConfigurationError("Validation failed")
         self.log.info("Initialization complete: Delegate connections operational, ready for scan/reflect ops")
 
 

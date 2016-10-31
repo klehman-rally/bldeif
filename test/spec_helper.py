@@ -119,7 +119,7 @@ class Jenkins_Params_Inflator:
     def default_project_conf(self): return 'AgileCentral_DefaultBuildProject :  %s' % self.default_project if self.default_project   else ''
 
     def creds(self):
-        print (self.server_conf())
+        #print (self.server_conf())
         all_items = [self.protocol_conf(), self.server_conf(), self.api_token_conf(),self.username_conf(), self.password_conf()]
         populated = [item for item in all_items if item]
         return ("\n%s" % self.indent).join(populated)
@@ -191,10 +191,14 @@ def setup_config(filename, jenkins_structure='DEFAULT_JENKINS_STRUCTURE', servic
     konf   = Konfabulator(filename, logger)
     return logger, konf
 
+class OutputFile:
+    def __init__(self, file_name):
+      self.file_name = file_name
+      self.marker = os.stat(file_name).st_size
 
-
-
-
-
-
-
+    def readlines(self):
+        content = []
+        with open(self.file_name, 'r') as lf:
+            lf.seek(self.marker)
+            content = lf.readlines()
+        return content

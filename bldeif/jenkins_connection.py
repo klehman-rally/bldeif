@@ -15,7 +15,7 @@ quote = urllib.parse.quote
 
 ############################################################################################
 
-__version__ = "0.5.3"
+__version__ = "0.7.0"
 
 ACTION_WORD_PATTERN    = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
@@ -34,6 +34,7 @@ FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,ch
 FOLDER_JOB_BUILDS_MINIMAL_ATTRS = "number,id,timestamp,result"
 FOLDER_JOB_BUILDS_URL = "{prefix}/job/{folder_name}/jobs/{job_name}/api/json?tree=builds[%s]" % FOLDER_JOB_BUILD_ATTRS
 FOLDER_JOB_BUILD_URL  = "{prefix}/job/{folder_name}/jobs/{job_name}/{number}/api/json"
+#VALID_JENKINS_CONTAINERS = ['Jobs', 'Views', 'Folders']
 
 ############################################################################################
 
@@ -137,6 +138,35 @@ class JenkinsConnection(BLDConnection):
             Just reset our jenkins instance variable to None
         """
         self.jenkins = None
+
+    def validate(self):
+        """
+        """
+        satisfactory = True
+
+        #if self.username_required:
+        if not self.username:
+            self.username = 'username'
+            self.log.info("Literal 'username' is used")
+        else:
+            self.log.debug(
+                '%s - user entry "%s" detected in config file' % (self.__class__.__name__, self.username))
+
+        #if self.password_required:
+        if not self.password:
+            if not self.api_token:
+                self.password = 'password'
+                self.log.info("Literal 'password' is used")
+            else:
+                self.password = self.api_token
+        else:
+            self.log.debug('%s - password entry detected in config file' % self.__class__.__name__)
+
+        if not (self.views or self.folders or self.jobs):
+            self.log.error("No Jobs, Views, or job Folders were provided in your configuration")
+            satisfactory = False
+
+        return satisfactory
 
 
     def getQualifyingJobs(self, view):
