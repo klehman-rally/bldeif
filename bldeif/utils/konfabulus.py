@@ -252,3 +252,4 @@ class Konfabulator(object):
         if not agicen_conn_name.startswith('AgileCentral'):
             problem = 'Unexpected name for initial connection in config, expected AgileCentral'
             raise ConfigurationError(problem)
+

@@ -8,6 +8,8 @@ import re
 from pprint import pprint
 
 from bldeif.utils.konfabulus import Konfabulator
+from bldeif.utils.test_konfabulus import TestKonfabulator
+
 from bldeif.utils.klog       import ActivityLogger
 from bldeif.bld_connector    import BLDConnector
 from bldeif.agicen_bld_connection import AgileCentralConnection
@@ -120,7 +122,7 @@ class Jenkins_Params_Inflator:
 
     def creds(self):
         #print (self.server_conf())
-        all_items = [self.protocol_conf(), self.server_conf(), self.api_token_conf(),self.username_conf(), self.password_conf()]
+        all_items = [self.protocol_conf(), self.server_conf(), self.port_conf(), self.api_token_conf(),self.username_conf(), self.password_conf()]
         populated = [item for item in all_items if item]
         return ("\n%s" % self.indent).join(populated)
 
@@ -168,7 +170,7 @@ class Jenkins_Params_Inflator:
         blob = "\n".join(box)
         return blob
 
-def setup_config(filename, jenkins_structure='DEFAULT_JENKINS_STRUCTURE', services='DEFAULT_SERVICES'):
+def inflate_config_file(filename, jenkins_structure='DEFAULT_JENKINS_STRUCTURE', services='DEFAULT_SERVICES'):
     aci = AC_Creds_Inflator(DEFAULT_AGILE_CENTRAL_SERVER, DEFAULT_AC_API_KEY, None, None,
                             DEFAULT_AC_WORKSPACE)
 
@@ -186,10 +188,20 @@ def setup_config(filename, jenkins_structure='DEFAULT_JENKINS_STRUCTURE', servic
 
     with open(filename, 'w') as out:
         out.write(config_raw)
+    return filename
 
+
+def setup_config(filename, jenkins_structure='DEFAULT_JENKINS_STRUCTURE', services='DEFAULT_SERVICES'):
+    filename = inflate_config_file(filename, jenkins_structure, services)
     logger = ActivityLogger('test.log')
     konf   = Konfabulator(filename, logger)
     return logger, konf
+
+def setup_test_config(filename, jenkins_structure='DEFAULT_JENKINS_STRUCTURE', services='DEFAULT_SERVICES'):
+    filename = inflate_config_file(filename, jenkins_structure, services)
+    logger = ActivityLogger('test.log')
+    tkonf   = TestKonfabulator(filename, logger)
+    return logger, tkonf
 
 class OutputFile:
     def __init__(self, file_name):

@@ -10,20 +10,22 @@ JenkinsBuildConnector:
 
     Jenkins:
         Protocol  : http
-        Server    : int-win7bldmstr.f4tech.com
-        Port      : 8080
+        Server    : almci.f4tech.com
+        Port      : 80
         Prefix    :
         Auth      : false
+       #API_Token : 342gaeg3q4ybv8th4obr8g3afe
+       # to get an API_Token, in your browser, navigate to http://server:port/user/<username>/configure
         AgileCentral_DefaultBuildProject: Sandbox
 
-        Jobs:
-            - Job : VCSEIF-git-master
+        Folders:
+            - Folder : ALM
+              #AgileCentral_Project: Engineering
+              exclude: backward-compatibility,on-demand
 
-            - Job: WICoCo-master build
-              AgileCentral_Project: Dynamic
+            - Folder : ALM Deploy
 
-            - Job: jenkins-rally-build-publisher
-              AgileCentral_Project: Static
+            - Folder : Pinata
 
     Service:
         Preview       : True

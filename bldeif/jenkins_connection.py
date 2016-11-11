@@ -264,7 +264,7 @@ class JenkinsConnection(BLDConnection):
                     excluded = False
                     exclusions = re.split(',\s*', folder_conf['exclude'])
                     for exclusion in exclusions:
-                        if re.search(exclusion, job_name):
+                        if re.search(exclusion, job_name) and len(exclusion) > 0:
                             excluded = True
                     if excluded:
                        #print("         excluding job: %s" % job_url)
