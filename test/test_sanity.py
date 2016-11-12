@@ -9,8 +9,16 @@ import jenkins_spec_helper as jsh
 from datetime import datetime, timedelta
 from bldeif.utils.test_konfabulus import TestKonfabulator
 from bldeif.utils.klog       import ActivityLogger
+from bldeif.bld_connector import BLDConnector
 
 import time
+
+# def test_build_connector():
+#     logger = bsh.ActivityLogger('test/test.log')
+#     konf = bsh.Konfabulator('test/trumpkin.yaml', logger)
+#     bc = BLDConnector(konf, logger)
+#     assert bc is not None
+
 
 def test_mock_build():
     two_days_ago = bsh.epochSeconds("-2d")
@@ -291,10 +299,14 @@ def test_find_builds_of_two_jobs():
 def test_find_builds_in_different_containers():
     t = datetime.now() - timedelta(minutes=60)
     ref_time = t.utctimetuple()
-    folder_name = "simple amphibian"
+    folder1 = "friendly amphibian"
+    folder2 = "unfriendly amphibian"
+
     job1 = "naked-troblodyte{}".format(time.time())
     job2 = "foldered-fukebane{}".format(time.time())
-    two_jobs = [job1, job2]
+    job3 = "ignore-it{}".format(time.time())
+
+    three_jobs = [job1, job2, job3]
     config = "../config/buildorama.yml"
     logger, tkonf = sh.setup_test_config(config)
 
@@ -303,34 +315,51 @@ def test_find_builds_in_different_containers():
 
     jenkins_url = jsh.construct_jenkins_url(jenk_conf)
 
-    r0 = jsh.create_folder(jenk_conf, jenkins_url, folder_name)
+    r0 = jsh.create_folder(jenk_conf, jenkins_url, folder1)
+    assert r0.status_code in [200, 201]
+
+    r0 = jsh.create_folder(jenk_conf, jenkins_url, folder2)
     assert r0.status_code in [200, 201]
 
     r1 = jsh.create_job(jenk_conf, jenkins_url, job1)
     assert r1.status_code in [200, 201]
     tkonf.add_to_container({'Job': job1})
 
-    r1 = jsh.create_job(jenk_conf, jenkins_url, job2, folder=folder_name)
+    r1 = jsh.create_job(jenk_conf, jenkins_url, job2, folder=folder1)
     assert r1.status_code in [200, 201]
-    tkonf.add_to_container({'Folder': folder_name})
+    tkonf.add_to_container({'Folder': folder1})
 
-    # create two build for the same job
+    # create a job in a folder in Jenkins but do not add this folder name to config
+    r1 = jsh.create_job(jenk_conf, jenkins_url, job3, folder=folder2)
+    assert r1.status_code in [200, 201]
+
+    # check if new containers were added
+    assert tkonf.has_item('Job', job1)
+    assert tkonf.has_item('Folder', folder1)
+    assert tkonf.has_item('Folder', folder2) == False
+
+    # create two builds for the same job
     r2 = jsh.build(jenk_conf, jenkins_url, job1)
     assert r2.status_code in [200, 201]
     time.sleep(10)
-    #r2 = jsh.build(jenk_conf, jenkins_url, job2, folder='Parkour')
-    r2 = jsh.build(jenk_conf, jenkins_url, job2, folder=folder_name)
-    assert r2.status_code in [200, 201]
 
+    r2 = jsh.build(jenk_conf, jenkins_url, job2, folder=folder1)
+    assert r2.status_code in [200, 201]
     time.sleep(10)
-    # find two builds
+
+    r2 = jsh.build(jenk_conf, jenkins_url, job3, folder=folder2)
+    assert r2.status_code in [200, 201]
+    time.sleep(10)
+
+
+    # find two builds: a build for job3 should not be found
     target_job_builds = []
     time.sleep(10)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
     builds = jc.getRecentBuilds(ref_time)
 
-    for job_name in two_jobs:
+    for job_name in three_jobs:
         for view_project, jobs in builds.items():
             if jobs and job_name in jobs:
                 target_job_builds.append(jobs[job_name])
@@ -353,11 +382,81 @@ def test_find_builds_in_different_containers():
     r3 = jsh.delete_job(jenk_conf, jenkins_url, job1)
     assert r3.status_code == 200
 
-    r3 = jsh.delete_job(jenk_conf, jenkins_url, job2, folder=folder_name)
+    r3 = jsh.delete_job(jenk_conf, jenkins_url, job2, folder=folder1)
     assert r3.status_code == 200
 
-    r3 = jsh.delete_job(jenk_conf, jenkins_url, folder_name)
+    r3 = jsh.delete_job(jenk_conf, jenkins_url, job3, folder=folder2)
     assert r3.status_code == 200
+
+    r3 = jsh.delete_job(jenk_conf, jenkins_url, folder1)
+    assert r3.status_code == 200
+
+    r3 = jsh.delete_job(jenk_conf, jenkins_url, folder2)
+    assert r3.status_code == 200
+
+def test_same_name_jobs_in_diff_folders():
+    folder1  = "A1"
+    folder2  = "A2"
+    job_name = "frog"
+
+    #config = "../config/buildorama.yml"
+    config = "config/buildorama.yml"
+    logger, tkonf = sh.setup_test_config(config)
+    assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
+    agicen_konf =  tkonf.topLevel('AgileCentral')
+
+    tkonf.add_to_container({'Folder': folder1, 'AgileCentral_Project': 'Dunder Donut'})
+    tkonf.add_to_container({'Folder': folder2, 'AgileCentral_Project': 'Corral'})
+    tkonf.remove_from_container({'Folder' : 'Parkour'})
+    tkonf.remove_from_container({'View': 'Shoreline'})
+    tkonf.remove_from_container({'Job': 'truculent elk medallions'})
+    assert tkonf.has_item('Folder', folder1)
+    assert tkonf.has_item('Folder', folder2)
+    assert tkonf.has_item('Folder', 'Parkour') == False
+
+    ref_time = datetime.now() - timedelta(minutes=5)
+
+
+    jenk_conf = tkonf.topLevel('Jenkins')
+    jenkins_url = jsh.construct_jenkins_url(jenk_conf)
+
+    r1 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder1)
+    assert r1.status_code in [200, 201]
+    time.sleep(10)
+
+    r2 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder2)
+    assert r2.status_code in [200, 201]
+    time.sleep(10)
+
+    # find two builds
+    target_job_builds = []
+    jc = bsh.JenkinsConnection(jenk_conf, logger)
+    jc.connect()
+    builds = jc.getRecentBuilds(ref_time.utctimetuple())
+
+    target_job_builds = [build_info[job_name] for view_project, build_info  in builds.items() if job_name in build_info.keys() ]
+    bc = bsh.BLDConnector(tkonf, logger)
+
+
+    agicen = bc.agicen_conn.agicen
+    query = ['CreationDate >= %s' % ref_time.isoformat()]
+    for view_proj, build_view in builds.items():
+        print(view_proj)
+        for builds in build_view.values():
+            for build in builds:
+                print("    %s" % build)
+                project = view_proj.split('::')[1]
+                print ("PROJECT %s" %project)
+                build_defn = bc.agicen_conn.ensureBuildDefinitionExistence(job_name, project, True, build.url)
+                build_data = build.as_tuple_data()
+                info = bsh.OrderedDict(build_data)
+                agicen_build = bc.postBuildsToAgileCentral(info, build_defn, build)
+                assert agicen_build is not None
+                ac_response = bc.agicen_conn._retrieveBuilds(project, query)
+                for build in ac_response:
+                    assert (build.BuildDefinition.Project.Name) == project
+                    assert (build.BuildDefinition.Name) == job_name
+
 
 def test_depth():
     t = datetime.now() - timedelta(minutes=60)

@@ -57,9 +57,9 @@ def create_folder(config, jenkins, folder_name, outer_folder=None):
     headers = {'Content-Type': 'application/json'}
     folder_class = "com.cloudbees.hudson.plugins.folder.Folder"
     if not outer_folder:
-        url = "{}/createItem?name={}&mode={}&from=".format(jenkins, folder_name, folder_class)
+        url = "{}/createItem?name={}&mode={}".format(jenkins, folder_name, folder_class)
     else:
-        url = "{}/job/{}/createItem?name={}&mode={}&from=".format(jenkins, outer_folder, folder_name, folder_class)
+        url = "{}/job/{}/createItem?name={}&mode={}".format(jenkins, outer_folder, folder_name, folder_class)
     r = requests.post(url, auth=(config['Username'], config['API_Token']), headers=headers)
     return r
 
@@ -69,9 +69,16 @@ def delete_job(config, jenkins, job_name, folder=None):
         url = "{}/job/{}/doDelete".format(jenkins, job_name)
     else:
         url = "{}/job/{}/job/{}/doDelete".format(jenkins, folder, job_name)
-    #url = "{}/job/{}/doDelete".format(jenkins,job_name)
     r = requests.post(url, auth=(config['Username'], config['API_Token']))
     return r
+
+# def delete_builds(config, jenkins, job_name, build_numbers, folder=None):
+#     if not folder:
+#         url = "{}/job/{}/{}/doDeleteAll".format(jenkins, job_name, build_numbers)
+#     else:
+#         url = "{}/job/{}/job/{}/{}/doDeleteAll".format(jenkins, folder, job_name, build_numbers)
+#     r = requests.post(url, auth=(config['Username'], config['API_Token']))
+#     return r
 
 
 def build(config, jenkins, job_name, view="All", folder=None ):

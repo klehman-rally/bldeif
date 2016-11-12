@@ -104,7 +104,7 @@ class AgileCentralConnection(BLDConnection):
             raise and Exception naming the offending project.
         """
         query = self._construct_ored_Name_query(target_projects)
-        response = self.agicen.get('Project', fetch='Name,ObjectID', query=query[1:-1], workspace=self.workspace_name,
+        response = self.agicen.get('Project', fetch='Name,ObjectID', query=query, workspace=self.workspace_name,
                                    project=None, projectScopeDown=True, pagesize=200)
         if response.errors or response.resultCount == 0:
             raise ConfigurationError(
@@ -414,7 +414,7 @@ class AgileCentralConnection(BLDConnection):
                    }
         try:
             self.log.debug("Creating a BuildDefinition for job '%s' in Project '%s' ..." % (job, project))
-            build_defn = self.agicen.create('BuildDefinition', bdf_info)
+            build_defn = self.agicen.create('BuildDefinition', bdf_info, workspace=self.workspace_name, project=project)
         except Exception as msg:
             self.log.error("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
             raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
