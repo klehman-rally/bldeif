@@ -38,7 +38,6 @@ class AgileCentralConnection(BLDConnection):
         self.password_required = True
         self.build_def = {}  # key by Project, then value is in turn a dict keyed by Job name with number and date
                              # of last Build
-        self.job_bdf   = {}
 
     def name(self):
         return "AgileCentral"
@@ -309,7 +308,7 @@ class AgileCentralConnection(BLDConnection):
             return response.next()
         return None
 
-    def _fillHeavyCache(self,project): # have to fix duplication of build definitions in a target project
+    def _fillBuildDefinitionCache(self,project):
         response = self.agicen.get('BuildDefinition', 
                                   #fetch=True,
                                   fetch='ObjectID,Name,Project,LastBuild,Uri', 
@@ -327,7 +326,7 @@ class AgileCentralConnection(BLDConnection):
 
         for build_defn in response:
 ##
-           #print("_fillHeavyCache:  BuildDefinition  Project: %s  JobName: %s" % \
+           #print("_fillBuildDefinitionCache:  BuildDefinition  Project: %s  JobName: %s" % \
            #        (build_defn.Project.Name, build_defn.Name))
 ##
             project  = build_defn.Project.Name
@@ -344,33 +343,32 @@ class AgileCentralConnection(BLDConnection):
 
             Returns a pyral BuildDefinition instance corresponding to the job (and project)
         """
-        # consult the "quick lookup" cache
-        if job in self.job_bdf:
-            return self.job_bdf[job]
+        if project not in self.build_def:
+            self.build_def[project] = {}
 
-        # do we have a "heavy cache" populated?  If not, do it now...
-        #if not self.build_def:
+        if job in self.build_def[project]:
+            return self.build_def[project][job]
+
+        # do we have the BuildDefinition cache populated?  If not, do it now...
         if project not in self.build_def:  # to avoid build definition duplication
-            self.log.debug("Detected build definition heavy cache is empty, populating ...")
-            self._fillHeavyCache(project)
+            self.log.debug("Detected build definition cache for the project: {} is empty, populating ...".format(project))
+            self._fillBuildDefinitionCache(project)
 
         no_entry = False
-        # OK, the job is not in the "quick lookup" cache
-        # so look in the "heavy cache" to see if the job exists for the given project
+        # OK, the job is not in the BuildDefinition cache
+        # so look in the BuildDefintion cache to see if the job exists for the given project
         if project in self.build_def:
             if job in self.build_def[project]:
-                self.job_bdf[job] = self.build_def[project][job] 
-                return self.job_bdf[job]
-
+                return self.build_def[project][job]
         # Determine whether it is permitted for the project to exist under another project
         # if strict_project == True then at this point we'll have to create a BuildDefinintion
         # for this project-job pair
-        # if strict_project == False, then if the job exists in the "heavy cache" for some project (not the project parm)
-        # then we'd grab the BuildDefinition ObjectID that exists in the "heavy cache" for the 
+        # if strict_project == False, then if the job exists in the BuildDefinition cache for some project (not the project parm)
+        # then we'd grab the BuildDefinition ObjectID that exists in the BuildDefinition cache for the
         # other project and this job name,  and stick it in the "quick lookup" cache
         """
         if strict_project == False:
-            # and we find a job name match in the "heavy cache", use it and update the "quick lookup" cache, and return
+            # and we find a job name match in the BuildDefinition cache, use it and update the "quick lookup" cache, and return
             hits = []
             try:
                 for proj in self.build_def.keys():
@@ -385,11 +383,10 @@ class AgileCentralConnection(BLDConnection):
 
             if hits:
                 build_defn = hits[-1] # this will be the BuildDefinition with the most recent build
-                self.job_bdf[job] = build_defn
                 return build_defn
         """
 
-        # At this point we haven't found a match for the job in the "heavy cache".
+        # At this point we haven't found a match for the job in the BuildDefinition cache.
         # So, create a BuildDefinition for the job with the given project
 
         # query = "Name = %s" % project
@@ -419,13 +416,13 @@ class AgileCentralConnection(BLDConnection):
             self.log.error("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
             raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
 
-        # Put the freshly minted BuildDefinition in the "heavy" and "quick lookup" cache and return it
+        # Put the freshly minted BuildDefinition in the BuildDefinition cache and return it
         if project not in self.build_def:
             self.build_def[project] = {}
 
         self.build_def[project][job] = build_defn
-        self.job_bdf[job] = build_defn
         return build_defn
+
 
 
     def preCreate(self, int_work_item):
