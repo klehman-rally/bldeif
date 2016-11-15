@@ -13,12 +13,6 @@ from bldeif.bld_connector import BLDConnector
 
 import time
 
-# def test_build_connector():
-#     logger = bsh.ActivityLogger('test/test.log')
-#     konf = bsh.Konfabulator('test/trumpkin.yaml', logger)
-#     bc = BLDConnector(konf, logger)
-#     assert bc is not None
-
 
 def test_mock_build():
     two_days_ago = bsh.epochSeconds("-2d")
@@ -33,60 +27,37 @@ def test_compare_regular_build_time():
     mock_build = bsh.MockJenkinsBuild("fukebane", 13, "Yuge Disaxter", two_days_ago, 34)
     ref_time = time.strptime("2015-10-23T10:23:45Z", '%Y-%m-%dT%H:%M:%SZ')
     logger = bsh.ActivityLogger('test.log')
-    konf = bsh.Konfabulator('trumpkin.yaml', logger)
+    konf = bsh.Konfabulator('config/trumpkin.yaml', logger)
     jenkins_conf = konf.topLevel('Jenkins')
     jc = bsh.JenkinsConnection(jenkins_conf, logger)
     result = jc.jobBeforeRefTime(mock_build, ref_time)
     assert result == False
 
 
-# def test_simple_config():
-#     t = datetime.now() - timedelta(minutes=60)
-#     ref_time = t.utctimetuple()
-#     job_name = 'troglodyte'
-#
-#     r1 = jsh.create_job(job_name)
-#     assert r1.status_code == 200
-#
-#     r2 = jsh.build(job_name)
-#     assert r2.status_code == 200
-#
-#     filename = "trumpkin.yaml"
-#
-#     logger, konf = sh.setup_config(filename)
-#     assert konf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
-#     jenk_conf = konf.topLevel('Jenkins')
-#
-#     jenk_conf['Jobs'][0] = {'Job':job_name}
-#     assert jenk_conf['Jobs'][0]['Job'] == job_name
-#     jc = bsh.JenkinsConnection(jenk_conf, logger)
-#     jc.connect()
-#     builds = jc.getRecentBuilds(ref_time)
-#     assert (job_name in builds["All::%s" % jenk_conf['AgileCentral_DefaultBuildProject']]) == True
-#
-#     r3 = jsh.delete_job( job_name)
-#     assert r3.status_code == 200
-
-
 def test_folder_config():
-    t = datetime.now() - timedelta(minutes=1440)
+    t = datetime.now() - timedelta(minutes=60)
     ref_time = t.utctimetuple()
-    job_folder, job_name = 'ALM', 'alm'
+    folder = "A1"
+    job_name = "frog"
 
-    filename = "../config/almci.yml"
+    config = "config/buildorama.yml"
+    logger, tkonf = sh.setup_test_config(config)
+    assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
 
-    logger, konf = sh.setup_config(filename, False)
-    assert konf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
-    jenk_conf = konf.topLevel('Jenkins')
+    tkonf.topLevel('Jenkins')['AgileCentral_DefaultBuildProject'] = 'Dunder Donut'
+    tkonf.add_to_container({'Folder': folder})
+    assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
+    jenk_conf = tkonf.topLevel('Jenkins')
 
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
     builds = jc.getRecentBuilds(ref_time)
-    assert (job_name in builds["%s::%s" % (job_folder, jenk_conf['AgileCentral_DefaultBuildProject'])]) == True
+    assert (job_name in builds["%s::%s" % (folder, jenk_conf['AgileCentral_DefaultBuildProject'])]) == True
+
 
 def test_test_konfabulator():
     logger = ActivityLogger('test.log')
-    filename = "../config/buildorama.yml"
+    filename = "config/buildorama.yml"
     test_konfabulator = TestKonfabulator(filename, logger)
     job1 = 'slippery slope'
     item1 = {'Job' : job1}
@@ -124,7 +95,7 @@ def jenkins_job_lifecycle(job_name, config, view="All", folder=None):
 
 def test_manipulate_jenkins_jobs():
     naked_job = "troblodyte{}".format(time.time())
-    config_path = "../config/buildorama.yml"
+    config_path = "config/buildorama.yml"
     assert jenkins_job_lifecycle(naked_job, config_path) == True
 
     view_job = "troblodyte{}".format(time.time())
@@ -139,7 +110,7 @@ def test_find_build():
     t = datetime.now() - timedelta(minutes=60)
     ref_time = t.utctimetuple()
     naked_job = "troblodyte{}".format(time.time())
-    config = "../config/buildorama.yml"
+    config = "config/buildorama.yml"
     logger, tkonf = sh.setup_test_config(config)
 
     assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
@@ -185,7 +156,7 @@ def test_find_two_builds():
     t = datetime.now() - timedelta(minutes=60)
     ref_time = t.utctimetuple()
     naked_job = "troblodyte{}".format(time.time())
-    config = "../config/buildorama.yml"
+    config = "config/buildorama.yml"
     logger, tkonf = sh.setup_test_config(config)
 
     assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
@@ -237,7 +208,7 @@ def test_find_builds_of_two_jobs():
     job1 = "troblodyte{}".format(time.time())
     job2 = "fukebane{}".format(time.time())
     two_jobs = [job1, job2]
-    config = "../config/buildorama.yml"
+    config = "config/buildorama.yml"
     logger, tkonf = sh.setup_test_config(config)
 
     assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
@@ -307,7 +278,7 @@ def test_find_builds_in_different_containers():
     job3 = "ignore-it{}".format(time.time())
 
     three_jobs = [job1, job2, job3]
-    config = "../config/buildorama.yml"
+    config = "config/buildorama.yml"
     logger, tkonf = sh.setup_test_config(config)
 
     assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
@@ -399,12 +370,12 @@ def test_same_name_jobs_in_diff_folders():
     folder2  = "A2"
     job_name = "frog"
 
-    #config = "../config/buildorama.yml"
     config = "config/buildorama.yml"
     logger, tkonf = sh.setup_test_config(config)
     assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
     agicen_konf =  tkonf.topLevel('AgileCentral')
-
+    agicen_konf['Workspace'] = 'Alligators BLD Unigrations'
+    tkonf.topLevel('Jenkins')['AgileCentral_DefaultBuildProject'] = 'Jenkins'
     tkonf.add_to_container({'Folder': folder1, 'AgileCentral_Project': 'Dunder Donut'})
     tkonf.add_to_container({'Folder': folder2, 'AgileCentral_Project': 'Corral'})
     tkonf.remove_from_container({'Folder' : 'Parkour'})
@@ -462,7 +433,7 @@ def test_depth():
     t = datetime.now() - timedelta(minutes=60)
     ref_time = t.utctimetuple()
     naked_job = "freddy-flintstone"
-    config = "../config/buildorama.yml"
+    config = "config/buildorama.yml"
     logger, tkonf = sh.setup_test_config(config)
 
     assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
@@ -473,25 +444,6 @@ def test_depth():
 
     assert 'freddy-flintstone' not in jc.all_jobs
 
-    ######################### jenk_conf['Jobs'][0] = {'Job':job_name}
-
-    #t = datetime.now() - timedelta(minutes=60)
-    #ref_time = t.utctimetuple()
-
-
-    # config_file = config
-    # file_copy = "%sx" % config_file
-    # shutil.copyfile(config_file, file_copy)
-    # logger, konf = sh.setup_config(file_copy
-    # assert konf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
-    # jenk_conf = konf.topLevel('Jenkins')
-    # jenkins_url = jsh.construct_jenkins_url(jenk_conf)
-    # #assert jenk_conf['Jobs'][0]['Job'] == job_name
-    # jc = bsh.JenkinsConnection(jenk_conf, logger)
-    # jc.connect()
-    # builds = jc.getRecentBuilds(ref_time)
-    # assert (job_name in builds["All::%s" % jenk_conf['AgileCentral_DefaultBuildProject']]) == True
-    # print("config: %s   job: %s    number of builds: %d" % (file_copy, job_name, len(builds)))
 
 
 

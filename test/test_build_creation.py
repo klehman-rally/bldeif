@@ -9,31 +9,31 @@ from datetime import datetime, timedelta
 from collections import OrderedDict
 
 
-@pytest.fixture
-def setup_config(filename, simple=True):
-    aci = sh.AC_Creds_Inflator(sh.DEFAULT_AGILE_CENTRAL_SERVER, sh.DEFAULT_AC_API_KEY, None, None,
-                               sh.DEFAULT_AC_WORKSPACE)
-
-    if simple:
-        config_raw = sh.SIMPLE_CONFIG_STRUCTURE.replace('<!AC_CREDS_INFO!>', str(aci))
-    else:
-        config_raw = sh.CONFIG_STRUCTURE_WITH_FOLDERS.replace('<!AC_CREDS_INFO!>', str(aci))
-    with open(filename, 'w') as out:
-        out.write(config_raw)
-
-    logger = sh.ActivityLogger('test.log')
-    konf = sh.Konfabulator(filename, logger)
-    return logger, konf
+# @pytest.fixture
+# def setup_config(filename, simple=True):
+#     aci = sh.AC_Creds_Inflator(sh.DEFAULT_AGILE_CENTRAL_SERVER, sh.DEFAULT_AC_API_KEY, None, None,
+#                                sh.DEFAULT_AC_WORKSPACE)
+#
+#     config_raw = sh.SIMPLE_CONFIG_TEMPLATE.replace('<!AC_CREDS_INFO!>', str(aci))
+#
+#     with open(filename, 'w') as out:
+#         out.write(config_raw)
+#
+#     logger = sh.ActivityLogger('test.log')
+#     konf = sh.Konfabulator(filename, logger)
+#     return logger, konf
 
 
 def test_create_build_with_no_commits():
-    filename = "../config/intwin7.yml"
-    logger, konf = setup_config(filename, False)
+    #filename = "../config/buildorama.yml"
+    filename = "config/buildorama.yml"
+    logger, konf = sh.setup_config(filename)
 
-    konf.topLevel('AgileCentral')['Project'] = 'Sandbox'
+    konf.topLevel('AgileCentral')['Project'] = 'Jenkins'
     agicen = bsh.AgileCentralConnection(konf.topLevel('AgileCentral'), logger)
     agicen.other_name = 'Jenkins'
     agicen.connect()
+    agicen.validateProjects(['Jenkins'])
     build_start = int((datetime.now() - timedelta(minutes=60)).timestamp())
     build_name = 'Willy Wonka stirs the chocolate'
     job_name, build_number, status  = '%s' %build_name, 532, 'SUCCESS'
@@ -43,7 +43,7 @@ def test_create_build_with_no_commits():
     build.url = "http://jenkey.dfsa.com:8080/job/bashfulmonkies/532"
     build_job_uri = "/".join(build.url.split('/')[:-2])
 
-    build_defn = agicen.ensureBuildDefinitionExistence(job_name, 'Sandbox', True, build_job_uri)
+    build_defn = agicen.ensureBuildDefinitionExistence(job_name, 'Jenkins', True, build_job_uri)
     assert build_defn is not None
 
     changesets = agicen.matchToChangesets(commits)
@@ -66,14 +66,15 @@ def test_create_build_with_no_commits():
 def test_create_build_having_commits():
     ref_time = datetime.now().utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     # get a konf and a logger,
-    filename = "../config/intwin7.yml"
-    logger, konf = setup_config(filename, False)
-    konf.topLevel('AgileCentral')['Project'] = 'Sandbox'   # specify the Workspace
+    filename = "config/buildorama.yml"
+    logger, konf = sh.setup_config(filename)
+    konf.topLevel('AgileCentral')['Project'] = 'Jenkins'
 
     # get an AgileCentralConnection
     agicen = bsh.AgileCentralConnection(konf.topLevel('AgileCentral'), logger)
     agicen.other_name = 'Jenkins'
     agicen.connect()
+    agicen.validateProjects(['Jenkins'])
 
     # mock up a Build
     build_start = int((datetime.now() - timedelta(minutes=60)).timestamp())
@@ -89,7 +90,7 @@ def test_create_build_having_commits():
 
     # run the same code as above to matchToChangesets
     # assert that some were found
-    build_defn = agicen.ensureBuildDefinitionExistence(job_name, 'Sandbox', True, build_job_uri)
+    build_defn = agicen.ensureBuildDefinitionExistence(job_name, 'Jenkins', True, build_job_uri)
     assert build_defn is not None
 
     changesets = agicen.matchToChangesets(commits)

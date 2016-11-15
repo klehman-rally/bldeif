@@ -1,5 +1,8 @@
 import pytest
 import spec_helper as sh
+import build_spec_helper as bsh
+from bldeif.utils.eif_exception import ConfigurationError, OperationalError
+#from bldeif.agicen_bld_connection import AgileCentralConnection
 import re
 
 
@@ -102,6 +105,31 @@ def test_validate_projects():
     log_output = of.readlines()
     error_line = [line for line in log_output if 'ERROR' in line][0]
     assert re.search(expectedErrPattern, error_line) is not None
+
+
+def test_detect_same_name_projects():
+    of = sh.OutputFile('test.log')
+    filename = ('buildorama.yml')
+    logger, tkonf = sh.setup_test_config(filename)
+    assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
+    tkonf.remove_from_container({'View': 'Shoreline'})
+    tkonf.remove_from_container({'Job': 'truculent elk medallions'})
+    assert not tkonf.has_item('View', 'Shoreline')
+    assert not tkonf.has_item('Job', 'truculent elk medallions')
+    ac_conf = tkonf.topLevel('AgileCentral')
+    jenk_conf = tkonf.topLevel('Jenkins')
+    bc = bsh.BLDConnector(tkonf, logger)
+    agicen = bc.agicen_conn.agicen
+    workspace_name = ac_conf['Workspace']
+    project_name  = jenk_conf['AgileCentral_DefaultBuildProject']
+    response = agicen.get('Project', fetch='Name', workspace=workspace_name, projectScopeDown=True, pagesize=200)
+    if response.errors or response.resultCount == 0:
+        raise ConfigurationError(
+            'Unable to locate a Project with the name: %s in the target Workspace' % project_name)
+
+    assert bc.agicen_conn.duplicated_project_names[0] == 'Salamandra'
+
+
 
 
 

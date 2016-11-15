@@ -71,7 +71,7 @@ class AgileCentralConnection(BLDConnection):
 
         self.apikey          = config.get("APIKey", config.get("API_Key", None))
         self.workspace_name  = config.get("Workspace", None)
-        self.project_name    = config.get("Project",   None)
+        self.project_name    = config.get("Project",   None)  # This gets bled in by the BLDConnector
         self.restapi_debug   = config.get("Debug", False)
         self.restapi_logger  = self.log
         #self.restapi_logger = self.log if self.restapi_debug else None
@@ -205,12 +205,21 @@ class AgileCentralConnection(BLDConnection):
 ##        before = time.time()
 ##        print("")
 ##        print("before call to agicen get Project: %s" % before)
-        response = self.agicen.get('Project', fetch='Name', workspace=self.workspace_name, 
+        response = self.agicen.get('Project', fetch='Name', workspace=self.workspace_name,
                                    project=self.project_name,
+                                   #project=None, #The current workspace "Alligators BLD Unigrations" does not contain a Project with the name of 'None'
                                    projectScopeDown=True,
                                    pagesize=200)
         if response.errors or response.resultCount == 0:
             raise ConfigurationError('Unable to locate a Project with the name: %s in the target Workspace' % self.project_name)
+
+        # detect any duplicate project names
+        self.project_bucket = {}
+        for proj in response:
+            if proj.Name not in self.project_bucket:
+                self.project_bucket[proj.Name] = 0
+            self.project_bucket[proj.Name] += 1
+        self.duplicated_project_names = [p for p,c in self.project_bucket.items() if c != 1]
 
         project_names = [proj.Name for proj in response]
 ##        after = time.time()
@@ -343,10 +352,13 @@ class AgileCentralConnection(BLDConnection):
 
             Returns a pyral BuildDefinition instance corresponding to the job (and project)
         """
-        if project not in self.build_def:
-            self.build_def[project] = {}
+        # if project not in self.build_def:
+        #     self.build_def[project] = {}
+        #
+        # if job in self.build_def[project]:
+        #     return self.build_def[project][job]
 
-        if job in self.build_def[project]:
+        if project in self.build_def and job in self.build_def[project]:
             return self.build_def[project][job]
 
         # do we have the BuildDefinition cache populated?  If not, do it now...

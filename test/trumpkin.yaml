@@ -1,6 +1,5 @@
 
 ---
-
 JenkinsBuildConnector:
 
     AgileCentral:
@@ -9,28 +8,44 @@ JenkinsBuildConnector:
         Workspace :  Alligators BLD Unigrations
 
     Jenkins:
-        Protocol  : http
-        Server    : int-win7bldmstr.f4tech.com
-        Port      : 8080
-        Prefix    :
-        Auth      : false
-        AgileCentral_DefaultBuildProject: Sandbox
+        Protocol  :  http
+        Server    :  tiema03-u183073.ca.com
+        Port      :  8080
+        API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
+        Username  :  jenkins
+        Password  : None
+        AgileCentral_DefaultBuildProject :  Jenkins
+
+        Views:
+            - View: Prairie
+              include: ^blue*
+              exclude: ^stem,fumar,launch
+              AgileCentral_Project: Salamandra
+
+            - View: Shoreline
+              include: Bra*wogs
+              exclude: ^feature-*,burnin
+              AgileCentral_Project: Brazen Milliwogs
 
         Jobs:
-            - Job : VCSEIF-git-master
+            - Job: troglodyte
+              AgileCentral_Project: Salamandra
 
-            - Job: WICoCo-master build
-              AgileCentral_Project: Dynamic
+            - Job: truculent elk medallions
+              AgileCentral_Project: Refusnik
 
-            - Job: jenkins-rally-build-publisher
-              AgileCentral_Project: Static
+        Folders:
+            - Folder : Parkour
+              AgileCentral_Project: Salamandra
+              exclude: angela merkel,
+
 
     Service:
-        Preview       : False
+        Preview       : True
         LogLevel      : DEBUG
-        MaxBuilds     : 100   # current implementation is this is a per job maximum not total builds
-        VCSData       : False
+        MaxBuilds     : 50
+        StrictProject : True
+        VCSData       : True
 
 ...
-
 
