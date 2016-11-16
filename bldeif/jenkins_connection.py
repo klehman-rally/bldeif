@@ -232,8 +232,9 @@ class JenkinsConnection(BLDConnection):
             Construct a dict keyed by Jenkins-View-Name::AgileCentral_ProjectName
             with a list of JenkinsBuild items for each key
         """
-        ref_time_readable = time.strftime("%Y-%m-%d %H:%M:%S Z", ref_time)
-        ref_time_iso      = time.strftime("%Y-%m-%dT%H:%M:%SZ",  ref_time)
+        zulu_ref_time = time.gmtime(time.mktime(ref_time))
+        ref_time_readable = time.strftime("%Y-%m-%d %H:%M:%S Z", zulu_ref_time)
+        ref_time_iso      = time.strftime("%Y-%m-%dT%H:%M:%SZ",  zulu_ref_time)
         #ref_time_merc_iso = ref_time_iso.replace('T', ' ').replace('Z', '')
         pending_operation = "Detecting recently added Jenkins Builds (added on or after %s)"
         self.log.info(pending_operation % ref_time_readable)
@@ -271,7 +272,7 @@ class JenkinsConnection(BLDConnection):
                         continue
 
                #print "    %s" % job_url
-                builds[key][job_name] = self.getFolderJobBuildHistory(job_folder.name, job, ref_time)
+                builds[key][job_name] = self.getFolderJobBuildHistory(job_folder.name, job, zulu_ref_time)
                 recent_builds_count += len(builds[key][job_name])
 
         for view in self.views:
@@ -283,7 +284,7 @@ class JenkinsConnection(BLDConnection):
             builds[key] = {}
             view_jobs = self.getQualifyingJobs(view)
             for job_name in view_jobs:
-                builds[key][job_name] = self.getBuildHistory(view_name, job_name, ref_time)
+                builds[key][job_name] = self.getBuildHistory(view_name, job_name, zulu_ref_time)
                 recent_builds_count += len(builds[key][job_name])
 
         for job in self.jobs:
@@ -292,7 +293,7 @@ class JenkinsConnection(BLDConnection):
             key = 'All::%s' % ac_project
             if key not in builds:
                 builds[key] = {}
-            builds[key][job_name] = self.getBuildHistory('All', job_name, ref_time)
+            builds[key][job_name] = self.getBuildHistory('All', job_name, zulu_ref_time)
             recent_builds_count += len(builds[key][job_name])
 
         log_msg = "recently added Jenkins Builds detected: %s"
@@ -332,15 +333,10 @@ class JenkinsConnection(BLDConnection):
         for brec in raw_builds:
             #print(brec)
             build = JenkinsBuild(job_name, brec, job_folder=folder_name)
-            # only take those builds >= ref_time
-            if self.jobBeforeRefTime(build, ref_time):
+            if build.id_as_ts < ref_time:  # when true build time is older than ref_time, don't consider this job
                 break
             builds.append(build)
         return builds[::-1]
-
-    def jobBeforeRefTime(self, build, ref_time):
-        build_started_time = time.gmtime(time.mktime(build.id_as_ts))
-        return build_started_time < ref_time  # when true build time is older than ref_time, don't consider this job
 
 
 ##############################################################################################

@@ -3,7 +3,7 @@ import spec_helper as sh
 import re
 
 def test_default():
-    filename = "default.yml"
+    filename = "config/buildorama.yml"
     logger, konf = sh.setup_config(filename)
     assert konf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
     jenk_conf = konf.topLevel('Jenkins')
@@ -12,7 +12,7 @@ def test_default():
 
 
 def test_structure_non_default():
-    filename = "wallace_gf.yml"
+    filename = "config/wallace_gf.yml"
     jenkin_struct = {
         'Jobs': [{'Job': 'Wendolene Ramsbottom', 'AgileCentral_Project': 'Close Shave'},
                  {'Job': 'Lady Tottington', 'AgileCentral_Project': 'The Curse of the Were-Rabbit'},
@@ -27,7 +27,7 @@ def test_structure_non_default():
     assert jenk_conf['Jobs'][2]['AgileCentral_Project'] == project_name
 
 def test_services_non_default():
-    filename = "wallace_gf.yml"
+    filename = "config/wallace_gf.yml"
     service_struct = {
         'Preview': False,
         'LogLevel': 'INFO',
@@ -39,7 +39,7 @@ def test_services_non_default():
     assert service_conf['Preview'] == False
 
 def test_non_default_services():
-    filename = "wallace_gf.yml"
+    filename = "config/wallace_gf.yml"
     jenkin_struct = {
         'Jobs': [{'Job': 'Wendolene Ramsbottom', 'AgileCentral_Project': 'Close Shave'},
                  {'Job': 'Lady Tottington', 'AgileCentral_Project': 'The Curse of the Were-Rabbit'},
@@ -65,7 +65,7 @@ def test_non_default_services():
 
 
 def test_bad_structure_config():
-    filename = "wallace_gf.yml"
+    filename = "config/wallace_gf.yml"
     jenkin_struct = {
         'Jobs': [{'Girlfriend': 'Wendolene Ramsbottom', 'Allergies': 'Cheese'},
                  {'Girlfriend': 'Lady Tottington'},
@@ -80,7 +80,7 @@ def test_bad_structure_config():
 
 
 def test_bad_services_config():
-    filename = "wallace_gf.yml"
+    filename = "config/wallace_gf.yml"
     service_struct = {
         'Purview': False,
         'LogChains': 'INFO',
@@ -94,7 +94,7 @@ def test_bad_services_config():
 
 
 def test_bad_containers():
-    filename = "wallace_gf.yml"
+    filename = "config/wallace_gf.yml"
     jenkin_struct = {
         'Vistas': [{'Vista': 'Wendolene Ramsbottom', 'Allergies': 'Cheese'},
                    {'View': 'Lady Tottington'},

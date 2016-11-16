@@ -30,30 +30,50 @@ def test_compare_regular_build_time():
     konf = bsh.Konfabulator('config/trumpkin.yaml', logger)
     jenkins_conf = konf.topLevel('Jenkins')
     jc = bsh.JenkinsConnection(jenkins_conf, logger)
-    result = jc.jobBeforeRefTime(mock_build, ref_time)
+    result = mock_build.id_as_ts < ref_time
     assert result == False
 
 
 def test_folder_config():
     t = datetime.now() - timedelta(minutes=60)
     ref_time = t.utctimetuple()
-    folder = "A1"
+    folder = "A{}".format(time.time())
     job_name = "frog"
 
     config = "config/buildorama.yml"
     logger, tkonf = sh.setup_test_config(config)
     assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
+    jenk_conf = tkonf.topLevel('Jenkins')
+    jenkins_url = jsh.construct_jenkins_url(jenk_conf)
+
+    # create a jenkins folder and a job in the folder
+    r0 = jsh.create_folder(jenk_conf, jenkins_url, folder)
+    assert r0.status_code in [200, 201]
+
+    r1 = jsh.create_job(jenk_conf, jenkins_url, job_name, folder=folder)
+    assert r1.status_code in [200, 201]
+
+    # build in jenkins
+    r2 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder)
+    assert r2.status_code in [200, 201]
+    #time.sleep(2)
 
     tkonf.topLevel('Jenkins')['AgileCentral_DefaultBuildProject'] = 'Dunder Donut'
     tkonf.add_to_container({'Folder': folder})
-    assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
-    jenk_conf = tkonf.topLevel('Jenkins')
+    assert tkonf.has_item('Folder', folder)
 
+    jenk_conf = tkonf.topLevel('Jenkins')
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
     builds = jc.getRecentBuilds(ref_time)
+
     assert (job_name in builds["%s::%s" % (folder, jenk_conf['AgileCentral_DefaultBuildProject'])]) == True
 
+    r3 = jsh.delete_job(jenk_conf, jenkins_url, job_name, folder=folder)
+    assert r3.status_code == 200
+
+    r3 = jsh.delete_job(jenk_conf, jenkins_url, folder)
+    assert r3.status_code == 200
 
 def test_test_konfabulator():
     logger = ActivityLogger('test.log')
@@ -227,14 +247,14 @@ def test_find_builds_of_two_jobs():
     # create two build for the same job
     r2 = jsh.build(jenk_conf, jenkins_url, job1)
     assert r2.status_code in [200, 201]
-    time.sleep(10)
+    #time.sleep(2)
     r2 = jsh.build(jenk_conf, jenkins_url, job2)
     assert r2.status_code in [200, 201]
 
-    time.sleep(10)
+    #time.sleep(2)
     # find two builds
     target_job_builds = []
-    time.sleep(10)
+    #time.sleep(2)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
     builds = jc.getRecentBuilds(ref_time)
@@ -270,8 +290,8 @@ def test_find_builds_of_two_jobs():
 def test_find_builds_in_different_containers():
     t = datetime.now() - timedelta(minutes=60)
     ref_time = t.utctimetuple()
-    folder1 = "friendly amphibian"
-    folder2 = "unfriendly amphibian"
+    folder1 = "friendly amphibian{}".format(time.time())
+    folder2 = "unfriendly amphibian{}".format(time.time())
 
     job1 = "naked-troblodyte{}".format(time.time())
     job2 = "foldered-fukebane{}".format(time.time())
@@ -299,33 +319,32 @@ def test_find_builds_in_different_containers():
     r1 = jsh.create_job(jenk_conf, jenkins_url, job2, folder=folder1)
     assert r1.status_code in [200, 201]
     tkonf.add_to_container({'Folder': folder1})
+    #tkonf.add_to_container({'Folder': folder2})
 
     # create a job in a folder in Jenkins but do not add this folder name to config
     r1 = jsh.create_job(jenk_conf, jenkins_url, job3, folder=folder2)
     assert r1.status_code in [200, 201]
 
     # check if new containers were added
-    assert tkonf.has_item('Job', job1)
     assert tkonf.has_item('Folder', folder1)
-    assert tkonf.has_item('Folder', folder2) == False
+    #assert tkonf.has_item('Folder', folder2)
 
     # create two builds for the same job
     r2 = jsh.build(jenk_conf, jenkins_url, job1)
     assert r2.status_code in [200, 201]
-    time.sleep(10)
+    #time.sleep(2)
 
     r2 = jsh.build(jenk_conf, jenkins_url, job2, folder=folder1)
     assert r2.status_code in [200, 201]
-    time.sleep(10)
+    #time.sleep(2)
 
     r2 = jsh.build(jenk_conf, jenkins_url, job3, folder=folder2)
     assert r2.status_code in [200, 201]
-    time.sleep(10)
-
+    #time.sleep(2)
 
     # find two builds: a build for job3 should not be found
     target_job_builds = []
-    time.sleep(10)
+    #time.sleep(2)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
     builds = jc.getRecentBuilds(ref_time)
@@ -366,8 +385,8 @@ def test_find_builds_in_different_containers():
     assert r3.status_code == 200
 
 def test_same_name_jobs_in_diff_folders():
-    folder1  = "A1"
-    folder2  = "A2"
+    folder1  = "A1{}".format(time.time())
+    folder2  = "A2{}".format(time.time())
     job_name = "frog"
 
     config = "config/buildorama.yml"
@@ -376,28 +395,45 @@ def test_same_name_jobs_in_diff_folders():
     agicen_konf =  tkonf.topLevel('AgileCentral')
     agicen_konf['Workspace'] = 'Alligators BLD Unigrations'
     tkonf.topLevel('Jenkins')['AgileCentral_DefaultBuildProject'] = 'Jenkins'
+    jenk_conf = tkonf.topLevel('Jenkins')
+    jenkins_url = jsh.construct_jenkins_url(jenk_conf)
+
+    r0 = jsh.create_folder(jenk_conf, jenkins_url, folder1)
+    assert r0.status_code in [200, 201]
+    r0 = jsh.create_folder(jenk_conf, jenkins_url, folder2)
+    assert r0.status_code in [200, 201]
+
+    r1 = jsh.create_job(jenk_conf, jenkins_url, job_name, folder=folder1)
+    assert r1.status_code in [200, 201]
+
+    r1 = jsh.create_job(jenk_conf, jenkins_url, job_name, folder=folder2)
+    assert r1.status_code in [200, 201]
+
     tkonf.add_to_container({'Folder': folder1, 'AgileCentral_Project': 'Dunder Donut'})
     tkonf.add_to_container({'Folder': folder2, 'AgileCentral_Project': 'Corral'})
     tkonf.remove_from_container({'Folder' : 'Parkour'})
     tkonf.remove_from_container({'View': 'Shoreline'})
     tkonf.remove_from_container({'Job': 'truculent elk medallions'})
+
     assert tkonf.has_item('Folder', folder1)
     assert tkonf.has_item('Folder', folder2)
     assert tkonf.has_item('Folder', 'Parkour') == False
 
     ref_time = datetime.now() - timedelta(minutes=5)
 
-
-    jenk_conf = tkonf.topLevel('Jenkins')
     jenkins_url = jsh.construct_jenkins_url(jenk_conf)
 
     r1 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder1)
     assert r1.status_code in [200, 201]
-    time.sleep(10)
+    #time.sleep(2)
 
     r2 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder2)
     assert r2.status_code in [200, 201]
-    time.sleep(10)
+    #time.sleep(2)
+
+    assert folder1 in [folder_rec['Folder'] for folder_rec  in jenk_conf['Folders']]
+    assert folder2 in [folder_rec['Folder'] for folder_rec  in jenk_conf['Folders']]
+    assert 'Parkour' not in [folder_rec['Folder'] for folder_rec  in jenk_conf['Folders']]
 
     # find two builds
     target_job_builds = []
@@ -407,7 +443,6 @@ def test_same_name_jobs_in_diff_folders():
 
     target_job_builds = [build_info[job_name] for view_project, build_info  in builds.items() if job_name in build_info.keys() ]
     bc = bsh.BLDConnector(tkonf, logger)
-
 
     agicen = bc.agicen_conn.agicen
     query = ['CreationDate >= %s' % ref_time.isoformat()]
@@ -423,14 +458,31 @@ def test_same_name_jobs_in_diff_folders():
                 info = bsh.OrderedDict(build_data)
                 agicen_build = bc.postBuildsToAgileCentral(info, build_defn, build)
                 assert agicen_build is not None
+                assert agicen_build.BuildDefinition.Project.Name == project
+
                 ac_response = bc.agicen_conn._retrieveBuilds(project, query)
+                for build in ac_response:
+                    print("    %24.24s Job Name: %24.24s build number: %s " % (build.BuildDefinition.Project.Name, build.BuildDefinition.Name, build.Number))
                 for build in ac_response:
                     assert (build.BuildDefinition.Project.Name) == project
                     assert (build.BuildDefinition.Name) == job_name
 
+    # delete the jobs
+
+    r3 = jsh.delete_job(jenk_conf, jenkins_url, job_name, folder=folder1)
+    assert r3.status_code == 200
+
+    r3 = jsh.delete_job(jenk_conf, jenkins_url, job_name, folder=folder2)
+    assert r3.status_code == 200
+
+    r3 = jsh.delete_job(jenk_conf, jenkins_url, folder1)
+    assert r3.status_code == 200
+
+    r3 = jsh.delete_job(jenk_conf, jenkins_url, folder2)
+    assert r3.status_code == 200
 
 def test_depth():
-    t = datetime.now() - timedelta(minutes=60)
+    t = datetime.now() - timedelta(minutes=2)
     ref_time = t.utctimetuple()
     naked_job = "freddy-flintstone"
     config = "config/buildorama.yml"
@@ -444,8 +496,51 @@ def test_depth():
 
     assert 'freddy-flintstone' not in jc.all_jobs
 
+def test_existing_job():
+    ref_time = datetime.now() - timedelta(minutes=2)
+    folder = "immovable wombats"
+    my_job = "Top"
+    other_job = "Carver"
+    jobs = [my_job, other_job ]
+    jc = sh.build_immovable_wombats(folder, jobs)
+    builds = jc.getRecentBuilds(ref_time.utctimetuple())
+    #target_job_builds = [build_info[my_job] for container_proj, build_info in builds.items() if my_job in build_info.keys()][0]
+    #print (target_job_builds)
 
+    jobs_snarfed = []
+    builds_snarfed = []
+    for container_proj, build_info in builds.items():
+        print (container_proj)
+        for job, builds in build_info.items():
+            jobs_snarfed.append(job)
+            builds_snarfed.extend(builds)
+            print (builds)
+    assert other_job not in jobs_snarfed
+    assert my_job in jobs_snarfed
 
+    print ("FAMOUS WAMBATS-----------------")
 
+    ref_time = datetime.now() - timedelta(minutes=10)
+    folder = "immovable wombats"
+    my_job = "Top"
+    other_job = "Carver"
+    jobs = [my_job, other_job]
+    jc = sh.build_immovable_wombats(folder, jobs)
+    builds = jc.getRecentBuilds(ref_time.utctimetuple())
+    # target_job_builds = [build_info[my_job] for container_proj, build_info in builds.items() if my_job in build_info.keys()][0]
+    # print (target_job_builds)
+
+    more_jobs_snarfed = []
+    more_builds_snarfed = []
+    for container_proj, build_info in builds.items():
+        print (container_proj)
+        for job, builds in build_info.items():
+            more_jobs_snarfed.append(job)
+            more_builds_snarfed.extend(builds)
+            print (builds)
+    assert other_job not in jobs_snarfed
+    assert my_job in more_jobs_snarfed
+
+    assert len(more_builds_snarfed) > len(builds_snarfed)
 
 

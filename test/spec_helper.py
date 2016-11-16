@@ -14,6 +14,9 @@ from bldeif.utils.klog       import ActivityLogger
 from bldeif.bld_connector    import BLDConnector
 from bldeif.agicen_bld_connection import AgileCentralConnection
 
+import jenkins_spec_helper as jsh
+import build_spec_helper   as bsh
+
 DEFAULT_AGILE_CENTRAL_SERVER = 'rally1.rallydev.com'
 DEFAULT_AC_API_KEY   = '_2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8'
 DEFAULT_AC_WORKSPACE = 'Alligators BLD Unigrations'
@@ -214,3 +217,28 @@ class OutputFile:
             lf.seek(self.marker)
             content = lf.readlines()
         return content
+
+
+def build_immovable_wombats(folder, jobs):
+
+    config = "config/buildorama.yml"
+    logger, tkonf = setup_test_config(config)
+    assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
+    agicen_konf = tkonf.topLevel('AgileCentral')
+    jenk_conf = tkonf.topLevel('Jenkins')
+    jenkins_url = jsh.construct_jenkins_url(jenk_conf)
+    tkonf.add_to_container({'Folder': folder, 'AgileCentral_Project': 'Static', 'exclude': jobs[1]})
+    tkonf.remove_from_container({'Folder': 'Parkour'})
+    tkonf.remove_from_container({'View': 'Prairie'})
+    tkonf.remove_from_container({'View': 'Shoreline'})
+    tkonf.remove_from_container({'Job': 'troglodyte'})
+    tkonf.remove_from_container({'Job': 'truculent elk medallions'})
+    assert folder in [folder_rec['Folder'] for folder_rec in jenk_conf['Folders']]
+
+    for job in jobs:
+        r = jsh.build(jenk_conf, jenkins_url, job, folder=folder)
+
+    jc = bsh.JenkinsConnection(jenk_conf, logger)
+    jc.connect()
+
+    return jc

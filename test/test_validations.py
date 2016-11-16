@@ -6,22 +6,10 @@ from bldeif.utils.eif_exception import ConfigurationError, OperationalError
 import re
 
 
-# def test_bad_ac_projects():
-#     filename = "wallace_gf.yml"
-#     jenkin_struct = {
-#         'Jobs': [{'Job': 'Wendolene Ramsbottom', 'AgileCentral_Project': 'Close Shave'},
-#                  {'Job': 'Lady Tottington', 'AgileCentral_Project': 'The Curse of the Were-Rabbit'},
-#                  {'Job': 'Piella Bakewell', 'AgileCentral_Project': 'A Matter of Loaf and Death'}]
-#     }
-#
-#     logger, konf = sh.setup_config(filename, jenkin_struct)
-#     assert konf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
-#     jenk_conf = konf.topLevel('Jenkins')
-#     build_connector = sh.BLDConnector(konf, logger)
 
 
 def test_default_config_spoke_validation():
-    filename = "wallace_gf.yml"
+    filename = "config/wallace_gf.yml"
     logger, konf = sh.setup_config(filename)
     assert konf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
     ac_conf = konf.topLevel('AgileCentral')
@@ -36,7 +24,7 @@ def test_default_config_spoke_validation():
 
 
 def test_bad_workspace_with_default_config():
-    filename = "wallace_gf.yml"
+    filename = "config/wallace_gf.yml"
 
     logger, konf = sh.setup_config(filename)
     assert konf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
@@ -54,7 +42,7 @@ def test_bad_workspace_with_default_config():
 
 def test_jenkins_struct_with_bad_projects():
     of = sh.OutputFile('test.log')
-    filename = "wallace_gf.yml"
+    filename = "config/wallace_gf.yml"
     jenkins_struct = {
         'Jobs': [{'Job': 'Wendolene Ramsbottom', 'AgileCentral_Project': 'Close Shave'},
                  {'Job': 'Lady Tottington', 'AgileCentral_Project': 'The Curse of the Were-Rabbit'},
@@ -78,7 +66,7 @@ def test_project_validation_queries():
         ((((Name = "AC Engineering") OR (Name = "Alligator Tiers")) OR (Name = "O.U.T.S")) OR (Name = "2016 Q4"))
         returns 5 because there are two projects with Name = "2016 Q4"
     """
-    filename = "wallace_gf.yml"
+    filename = "config/wallace_gf.yml"
     logger, konf = sh.setup_config(filename)
     assert konf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
     ac_conf = konf.topLevel('AgileCentral')
@@ -95,7 +83,7 @@ def test_project_validation_queries():
 
 def test_validate_projects():
     of = sh.OutputFile('test.log')
-    filename = "wallace_gf.yml"
+    filename = "config/wallace_gf.yml"
     logger, konf = sh.setup_config(filename)
     assert konf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
     expectedErrPattern = "projects mentioned in the config were not located in AgileCentral Workspace"
@@ -109,7 +97,7 @@ def test_validate_projects():
 
 def test_detect_same_name_projects():
     of = sh.OutputFile('test.log')
-    filename = ('buildorama.yml')
+    filename = ('config/temp.yml')
     logger, tkonf = sh.setup_test_config(filename)
     assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
     tkonf.remove_from_container({'View': 'Shoreline'})
