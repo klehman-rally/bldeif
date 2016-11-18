@@ -167,12 +167,17 @@ class BuildConnectorRunner(object):
         return bsn
 
     def find_config_file(self, config_name):
-        valid_targets = ['%s' % config_name, '%s.yml' % config_name]
-        hits = [entry for entry in glob.glob('config/*') if config_name in entry]
-        if hits:
-            return hits[0]
+        relative_path = 'config/%s' % config_name
+        if os.path.exists(relative_path):
+            return relative_path
         else:
             return None
+        # valid_targets = ['%s' % config_name, '%s.yml' % config_name]
+        # hits = [entry for entry in glob.glob('config/*') if config_name in entry]
+        # if hits:
+        #     return hits[0]
+        # else:
+        #     return None
 
     def _operateService(self, config_file):
         started = finished = elapsed = None

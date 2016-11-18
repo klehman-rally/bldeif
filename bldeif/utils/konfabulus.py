@@ -187,7 +187,7 @@ class Konfabulator(object):
         hits = [ix for ix, line in enumerate(conf_lines) if re.search('^\s+Password\s*:\s*', line) and ix > section_ix]
         if hits:
             pwent_ix = hits[0]
-            conf_lines[pwent_ix] = '        Password  : %s\n' % encoded_password
+            conf_lines[pwent_ix] = '        Password  :  %s\n' % encoded_password
 
         enc_file_name = '%s.pwenc' % self.config_file_name
         enf = open(enc_file_name, 'w')

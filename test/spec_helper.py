@@ -4,6 +4,7 @@ import time
 from datetime import datetime, timedelta
 
 import re
+import yaml
 
 from pprint import pprint
 
@@ -136,6 +137,8 @@ class Jenkins_Params_Inflator:
         #futz with structure which should be a dict with keys potentially of Jobs, Views, Folders
         if type(structure) == str and structure == 'DEFAULT_JENKINS_STRUCTURE':
             return DEFAULT_JENKINS_STRUCTURE[9:]
+        if type(structure) == str:
+            structure = yaml.load(structure)
 
         box = []
         optional_keys = ['include', 'exclude', 'AgileCentral_Project']
@@ -161,15 +164,18 @@ class Jenkins_Params_Inflator:
         # futz with services which should be a dict with keys potentially of Preview, LogLevel, MaxBuilds, VCSData
         if type(services) == str and services == 'DEFAULT_SERVICES':
             return DEFAULT_SERVICES[9:]
+        if type(services) == str:
+            services = yaml.load(services)
 
         legal_settings = ['Preview', 'LogLevel', 'MaxBuilds', 'VCSData']
         bogus_settings = [setting for setting in services if setting not in legal_settings]
         if bogus_settings:
             raise Exception("Supplied services %s contain bogus items: %s" % (services, bogus_settings))
 
-        box = ["      %s: %s" % (service, services[service]) for service in legal_settings if service in services]
+        box = ["    %s: %s" % (service, services[service]) for service in legal_settings if service in services]
         first_line = box[0][:]
         box = [first_line] + ["        %s" % line for line in box[1:]]
+        #box = [first_line] + ["    %s" % line for line in box[1:]]
         blob = "\n".join(box)
         return blob
 

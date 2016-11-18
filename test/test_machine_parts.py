@@ -11,8 +11,8 @@ from bldeif.utils.time_file  import TimeFile
 import jenkins_spec_helper as jsh
 import spec_helper as sh
 
-def create_time_file(config_file):
-    t = datetime.now() - timedelta(minutes=60)
+def create_time_file(config_file, delta):
+    t = datetime.now() - timedelta(minutes=delta)
     now_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.time()))
     last_run_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.mktime(t.timetuple())))
     time_file_name = "{}_time.file".format(config_file.replace('.yml', ''))
@@ -21,7 +21,7 @@ def create_time_file(config_file):
 
 def test_bld_connector_runner():
     config_file = 'wombat.yml'
-    create_time_file(config_file)
+    create_time_file(config_file, 60)
     args = [config_file]
     runner = BuildConnectorRunner(args)
     assert runner.first_config == config_file
@@ -48,7 +48,7 @@ def test_bld_connector_runner():
 
 def test_reflect_builds():
     config_file = 'wombat.yml'
-    create_time_file(config_file)
+    create_time_file(config_file, 2)
     args = [config_file]
     runner = BuildConnectorRunner(args)
     assert runner.first_config == config_file

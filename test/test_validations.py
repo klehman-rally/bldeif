@@ -1,12 +1,28 @@
 import pytest
+import yaml
+import datetime
+from collections import OrderedDict
 import spec_helper as sh
 import build_spec_helper as bsh
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError
 #from bldeif.agicen_bld_connection import AgileCentralConnection
 import re
 
+PLATYPUS_JENKINS_STRUCTURE="""
+        Jobs:
+            - Job: centaur-mordant
+              AgileCentral_Project: Jenkins // Salamandra
 
-
+        Folders:
+            - Folder : frozique
+              AgileCentral_Project: Jenkins // Corral // Salamandra
+"""
+PLATYPUS_SERVICES="""
+    Preview       : False
+    LogLevel      : DEBUG
+    MaxBuilds     : 50
+    VCSData       : True
+"""
 
 def test_default_config_spoke_validation():
     filename = "config/wallace_gf.yml"
@@ -152,6 +168,71 @@ def test_project_path_separators():
 
     assert project_path[0] == 'Jenkins // Salamandra'
 
+
+
+def test_namesake_projects():
+    # have a config that mentions m-e-p Project for the AgileCentral_Project
+    # inhale the config
+    # mock up a build for the 'australopithicus' Job which will trigger the necessity of creating an AC BuildDefinition record for it
+    filename = "config/platypus.yml"
+    logger, konf = sh.setup_config(filename, jenkins_structure=PLATYPUS_JENKINS_STRUCTURE, services=PLATYPUS_SERVICES)
+    bc = bsh.BLDConnector(konf, logger)
+    agiconn = bc.agicen_conn
+    # use agiconn.agicen to clear out any Builds/BuildDefinition that match our intended actions
+    jobs_projs = {'centaur-mordant': agiconn.agicen.getProject('Jenkins // Salamandra').oid,
+                  'australopithicus': agiconn.agicen.getProject('Jenkins // Corral // Salamandra').oid,
+                 }
+    for job, project_oid in jobs_projs.items():
+        criteria = ['BuildDefinition.Name = "%s"' % job, 'BuildDefinition.Project.ObjectID = %d' % project_oid]
+        response = agiconn.agicen.get('Build', fetch="ObjectID,Name", query=criteria)
+        for build in response:
+            agiconn.agicen.delete('Build', build)
+        criteria = ['Name = "%s"' % job, 'Project.ObjectID = %d' % project_oid]
+        response = agiconn.agicen.get('BuildDefinition', fetch="ObjectID,Name", query=criteria)
+        for buildef in response:
+            agiconn.agicen.delete('BuildDefinition', buildef)
+
+    assert 'Jenkins'                         in agiconn._project_cache.keys()
+    assert 'Jenkins // Salamandra'           in agiconn._project_cache.keys()
+    assert 'Jenkins // Corral // Salamandra' in agiconn._project_cache.keys()
+
+    target_project = "Jenkins // Corral // Salamandra"
+    tp = agiconn.agicen.getProject(target_project)
+    assert target_project in bc.target_projects
+
+    # create some mock builds for associated with the mep Projects
+    # throw those against
+    #builds = createMockBuilds(['centaur-mordant', 'australopithicus'])
+    job = 'australopithicus'
+    build_start = int((datetime.datetime.now() - datetime.timedelta(minutes=60)).timestamp())
+    build_number, status = 532, 'SUCCESS'
+    started, duration = build_start, 231
+    commits = []
+    build = bsh.MockJenkinsBuild(job, build_number, status, started, duration, commits)
+    build.changeSets = []
+    build.url = "http://jenkey.dfsa.com:8080/job/bashfulmonkies/532"
+
+    build_data = build.as_tuple_data()
+    info = OrderedDict(build_data)
+    assert 'Project' not in info
+
+    build_job_uri = "/".join(build.url.split('/')[:-2])
+    build_defn = agiconn.ensureBuildDefinitionExistence(job, 'Jenkins // Corral // Salamandra', True, build_job_uri)
+    assert build_defn.Name == job
+    assert build_defn.Project.ObjectID == tp.oid
+
+    if agiconn.buildExists(build_defn, build.number):
+        agiconn.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, job))
+
+    # pull out any build.changeSets commit IDs and see if they match up with AgileCentral Changeset items Revision attribute
+    # if so, get all such commit IDs and their associated Changeset ObjectID, then
+    # add that "collection" as the Build's Changesets collection
+
+    agicen_build = bc.postBuildsToAgileCentral(info, build_defn, build)
+    assert agicen_build.BuildDefinition.ref == build_defn.ref
+
+    # build_defn = agiconn.agicen.ensureBuildDefinitionExistence(job, 'Jenkins', True, build_job_uri)
+    # #assert build_defn is not None
 
 
 

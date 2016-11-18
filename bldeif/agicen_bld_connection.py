@@ -102,23 +102,30 @@ class AgileCentralConnection(BLDConnection):
             If any project name in target_projects does NOT have a corresponding project in AgileCentral
             raise and Exception naming the offending project.
         """
-        query = self._construct_ored_Name_query(target_projects)
+        mep_projects     = list(set([project for project in target_projects if ' // '     in project]))
+        non_mep_projects = list(set([project for project in target_projects if ' // ' not in project]))
+        query = self._construct_ored_Name_query(non_mep_projects)
         response = self.agicen.get('Project', fetch='Name,ObjectID', query=query, workspace=self.workspace_name,
                                    project=None, projectScopeDown=True, pagesize=200)
         if response.errors or response.resultCount == 0:
             raise ConfigurationError(
                 'Unable to locate a Project with the name: %s in the target Workspace: %s' % (self.project_name, self.workspace_name))
+
         found_projects = [project for project in response]
         found_project_names = list(set([p.Name for p in found_projects]))
         bogus = [name for name in target_projects if name not in found_project_names]
-        if bogus:
-            problem = "These projects mentioned in the config were not located in AgileCentral Workspace %s: %s" % (self.workspace_name, ",".join(bogus))
+        real_bogus = set(bogus) - set(mep_projects)
+        if real_bogus:
+            problem = "These projects mentioned in the config were not located in AgileCentral Workspace %s: %s" % (self.workspace_name, ",".join(real_bogus))
             self.log.error(problem)
             return False
 
-        # self._project_cache = {}
-        # for proj in found_projects:
-        #     self._project_cache[proj.Name] = proj.ref
+        #deal with the mep_projects
+        for mep in mep_projects:
+            proj = self.agicen.getProject(mep)
+            if proj:
+                found_projects.append(proj)
+
         self._project_cache = {proj.Name : proj.ref for proj in found_projects}
         return True
 
