@@ -56,7 +56,7 @@ def test_folder_config():
     # build in jenkins
     r2 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder)
     assert r2.status_code in [200, 201]
-    #time.sleep(2)
+    time.sleep(10)
 
     tkonf.topLevel('Jenkins')['AgileCentral_DefaultBuildProject'] = 'Dunder Donut'
     tkonf.add_to_container({'Folder': folder})
@@ -247,14 +247,14 @@ def test_find_builds_of_two_jobs():
     # create two build for the same job
     r2 = jsh.build(jenk_conf, jenkins_url, job1)
     assert r2.status_code in [200, 201]
-    #time.sleep(2)
+    time.sleep(10)
     r2 = jsh.build(jenk_conf, jenkins_url, job2)
     assert r2.status_code in [200, 201]
 
-    #time.sleep(2)
+    time.sleep(10)
     # find two builds
     target_job_builds = []
-    #time.sleep(2)
+    time.sleep(10)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
     builds = jc.getRecentBuilds(ref_time)
@@ -332,19 +332,19 @@ def test_find_builds_in_different_containers():
     # create two builds for the same job
     r2 = jsh.build(jenk_conf, jenkins_url, job1)
     assert r2.status_code in [200, 201]
-    #time.sleep(2)
+    time.sleep(10)
 
     r2 = jsh.build(jenk_conf, jenkins_url, job2, folder=folder1)
     assert r2.status_code in [200, 201]
-    #time.sleep(2)
+    time.sleep(10)
 
     r2 = jsh.build(jenk_conf, jenkins_url, job3, folder=folder2)
     assert r2.status_code in [200, 201]
-    #time.sleep(2)
+    time.sleep(10)
 
     # find two builds: a build for job3 should not be found
     target_job_builds = []
-    #time.sleep(2)
+    time.sleep(10)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
     builds = jc.getRecentBuilds(ref_time)
@@ -425,11 +425,11 @@ def test_same_name_jobs_in_diff_folders():
 
     r1 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder1)
     assert r1.status_code in [200, 201]
-    #time.sleep(2)
+    time.sleep(10)
 
     r2 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder2)
     assert r2.status_code in [200, 201]
-    #time.sleep(2)
+    time.sleep(10)
 
     assert folder1 in [folder_rec['Folder'] for folder_rec  in jenk_conf['Folders']]
     assert folder2 in [folder_rec['Folder'] for folder_rec  in jenk_conf['Folders']]
@@ -503,6 +503,7 @@ def test_existing_job():
     other_job = "Carver"
     jobs = [my_job, other_job ]
     jc = sh.build_immovable_wombats(folder, jobs)
+    time.sleep(10)
     builds = jc.getRecentBuilds(ref_time.utctimetuple())
     #target_job_builds = [build_info[my_job] for container_proj, build_info in builds.items() if my_job in build_info.keys()][0]
     #print (target_job_builds)
@@ -526,6 +527,7 @@ def test_existing_job():
     other_job = "Carver"
     jobs = [my_job, other_job]
     jc = sh.build_immovable_wombats(folder, jobs)
+    time.sleep(10)
     builds = jc.getRecentBuilds(ref_time.utctimetuple())
     # target_job_builds = [build_info[my_job] for container_proj, build_info in builds.items() if my_job in build_info.keys()][0]
     # print (target_job_builds)

@@ -117,6 +117,43 @@ def test_detect_same_name_projects():
 
     assert bc.agicen_conn.duplicated_project_names[0] == 'Salamandra'
 
+def test_project_path_separators():
+    filename = "config/templ.yml"
+    logger, tkonf = sh.setup_test_config(filename)
+    assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
+    jenk_conf = tkonf.topLevel('Jenkins')
+    item = {'View': 'Prairie'}
+    new_item = {'View': 'Prairie',
+                'include': '^blue*',
+                'exclude':'^stem,fumar,launch',
+                'AgileCentral_Project': 'Jenkins // Salamandra'}
+    tkonf.replace_in_container(item, new_item)
+    projects = []
+    if jenk_conf['Jobs']:
+        for element in jenk_conf['Jobs']:
+            if 'AgileCentral_Project' in element:
+                projects.append(element['AgileCentral_Project'])
+    if jenk_conf['Views']:
+        for element in jenk_conf['Views']:
+            if 'AgileCentral_Project' in element:
+                projects.append(element['AgileCentral_Project'])
+
+    if jenk_conf['Folders']:
+        for element in jenk_conf['Folders']:
+            if 'AgileCentral_Project' in element:
+                projects.append(element['AgileCentral_Project'])
+
+    print(projects)
+    project_path = []
+
+    for project in projects:
+        if project.find("//") != -1:
+            project_path.append(project)
+
+    assert project_path[0] == 'Jenkins // Salamandra'
+
+
+
 
 
 
