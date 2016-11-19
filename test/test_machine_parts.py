@@ -16,12 +16,20 @@ def create_time_file(config_file, delta):
     now_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.time()))
     last_run_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.mktime(t.timetuple())))
     time_file_name = "{}_time.file".format(config_file.replace('.yml', ''))
+    #last_run_zulu = "2016-11-18 22:00:00 Z"
     with open("config/{}".format(time_file_name), 'w') as tf:
         tf.write(last_run_zulu)
 
+    return last_run_zulu
+
 def test_bld_connector_runner():
+    #default_lookback = 3600  # 1 hour in seconds
+    config_lookback = 7200  # this is in seconds, even though in the config file the units are minutes
     config_file = 'wombat.yml'
-    create_time_file(config_file, 60)
+    last_run_zulu = create_time_file(config_file, 60)
+    #t = int(time.mktime(time.strptime(last_run_zulu, '%Y-%m-%d %H:%M:%S Z'))) - default_lookback
+    t = int(time.mktime(time.strptime(last_run_zulu, '%Y-%m-%d %H:%M:%S Z')))  - config_lookback
+    last_run_minus_lookback_zulu = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.localtime(t))
     args = [config_file]
     runner = BuildConnectorRunner(args)
     assert runner.first_config == config_file
@@ -39,12 +47,20 @@ def test_bld_connector_runner():
 
     line1 = "Connected to Jenkins server"
     line2 = "Connected to Agile Central"
-    match1 = [line for line in log_content if "{}".format(line1) in line][0]
-    match2 = [line for line in log_content if "{}".format(line2) in line][0]
+    line3 = "Got a BLDConnector instance"
+    line4 = "recent Builds query: CreationDate >= {}".format(last_run_minus_lookback_zulu)
+
+    match1 = [line for line in log_content if "{}".format(line1) in line][-1]
+    match2 = [line for line in log_content if "{}".format(line2) in line][-1]
+    match3 = [line for line in log_content if "{}".format(line3) in line][-1]
+    match4 = [line for line in log_content if "{}".format(line4) in line][-1]
+
+    assert last_run_minus_lookback_zulu in match4
 
     assert re.search(r'%s' % line1, match1)
     assert re.search(r'%s' % line2, match2)
-
+    assert re.search(r'%s' % line3, match3)
+    assert re.search(r'%s' % line4, match4)
 
 def test_reflect_builds():
     config_file = 'wombat.yml'

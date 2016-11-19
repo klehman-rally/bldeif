@@ -415,7 +415,7 @@ class JenkinsBuild(object):
                 (self.name, self.number, self.result, self.started, self.finished, elapsed, self.url)
         return bstr
 
-class JenkinsJobsFolder(object):
+class JenkinsJobsFolder:
     def __init__(self, displayName, name, url, jobs):
         self.displayName = displayName
         self.name = name
@@ -431,12 +431,19 @@ class JenkinsJobsFolder(object):
         return str(self)
 
 
-class JenkinsChangeset(object):
+class JenkinsChangeset:
     def __init__(self, vcs, wad):
         self.vcs       = vcs
         self.commitId  = wad['id']
         self.timestamp = wad['timestamp']
         self.message   = wad['msg']
+        # self.ac_artifacts = []
+        # try:
+        #     results = re.findall(r'((S|US|DE|TA|TC|D)[1-9]\d*)', self.message.upper())
+        #     self.ac_artifacts = list(set([item[0] for item in results]))
+        # except:
+        #     pass
+        #DE123 >US3413124 ([TC145234])
         # self.changes = [JenkinsChangesetFile(changeItem) for changeItem in wad['paths']]
 
     def __str__(self):
@@ -444,7 +451,7 @@ class JenkinsChangeset(object):
                 (self.vcs, self.commitId, self.timestamp, self.message)
         return changeset
 
-class JenkinsChangesetFile(object):
+class JenkinsChangesetFile:
     def __init__(self, item):
         self.action    = item['editType']
         self.file_path = item['file']

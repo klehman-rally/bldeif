@@ -6,6 +6,7 @@ JenkinsBuildConnector:
         Server    :  rally1.rallydev.com
         APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
         Workspace :  Alligators BLD Unigrations
+        Lookback  :  120
 
     Jenkins:
         Protocol  :  http
@@ -13,8 +14,9 @@ JenkinsBuildConnector:
         Port      :  8080
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
-        Password  :  encoded-T-m-9-u-Z-Q-=-=
+        Password  :  None
         AgileCentral_DefaultBuildProject :  Jenkins
+        Lookback  :  30
 
         Views:
             - View: Prairie
