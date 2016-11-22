@@ -115,12 +115,21 @@ class JenkinsConnection(BLDConnection):
         self.all_jobs  = [str( job['name']) for job  in jenkins_info['jobs']]
         #for job in self.all_jobs:
         #    self.log.debug("Job: {0}".format(job))
-        self.primary_view = jenkins_info['primaryView']['name']
+        #self.primary_view = jenkins_info['primaryView']['name']
 
         self.view_folders['All'] = self.getViewFolders('All')
-        self.log.debug("PrimaryView: {0}".format(self.primary_view))
+        #self.log.debug("PrimaryView: {0}".format(self.primary_view))
 
         return True
+
+    def obtainJenkinsInventory(self):
+        """
+
+             Utilize the Jenkins REST API endpoint to obtain all visible/accessible Jenkins Jobs/Views/Folders
+        """
+        urlovals = {'prefix' : self.base_url}
+        jenkins_url = JENKINS_URL.format(**urlovals)
+        self.log.info("Jenkins initial query url: %s" % jenkins_url)
 
     def _getJenkinsVersion(self):
         version = None
@@ -258,7 +267,7 @@ class JenkinsConnection(BLDConnection):
             key = '%s::%s' % (fdn, ac_project) 
             builds[key] = {}
             for job in job_folder.jobs:
-                job_name = job['displayName']
+                job_name = job['name']
                 job_url  = job['url']
                 # TODO: prototype a means of qualifying each job through this folder's inclusion/exclusion config
                 if 'exclude' in folder_conf:
