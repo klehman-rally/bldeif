@@ -112,10 +112,6 @@ class DepthCharge:
             #self.log.debug(jenkins_folder)
         return view_folders
 
-
-    def descend(self):
-        pass
-
 ############################################################################################
 
 class JenkinsJob:

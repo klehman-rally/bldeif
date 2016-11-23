@@ -99,28 +99,21 @@ class JenkinsConnection(BLDConnection):
         self.backend_version = self._getJenkinsVersion()
         self.log.info("Connected to Jenkins server: %s running at version %s" % (self.server, self.backend_version))
         self.log.info("Url: %s" % self.base_url)
-        
-        urlovals = {'prefix' : self.base_url}
-        jenkins_url = JENKINS_URL.format(**urlovals)
-        self.log.info("Jenkins initial query url: %s" % jenkins_url)
 
-        response = requests.get(jenkins_url, auth=self.creds)
-        status = response.status_code
-        what = response
-        jenkins_info = response.json()
-
-        self.all_views = [str(view['name']) for view in jenkins_info['views']]
-        #for view in self.all_views:
-         #   self.log.debug("View: {0}".format(view))
-        self.all_jobs  = [str( job['name']) for job  in jenkins_info['jobs']]
-        #for job in self.all_jobs:
-        #    self.log.debug("Job: {0}".format(job))
-        #self.primary_view = jenkins_info['primaryView']['name']
-
-        self.view_folders['All'] = self.getViewFolders('All')
-        #self.log.debug("PrimaryView: {0}".format(self.primary_view))
-
+        self.obtainJenkinsInventory()
         return True
+
+
+    def makeFieldsString(self, depth):
+        basic_fields = '_class,name,displayName,views[name,jobs[name]],jobs'
+        detailed_fetch = basic_fields[:]
+        if depth <= 1:
+            return basic_fields
+
+        for i in range(1, depth):
+            detailed_fetch = "%s[%s]" % (basic_fields , detailed_fetch)
+        return detailed_fetch
+
 
     def obtainJenkinsInventory(self):
         """
@@ -130,6 +123,51 @@ class JenkinsConnection(BLDConnection):
         urlovals = {'prefix' : self.base_url}
         jenkins_url = JENKINS_URL.format(**urlovals)
         self.log.info("Jenkins initial query url: %s" % jenkins_url)
+        urlovals = {'prefix': self.base_url}
+
+        fields = self.makeFieldsString(self.maxDepth)
+        # pprint(fields)
+        # fields = '_class,name,displayName,jobs[_class,name,displayName,jobs[_class,name,displayName,jobs]]'
+        jenkins_url = "%s?depth=%d&tree=%s" % (JENKINS_URL.format(**urlovals), self.maxDepth, fields)
+        response = requests.get(jenkins_url, auth=self.creds)
+        status = response.status_code
+        jenkins_info = response.json()
+
+        #self.all_views = [str(view['name']) for view in jenkins_info['views']]
+        # for view in self.all_views:
+        #   self.log.debug("View: {0}".format(view))
+        #self.all_jobs = [str(job['name']) for job in jenkins_info['jobs']]
+        # for job in self.all_jobs:
+        #    self.log.debug("Job: {0}".format(job))
+        # self.primary_view = jenkins_info['primaryView']['name']
+
+        #self.view_folders['All'] = self.getViewFolders('All')
+        # self.log.debug("PrimaryView: {0}".format(self.primary_view))
+
+        job_bucket    = []
+        folder_bucket = []
+        view_bucket   = ["/%s" % view['name'] for view in jenkins_info['views'] if not view['_class'].endswith('AllView')]
+        job_bucket, folder_bucket, view_bucket = self.fill_buckets(jenkins_info['jobs'], '', job_bucket, folder_bucket, view_bucket)
+        self.inventory = JenkinsInventory(job_bucket, folder_bucket, view_bucket)
+
+
+    def fill_buckets(self, jobs, container, job_bucket, folder_bucket, view_bucket, level=1):
+
+        non_folders = [job for job in jobs if 'name' in job.keys() and not job['_class'].endswith('.Folder')]
+        folders = [job for job in jobs if 'name' in job.keys() and job['_class'].endswith('.Folder')]
+
+        for job in non_folders:
+            job_bucket.append(JenkinsJob(job, container=container))
+        for folder in folders:
+            name = folder.get('name', 'NO-NAME-FOLDER')
+            folder_bucket.append("%s/%s" % (container, name))
+            folder_views = [view['name'] for view in folder['views'] if not view['_class'].endswith('AllView')]
+            view_bucket.extend(["%s/%s/%s" % (container, name, fv) for fv in folder_views])
+            self.fill_buckets(folder['jobs'], '%s/%s' % (container, name), job_bucket, folder_bucket, view_bucket,
+                                level + 1)
+
+        return job_bucket, folder_bucket, view_bucket
+
 
     def _getJenkinsVersion(self):
         version = None
@@ -226,8 +264,8 @@ class JenkinsConnection(BLDConnection):
         for job in jenk_jobs:
             if not 'jobs' in job:
                 continue
-            jenkins_folder = JenkinsJobsFolder(job['displayName'], job['name'], job['url'], job['jobs'])
-            view_folders[jenkins_folder.displayName] = jenkins_folder
+            jenkins_folder = JenkinsJobsFolder(job['name'], job['url'], job['jobs'])
+            view_folders[jenkins_folder.name] = jenkins_folder
             #self.log.debug(jenkins_folder)
         return view_folders
 
@@ -252,23 +290,23 @@ class JenkinsConnection(BLDConnection):
         recent_builds_count = 0
 
         for folder_conf in self.folders:
-           #print "folder_conf: %s" % repr(folder_conf)
-            folder_display_name = folder_conf['Folder']
-           #print("config item for folder display name: %s --> %s" % (folder_display_name, repr(folder_conf)))
+            #print "folder_conf: %s" % repr(folder_conf)
+            folder_name = folder_conf['Folder']
+            #print("config item for folder display name: %s --> %s" % (folder_display_name, repr(folder_conf)))
             ac_project = folder_conf.get('AgileCentral_Project', self.ac_project)
-           #print "  AgileCentral_Project: %s" % ac_project
+            #print "  AgileCentral_Project: %s" % ac_project
 
-            fits = [(dn, f) for dn, f in self.view_folders['All'].items() if str(dn) == folder_display_name]
-            if not fits:
-                continue
-            fdn, job_folder = fits.pop(0)
-           #print("\n%-16.16s   %s" % (fdn, job_folder.name))
-           #print("\n%s   folder" % (fdn))
-            key = '%s::%s' % (fdn, ac_project) 
+            # fits = [(dn, f) for dn, f in self.view_folders['All'].items() if str(dn) == folder_display_name]
+            # if not fits:
+            #     continue
+            # fdn, job_folder = fits.pop(0)
+            job_folder = self.inventory.getFolder(folder_name)
+
+            #print("\n%s   folder" % (folder_name))
+            key = '%s::%s' % (folder_name, ac_project)
             builds[key] = {}
             for job in job_folder.jobs:
                 job_name = job['name']
-                job_url  = job['url']
                 # TODO: prototype a means of qualifying each job through this folder's inclusion/exclusion config
                 if 'exclude' in folder_conf:
                     excluded = False
@@ -280,7 +318,7 @@ class JenkinsConnection(BLDConnection):
                        #print("         excluding job: %s" % job_url)
                         continue
 
-               #print "    %s" % job_url
+                #print "    %s" % job['url']
                 builds[key][job_name] = self.getFolderJobBuildHistory(job_folder.name, job, zulu_ref_time)
                 recent_builds_count += len(builds[key][job_name])
 
@@ -347,98 +385,159 @@ class JenkinsConnection(BLDConnection):
             builds.append(build)
         return builds[::-1]
 
+##############################################################################################
+
+class JenkinsInventory:
+    def __init__(self, job_bucket, folder_bucket, view_bucket):
+        self.jobs    = job_bucket
+        self.folders = folder_bucket
+        self.views   = view_bucket
+
+    def setBaseUrl(self, base_url):
+        self.base_url
+
+    def getFolder(self, name):
+        folder_path = next((folder for folder in self.folders if folder.split('/')[-1] == name), None)
+        if not folder_path:
+            raise OperationalError("Your folder path to '%s' is None" % name)
+
+        job_names = [job.split('::')[-1] for job in self.jobs if job.split('::')[0] == folder_path]
+        jobs = [JenkinsJob(job_name) for job_name in job_names]
+        job_folder_url = "%s/job/%s" % (self.base_url, name)
+        jjf = JenkinsJobsFolder(folder_path, job_folder_url, jobs)
+
+        return jjf
+
+    def getView(self, name):
+        view_path = next((view_path.split('/')[-1] for view_path in self.views if view_path.split('/')[-1] == name), None)
+        if not view_path:
+            raise OperationalError("Your view path to '%s' is None" % name)
+
 
 ##############################################################################################
 
-class JenkinsBuild(object):
-    def __init__(self, name, raw, job_folder=None):
-        """
-        """
-        self.name        = name
-        self.number      = int(raw['number'])
-        self.result      = str(raw['result'])
-        self.result      = 'INCOMPLETE' if self.result == 'ABORTED' else self.result
 
-        self.id_str      = str(raw['id'])
-        self.Id          = self.id_str
-        self.timestamp   = raw['timestamp']
-
-        if re.search('^\d+$', self.id_str):
-            self.id_as_ts =   time.gmtime(self.timestamp/1000)
-            self.id_str   = str(self.timestamp)
-            self.Id       = self.id_str
-        else:
-            self.id_as_ts = time.strptime(self.id_str, '%Y-%m-%d_%H-%M-%S')
-
-        self.started     = time.strftime('%Y-%m-%d %H:%M:%SZ', time.gmtime(self.timestamp/1000)) 
-        self.duration    = raw['duration']
-        whole, millis    = divmod(self.duration, 1000)
-        hours, leftover  = divmod(whole,  3600)
-        minutes, secs    = divmod(leftover, 60)
-        if hours:
-            duration = "%d:%02d:%02d.%03d" % (hours, minutes, secs, millis)
-        else:
-            if minutes >= 10:
-                duration = "%02d:%02d.%03d" % (minutes, secs, millis)
-            else:
-                duration = " %d:%02d.%03d" % (minutes, secs, millis)
-
-        self.elapsed = "%12s" % duration
-
-        total = (self.timestamp + self.duration) / 1000
-        self.finished    = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(total))
-        self.url         = raw['url']
-        self.changeSets  = self.ripChangeSets(raw['changeSet']['kind'], raw['changeSet']['items'])
-
-    def ripChangeSets(self, vcs, changesets):
-        tank = [JenkinsChangeset(vcs, cs_info) for cs_info in changesets]
-        return tank
-
-    def as_tuple_data(self):
-        start_time = datetime.datetime.utcfromtimestamp(self.timestamp / 1000.0).strftime('%Y-%m-%dT%H:%M:%SZ')
-        build_data = [('Number',   self.number),
-                      ('Status',   str(self.result)),
-                      ('Start',    start_time),
-                      ('Duration', self.duration / 1000.0),
-                      ('Uri',      self.url)]
-        return build_data
-
-    def __repr__(self):
-        name      = "name: %s"       % self.name
-        ident     = "id_str: %s"     % self.id_str
-        number    = "number: %s"     % self.number
-        result    = "result: %s"     % self.result
-        finished  = "finished: %s"   % self.finished
-        duration  = "duration: %s"   % self.duration
-        nothing = ""
-        pill = "  ".join([name, ident, number, result, finished, duration, nothing])
-        return pill
+class JenkinsJob:
+    def __init__(self, info, container='Root'):
+        self.container = container
+        self.name = info.get('name', 'UNKNOWN-ITEM')
+        self._type = info['_class'].split('.')[-1]
 
     def __str__(self):
-        elapsed = self.elapsed[:]
-        if elapsed.startswith('00:'):
-            elapsed = '   ' + elapsed[3:]
-        if elapsed.startswith('   00:'):
-            elapsed = '      ' + elapsed[6:]
-        bstr = "%s Build # %5d   %-10.10s  Started: %s  Finished: %s   Duration: %s  URL: %s" % \
-                (self.name, self.number, self.result, self.started, self.finished, elapsed, self.url)
-        return bstr
+        vj = "%s::%s" % (self.container, self.name)
+        return "%-80.80s  %s" % (vj, self._type)
+
+    def __repr__(self):
+        return str(self)
+
+#############################################################################################
+
+class JenkinsView:
+    def __init__(self, info, container='Root'):
+        self.container = container
+        self.name = info  # .get('name', 'UNKNOWN-ITEM')
+
+    def __str__(self):
+        vj = "%s::%s" % (self.container, self.name)
+        return "%-80.80s  %s" % (vj, self._type)
+
+    def __repr__(self):
+        return str(self)
+
+#############################################################################################
 
 class JenkinsJobsFolder:
-    def __init__(self, displayName, name, url, jobs):
-        self.displayName = displayName
+    def __init__(self, name, url, jobs):
         self.name = name
         self.url  = url
         self.jobs = jobs
 
     def __str__(self):
         sub_jobs = len(self.jobs)
-        return "displayName: %-24.24s   name: %-24.24s   sub-jobs: %3d   url: %s " % \
-                (self.displayName, self.name, sub_jobs, self.url)
+        return "name: %-24.24s   sub-jobs: %3d   url: %s " % \
+                (self.name, sub_jobs, self.url)
         
     def info(self):
         return str(self)
 
+###########################################################################################
+
+    class JenkinsBuild(object):
+        def __init__(self, name, raw, job_folder=None):
+            """
+            """
+            self.name = name
+            self.number = int(raw['number'])
+            self.result = str(raw['result'])
+            self.result = 'INCOMPLETE' if self.result == 'ABORTED' else self.result
+
+            self.id_str = str(raw['id'])
+            self.Id = self.id_str
+            self.timestamp = raw['timestamp']
+
+            if re.search('^\d+$', self.id_str):
+                self.id_as_ts = time.gmtime(self.timestamp / 1000)
+                self.id_str = str(self.timestamp)
+                self.Id = self.id_str
+            else:
+                self.id_as_ts = time.strptime(self.id_str, '%Y-%m-%d_%H-%M-%S')
+
+            self.started = time.strftime('%Y-%m-%d %H:%M:%SZ', time.gmtime(self.timestamp / 1000))
+            self.duration = raw['duration']
+            whole, millis = divmod(self.duration, 1000)
+            hours, leftover = divmod(whole, 3600)
+            minutes, secs = divmod(leftover, 60)
+            if hours:
+                duration = "%d:%02d:%02d.%03d" % (hours, minutes, secs, millis)
+            else:
+                if minutes >= 10:
+                    duration = "%02d:%02d.%03d" % (minutes, secs, millis)
+                else:
+                    duration = " %d:%02d.%03d" % (minutes, secs, millis)
+
+            self.elapsed = "%12s" % duration
+
+            total = (self.timestamp + self.duration) / 1000
+            self.finished = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(total))
+            self.url = raw['url']
+            self.changeSets = self.ripChangeSets(raw['changeSet']['kind'], raw['changeSet']['items'])
+
+        def ripChangeSets(self, vcs, changesets):
+            tank = [JenkinsChangeset(vcs, cs_info) for cs_info in changesets]
+            return tank
+
+        def as_tuple_data(self):
+            start_time = datetime.datetime.utcfromtimestamp(self.timestamp / 1000.0).strftime('%Y-%m-%dT%H:%M:%SZ')
+            build_data = [('Number', self.number),
+                          ('Status', str(self.result)),
+                          ('Start', start_time),
+                          ('Duration', self.duration / 1000.0),
+                          ('Uri', self.url)]
+            return build_data
+
+        def __repr__(self):
+            name = "name: %s" % self.name
+            ident = "id_str: %s" % self.id_str
+            number = "number: %s" % self.number
+            result = "result: %s" % self.result
+            finished = "finished: %s" % self.finished
+            duration = "duration: %s" % self.duration
+            nothing = ""
+            pill = "  ".join([name, ident, number, result, finished, duration, nothing])
+            return pill
+
+        def __str__(self):
+            elapsed = self.elapsed[:]
+            if elapsed.startswith('00:'):
+                elapsed = '   ' + elapsed[3:]
+            if elapsed.startswith('   00:'):
+                elapsed = '      ' + elapsed[6:]
+            bstr = "%s Build # %5d   %-10.10s  Started: %s  Finished: %s   Duration: %s  URL: %s" % \
+                   (self.name, self.number, self.result, self.started, self.finished, elapsed, self.url)
+            return bstr
+
+
+#############################################################################################
 
 class JenkinsChangeset:
     def __init__(self, vcs, wad):
