@@ -14,6 +14,7 @@ JenkinsBuildConnector:
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
         Password  :  encoded-c-m-F-s-b-H-l-k-Z-X-Y-=
+        MaxDepth  :  5
         AgileCentral_DefaultBuildProject :  Jenkins
 
         Views:

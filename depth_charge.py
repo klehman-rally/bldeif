@@ -194,8 +194,6 @@ def bucketize_structure(jobs, container, job_bucket, folder_bucket, view_bucket,
 
     return job_bucket, folder_bucket, view_bucket
 
-
-
 print ('***********************************')
 job_bucket = []
 folder_bucket = []
@@ -204,8 +202,6 @@ view_bucket = ["/%s" % view['name'] for view in jenk.jenk['views'] if not view['
 job_bucket, folder_bucket, view_bucket = bucketize_structure(jenk.jenk['jobs'], '', job_bucket, folder_bucket, view_bucket)
 
 bucketized = time.time()
-
-
 
 print ('---------------------------')
 #pprint(inventory)

@@ -29,6 +29,7 @@ DEFAULT_JENKINS_PORT = 8080
 DEFAULT_JENKINS_USERNAME = 'jenkins'
 DEFAULT_JENKINS_PASSWORD = 'rallydev'
 DEFAULT_JENKINS_API_TOKEN = 'e008e30c73820b7eeb097ae1f1fa1dd8'
+DEFAULT_JENKINS_MAX_DEPTH = 5
 DEFAULT_JENKINS_STRUCTURE = """
         Views:
             - View: Prairie
@@ -71,6 +72,7 @@ JenkinsBuildConnector:
 
     Jenkins:
         <!JENKINS_CREDS_INFO!>
+        <!JENKINS_MAX_DEPTH!>
         <!AC_DEFAULT_BUILD_PROJECT!>
 
         <!JENKINS_STRUCTURE_SPECS!>
@@ -107,7 +109,7 @@ class AC_Creds_Inflator:
 
 class Jenkins_Params_Inflator:
     indent = " " * 8
-    def __init__(self, protocol, server, port, username, password, api_token, default_project):
+    def __init__(self, protocol, server, port, username, password, api_token, default_project, max_depth):
         self.protocol  = protocol
         self.server    = server
         self.port      = port
@@ -115,6 +117,7 @@ class Jenkins_Params_Inflator:
         self.password  = password
         self.api_token   = api_token
         self.default_project = default_project
+        self.default_max_depth = max_depth
 
     def protocol_conf(self):return   'Protocol  :  %s' % self.protocol  if self.server      else 'http'
     def port_conf(self): return      'Port      :  %s' % self.port      if self.port        else '8080'
@@ -123,6 +126,8 @@ class Jenkins_Params_Inflator:
     def username_conf(self): return  'Username  :  %s' % self.username  if self.username    else ''
     def password_conf(self): return  'Password  :  %s' % self.password  if self.password    else ''
     def default_project_conf(self): return 'AgileCentral_DefaultBuildProject :  %s' % self.default_project if self.default_project   else ''
+    def default_max_depth_conf(self): return 'MaxDepth  :  %s' % self.default_max_depth if self.default_max_depth else 3
+
 
     def creds(self):
         #print (self.server_conf())
@@ -185,7 +190,7 @@ def inflate_config_file(filename, jenkins_structure='DEFAULT_JENKINS_STRUCTURE',
 
     jpi = Jenkins_Params_Inflator(DEFAULT_JENKINS_PROTOCOL, DEFAULT_JENKINS_SERVER, DEFAULT_JENKINS_PORT,
                                   DEFAULT_JENKINS_USERNAME, DEFAULT_JENKINS_PASSWORD,
-                                  DEFAULT_JENKINS_API_TOKEN, DEFAULT_AC_PROJECT)
+                                  DEFAULT_JENKINS_API_TOKEN, DEFAULT_AC_PROJECT, DEFAULT_JENKINS_MAX_DEPTH)
 
 
     config_raw = SIMPLE_CONFIG_TEMPLATE.replace('<!AC_CREDS_INFO!>', str(aci))
@@ -193,7 +198,7 @@ def inflate_config_file(filename, jenkins_structure='DEFAULT_JENKINS_STRUCTURE',
     config_raw = config_raw.replace('<!AC_DEFAULT_BUILD_PROJECT!>', jpi.default_project_conf())
     config_raw = config_raw.replace('<!JENKINS_STRUCTURE_SPECS!>',  jpi.inflate_structure(jenkins_structure))
     config_raw = config_raw.replace('<!BLDEIF_SERVICE!>',           jpi.inflate_services(services))
-
+    config_raw = config_raw.replace('<!JENKINS_MAX_DEPTH!>',        jpi.default_max_depth_conf())
 
     with open(filename, 'w') as out:
         out.write(config_raw)
