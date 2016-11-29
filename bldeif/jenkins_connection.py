@@ -82,7 +82,7 @@ class JenkinsConnection(BLDConnection):
         self.all_views  = []
         self.all_jobs   = []
         self.view_folders = {}
-        self.maxDepth   = config.get('MaxDepth', 1) + 1
+        self.maxDepth   = config.get('MaxDepth', 1) + 2
         if self.user:
             if self.api_token:
                 cred = self.api_token
@@ -152,7 +152,7 @@ class JenkinsConnection(BLDConnection):
     def fill_buckets(self, jobs, container, job_bucket, folder_bucket, view_bucket, level=1):
 
         non_folders = [job for job in jobs if 'name' in job.keys() and not job['_class'].endswith('.Folder')]
-        folders = [job for job in jobs if 'name' in job.keys() and job['_class'].endswith('.Folder')]
+        folders     = [job for job in jobs if 'name' in job.keys() and     job['_class'].endswith('.Folder')]
 
         for job in non_folders:
             job_bucket.append(JenkinsJob(job, container=container, base_url=self.base_url))
@@ -414,7 +414,8 @@ class JenkinsInventory:
                          None)
         if not view_path:
             raise OperationalError("Your view path to '%s' is None" % name)
-        return view_path
+        jv = JenkinsView(name, view_path.rsplit('/', 1)[0])
+        return jv
 
     def hasView(self, name):
         try:
