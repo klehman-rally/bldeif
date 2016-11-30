@@ -280,7 +280,31 @@ class JenkinsConnection(BLDConnection):
             self.log.error("No Jobs, Views, or job Folders were provided in your configuration")
             satisfactory = False
 
+        if not self.configItemsVetted():
+            self.log.error("Some Jobs, Views, or Job Folders were invalid in your configuration")
+            satisfactory = False
+
         return satisfactory
+
+    def configItemsVetted(self):
+        """
+            Mash the self.jobs, self.views and self.folders
+            against what is in our self.inventory.  If there are items/sub-items in
+            the config structure that aren't in the self.inventory, call a foul and get out.
+            Otherwise declare a Trump-like victory!
+        """
+
+        # are there any items in self.jobs ?
+
+        if (self.jobs):
+            job_names = [job.name.replace('::','') for job in self.inventory.jobs]
+            config_job_names = [job['Job'] for job in self.jobs]
+            diff = set(config_job_names) - set(job_names)
+            if diff:
+                villains = ', '.join(diff)
+                self.log.error("these jobs: %s  were not present in the Jenkins inventory of Jobs" % villains)
+                return False
+        return True
 
     def getQualifyingJobs(self, view):
 

@@ -9,9 +9,13 @@ import build_spec_helper   as bsh
 import spec_helper as sh
 from bldeif.utils.klog       import ActivityLogger
 
-def connect_to_jenkins():
-    config_file = 'config/honey-badger.yml'
-    #logger, konf = sh.setup_config(config_file)
+STANDARD_CONFIG = 'honey-badger.yml'
+MIN_CONFIG      = 'bluestem.yml'
+BAD_CONFIG      = 'attila.yml'
+
+def connect_to_jenkins(config_file):
+    #config_file = 'config/honey-badger.yml'
+    config_file = "config/{}".format(config_file)
     jenk_conf = {}
     with open(config_file, 'r') as cf:
         content = cf.read()
@@ -22,7 +26,7 @@ def connect_to_jenkins():
     return jc
 
 def test_jobs_bucket():
-    jc = connect_to_jenkins()
+    jc = connect_to_jenkins(STANDARD_CONFIG)
     assert jc.connect()
     jobs = jc.inventory.jobs
     for j in jc.inventory.jobs:
@@ -31,7 +35,7 @@ def test_jobs_bucket():
     assert next((job for job in jobs if job.name == "troglodyte"))
 
 def test_views_bucket():
-    jc = connect_to_jenkins()
+    jc = connect_to_jenkins(STANDARD_CONFIG)
     assert jc.connect()
     views = jc.inventory.views
 
@@ -50,7 +54,7 @@ def test_views_bucket():
     assert [job.name for job in views[view_path].jobs if job.name == job_name]
 
 def test_folders_bucket():
-    jc = connect_to_jenkins()
+    jc = connect_to_jenkins(STANDARD_CONFIG)
     assert jc.connect()
     folders = jc.inventory.folders
 
@@ -66,7 +70,7 @@ def test_folders_bucket():
 
 
 def test_fully_qualified_path():
-    jc = connect_to_jenkins()
+    jc = connect_to_jenkins(STANDARD_CONFIG)
     assert jc.connect()
     container = 'http://tiema03-u183073.ca.com:8080/job/abacab/job/bontamy'
     folder_name, view_name = 'crinkely', 'Cliffside'
@@ -75,7 +79,7 @@ def test_fully_qualified_path():
     assert fqp == expected_value
 
 def test_folder_full_path():
-    jc = connect_to_jenkins()
+    jc = connect_to_jenkins(STANDARD_CONFIG)
     assert jc.connect()
     jc.showFolderJobs()
     container = 'job/abacab/job/bontamy'
@@ -83,3 +87,12 @@ def test_folder_full_path():
     fqp = jc.get_folder_full_path(container, folder_name)
     expected_value = '/abacab/bontamy/crinkely'
     assert fqp == expected_value
+
+def test_job_vetting():
+    jc = connect_to_jenkins(MIN_CONFIG)
+    assert jc.connect()
+    assert jc.configItemsVetted()
+
+    jc = connect_to_jenkins(BAD_CONFIG)
+    assert jc.connect()
+    assert not jc.configItemsVetted()
