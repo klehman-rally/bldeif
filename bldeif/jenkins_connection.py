@@ -296,14 +296,33 @@ class JenkinsConnection(BLDConnection):
 
         # are there any items in self.jobs ?
 
-        if (self.jobs):
+        if self.jobs:
             job_names = [job.name.replace('::','') for job in self.inventory.jobs]
             config_job_names = [job['Job'] for job in self.jobs]
             diff = set(config_job_names) - set(job_names)
             if diff:
-                villains = ', '.join(diff)
+                villains = ', '.join(["'%s'" % d for d in diff])
                 self.log.error("these jobs: %s  were not present in the Jenkins inventory of Jobs" % villains)
                 return False
+
+        if self.views:
+            view_names = [view_name.rsplit('/', 1)[-1] for view_name in self.inventory.views.keys()]
+            config_view_names = [view['View'] for view in self.views]
+            diff = set(config_view_names) - set(view_names)
+            if diff:
+                villains = ', '.join(["'%s'" % d for d in diff])
+                self.log.error("these views: %s  were not present in the Jenkins inventory of Views" % villains)
+                return False
+
+        if self.folders:
+            folder_names = [folder_name.rsplit('/', 1)[-1] for folder_name in self.inventory.folders.keys()]
+            config_folder_names = [folder['Folder'] for folder in self.folders]
+            diff = set(config_folder_names) - set(folder_names)
+            if diff:
+                villains = ', '.join(["'%s'" % d for d in diff])
+                self.log.error("these folders: %s  were not present in the Jenkins inventory of Folders" % villains)
+                return False
+
         return True
 
     def getQualifyingJobs(self, view):

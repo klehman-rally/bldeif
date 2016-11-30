@@ -8,10 +8,15 @@ from bldeif.utils.time_file  import TimeFile
 import build_spec_helper   as bsh
 import spec_helper as sh
 from bldeif.utils.klog       import ActivityLogger
+from bldeif.bld_connector_runner import BuildConnectorRunner
 
 STANDARD_CONFIG = 'honey-badger.yml'
-MIN_CONFIG      = 'bluestem.yml'
-BAD_CONFIG      = 'attila.yml'
+MIN_CONFIG1     = 'bluestem.yml'
+MIN_CONFIG2     = 'cliffside.yml'
+MIN_CONFIG3     = 'crinkely.yml'
+BAD_CONFIG1     = 'attila.yml'
+BAD_CONFIG2     = 'genghis.yml'
+BAD_CONFIG3     = 'caligula.yml'
 
 def connect_to_jenkins(config_file):
     #config_file = 'config/honey-badger.yml'
@@ -89,10 +94,44 @@ def test_folder_full_path():
     assert fqp == expected_value
 
 def test_job_vetting():
-    jc = connect_to_jenkins(MIN_CONFIG)
+    jc = connect_to_jenkins(MIN_CONFIG1)
     assert jc.connect()
     assert jc.configItemsVetted()
 
-    jc = connect_to_jenkins(BAD_CONFIG)
+    jc = connect_to_jenkins(BAD_CONFIG1)
     assert jc.connect()
     assert not jc.configItemsVetted()
+
+def test_view_vetting():
+    jc = connect_to_jenkins(MIN_CONFIG2)
+    assert jc.connect()
+    assert jc.configItemsVetted()
+
+    jc = connect_to_jenkins(BAD_CONFIG2)
+    assert jc.connect()
+    assert not jc.configItemsVetted()
+
+def test_folder_vetting():
+    jc = connect_to_jenkins(MIN_CONFIG3)
+    assert jc.connect()
+    assert jc.configItemsVetted()
+
+    jc = connect_to_jenkins(BAD_CONFIG3)
+    assert jc.connect()
+    assert not jc.configItemsVetted()
+
+def test_log_for_config_vetting():
+    config_file = BAD_CONFIG1
+    args = [config_file]
+    runner = BuildConnectorRunner(args)
+    assert runner.first_config == config_file
+    runner.run()
+    log = "{}.log".format(config_file.replace('.yml', ''))
+    assert runner.logfile_name == log
+
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+
+    error = "these jobs: Parkour, pillage-and-plunder, torment  were not present in the Jenkins inventory of Jobs"
+    match = [line for line in log_content if "{}".format(error) in line][0]
+    assert re.search(r'%s' % error, match)
