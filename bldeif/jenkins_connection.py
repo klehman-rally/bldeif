@@ -143,10 +143,12 @@ class JenkinsConnection(BLDConnection):
         # self.log.debug("PrimaryView: {0}".format(self.primary_view))
 
         job_bucket = []
-        folder_bucket = []
-        view_bucket = ["/%s" % view['name'] for view in jenkins_info['views'] if not view['_class'].endswith('AllView')]
-        job_bucket, folder_bucket, view_bucket = self.fill_buckets(jenkins_info['jobs'], '', job_bucket, folder_bucket,
-                                                                   view_bucket)
+        folder_bucket = {}
+        view_bucket = {}
+        base_views  = [view for view in jenkins_info['views'] if not view['_class'].endswith('AllView')]
+        for view in base_views:
+            view_bucket['/%s' % view['name']] = JenkinsView(view, base_url=self.base_url)
+        job_bucket, folder_bucket, view_bucket = self.fill_buckets(jenkins_info['jobs'], self.base_url, job_bucket, folder_bucket, view_bucket)
         self.inventory = JenkinsInventory(self.base_url, job_bucket, folder_bucket, view_bucket)
 
     def fill_buckets(self, jobs, container, job_bucket, folder_bucket, view_bucket, level=1):
@@ -158,13 +160,81 @@ class JenkinsConnection(BLDConnection):
             job_bucket.append(JenkinsJob(job, container=container, base_url=self.base_url))
         for folder in folders:
             name = folder.get('name', 'NO-NAME-FOLDER')
-            folder_bucket.append("%s/%s" % (container, name))
-            folder_views = [view['name'] for view in folder['views'] if not view['_class'].endswith('AllView')]
-            view_bucket.extend(["%s/%s/%s" % (container, name, fv) for fv in folder_views])
-            self.fill_buckets(folder['jobs'], '%s/%s' % (container, name), job_bucket, folder_bucket, view_bucket,
-                              level + 1)
+            #folder_key = '%s/%s' % (container, name)
+            fcon = self.get_folder_full_path(container, name)
+            folder_bucket[fcon] = JenkinsJobsFolder(folder, container, folder_url="%s/job/%s" % (container, name))
+            folder_views = [view for view in folder['views'] if not view['_class'].endswith('AllView')]
+            for folder_view in folder_views:
+                full_view_path = self.get_view_full_path(container, name, folder_view['name'])
+                view_bucket[full_view_path] = JenkinsView(folder_view, '%s/job/%s' % (container, name), base_url="%s/job/%s" % (container, name))
+            self.fill_buckets(folder['jobs'], '%s/job/%s' % (container, name), job_bucket, folder_bucket, view_bucket, level + 1)
 
         return job_bucket, folder_bucket, view_bucket
+
+    def get_view_full_path(self, container, folder_name, view_name):
+        """
+            Strip off the self.base_url prefix from container,
+            then split by 'job/' and reconstruct the result, append / folder_name / view_name
+        """
+        container = re.sub(r'%s/?' % self.base_url, '', container)
+        elements = [el for el in re.split('/?job/?', container) if el] #removed leading space
+        path = "/".join(elements)
+        if not container:
+            fqp = "/%s/%s" % (folder_name, view_name)
+        else:
+            fqp = "/%s/%s/%s" % (path, folder_name, view_name)
+
+        return fqp
+
+
+    def get_folder_full_path(self, container, folder_name):
+        """
+            Strip off the self.base_url prefix from container,
+            then split by 'job/' and reconstruct the result, append / folder_path / folder_name
+        """
+        container = re.sub(r'%s/?' % self.base_url, '', container)
+        elements = [el for el in re.split('/?job/?', container) if el] #removed leading space
+        path = "/".join(elements)
+        if not container:
+            fqp = "/%s" % (folder_name)
+        else:
+            fqp = "/%s/%s" % (path, folder_name)
+
+        #print("gfp container: %-20.20s  folder_name: %-20.20s  path: %-20.20s result --> %s" % (container, folder_name, path, fqp))
+
+        return fqp
+
+    def showViewJobs(self, target='All'):
+        """
+           view/path/foo
+               job 1
+               job 2
+        """
+        print("\n  Views and Jobs \n  ---------------\n")
+        views = sorted(self.inventory.views.keys(), key=lambda s: s.lower())
+        if target != 'All':
+            views = [v for v in views if v == target]
+        for vk in views:
+            print('    %s' % vk)
+            jenkins_view = self.inventory.views[vk]
+            for job in jenkins_view.jobs:
+                print('        %s' % job.name)
+            print("")
+
+    def showFolderJobs(self, target='All'):
+        """
+
+        """
+        print("\n  Folders and Jobs \n  ---------------\n")
+        folders = sorted(self.inventory.folders.keys(), key=lambda s: s.lower())
+        if target != 'All':
+            folders = [f for f in folders if f == target]
+        for fn in folders:
+            print('    %s' % fn)
+            #jenkins_folder = self.inventory.folders[fk]
+            #for job in jenkins_folder.jobs:
+            #   print('        %s' % job.name)
+            #print("")
 
     def _getJenkinsVersion(self):
         version = None
@@ -389,55 +459,28 @@ class JenkinsInventory:
 
 
     def getFolder(self, name):
-        folder_path = next((folder for folder in self.folders if folder.split('/')[-1] == name), None)
-        if not folder_path:
-            raise OperationalError("Your folder path to '%s' is None" % name)
+        folder = next((self.folders[folder] for folder in self.folders.keys() if folder == name), None)
+        return folder
 
-        #job_names = [job.split('::')[-1] for job in self.jobs if job.split('::')[0] == folder_path]
-        job_names = [job.job_path.split('::')[-1] for job in self.jobs if job.job_path.split('::')[0] == folder_path]
-        jobs = [JenkinsJob({'name':job_name,'_class':'.job'}, container=folder_path, base_url=self.base_url) for job_name in job_names]
-        job_folder_url = "%s/job/%s" % (self.base_url, name)
-        jjf = JenkinsJobsFolder(folder_path, job_folder_url, jobs)
 
-        return jjf
-
-    def hasFolder(self, name):
-        try:
-            jjf = self.getFolder(name)
-        except:
-            return False
-
-        return True
-
-    def getView(self, name):
-        view_path = next((view_path.split('/')[-1] for view_path in self.views if view_path.split('/')[-1] == name),
-                         None)
-        if not view_path:
-            raise OperationalError("Your view path to '%s' is None" % name)
-        jv = JenkinsView(name, view_path.rsplit('/', 1)[0])
-        return jv
-
-    def hasView(self, name):
-        try:
-            view_path = self.getView(name)
-        except:
-            return False
-
-        return True
-
+    def getView(self, view_path):
+        target_view = next((self.views[vp] for vp in self.views.keys() if vp == view_path), None)
+        return target_view
 
 
 ##############################################################################################
 
 
 class JenkinsJob:
-    def __init__(self, info, container='Root', base_url='placeholder'):
+    def __init__(self, info, container='Root', base_url=''):
         self.container = container
-        self.name = info.get('name', 'UNKNOWN-ITEM')
-        self._type = info['_class'].split('.')[-1]
-        self.job_path = "%s::%s" % (self.container, self.name)
-        container_url_path = '/'.join(['job/%s' % element for element in container[1:].split('/')])
-        self.url = "%s/%s/job/%s/" % (base_url, container_url_path,  self.name)
+        self.name      = info.get('name', 'UNKNOWN-ITEM')
+        self._type     = info['_class'].split('.')[-1]
+        #self.job_path  = "%s::%s" % (self.container, self.name)
+
+        self.job_path = "%s::%s" % (re.sub(r'%s/?' % base_url, '', container), self.name)
+        self.job_path = '/'.join(re.split('/?job/?', self.job_path))
+        self.url       = "%s/job/%s" % (base_url, self.name)
 
     def __str__(self):
         vj = "%s::%s" % (self.container, self.name)
@@ -445,14 +488,17 @@ class JenkinsJob:
 
     def __repr__(self):
         return str(self)
-
 
 #############################################################################################
 
 class JenkinsView:
-    def __init__(self, info, container='Root'):
+    def __init__(self, info, container='/',  base_url=''):
         self.container = container
-        self.name = info  # .get('name', 'UNKNOWN-ITEM')
+        self.name      = info['name']  # .get('name', 'UNKNOWN-ITEM')
+        self._type     = info['_class'].split('.')[-1]
+        job_container  = "%s/%s" % (self.container, self.name)
+        view_url       = "%s/view/%s" % (base_url, self.name)
+        self.jobs = [JenkinsJob(job, job_container, base_url=view_url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
 
     def __str__(self):
         vj = "%s::%s" % (self.container, self.name)
@@ -461,14 +507,14 @@ class JenkinsView:
     def __repr__(self):
         return str(self)
 
-
 #############################################################################################
 
 class JenkinsJobsFolder:
-    def __init__(self, name, url, jobs):
-        self.name = name
-        self.url = url
-        self.jobs = jobs
+    def __init__(self, info, container='/',  folder_url=''):
+        self.name = '/%s' % info['name']
+        job_container  = "%s/%s" % (container, self.name)
+        folder_url = "%s/job/%s" % (folder_url, self.name)
+        self.jobs = [JenkinsJob(job, job_container, base_url=folder_url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
 
     def __str__(self):
         sub_jobs = len(self.jobs)
