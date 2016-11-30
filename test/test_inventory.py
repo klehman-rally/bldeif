@@ -3,6 +3,7 @@ import re
 import yaml
 import json
 import time
+from datetime import datetime, timedelta
 from bldeif.bld_connector    import BLDConnector
 from bldeif.utils.time_file  import TimeFile
 import build_spec_helper   as bsh
@@ -17,6 +18,8 @@ MIN_CONFIG3     = 'crinkely.yml'
 BAD_CONFIG1     = 'attila.yml'
 BAD_CONFIG2     = 'genghis.yml'
 BAD_CONFIG3     = 'caligula.yml'
+SHALLOW_CONFIG  = 'shallow.yml'
+DEEP_CONFIG     = 'deepstate.yml'
 
 def connect_to_jenkins(config_file):
     #config_file = 'config/honey-badger.yml'
@@ -135,3 +138,32 @@ def test_log_for_config_vetting():
     error = "these jobs: Parkour, pillage-and-plunder, torment  were not present in the Jenkins inventory of Jobs"
     match = [line for line in log_content if "{}".format(error) in line][0]
     assert re.search(r'%s' % error, match)
+
+def test_shallow_depth_config():
+    of = sh.OutputFile('inventory.log')
+    t = datetime.now() - timedelta(days=365)
+    ref_time = t.utctimetuple()
+    jc = connect_to_jenkins(SHALLOW_CONFIG)
+    assert jc.connect()
+    assert not jc.configItemsVetted()
+
+    log_output = of.readlines()
+    error_lines = [line for line in log_output if 'ERROR' in line][0]
+    error = "these folders: 'dungeon'  were not present in the Jenkins inventory of Folders"
+    assert re.search(error, error_lines) is not None
+
+def test_deepy_depth_config():
+    of = sh.OutputFile('inventory.log')
+    t = datetime.now() - timedelta(days=365)
+    ref_time = t.utctimetuple()
+    jc = connect_to_jenkins(DEEP_CONFIG)
+    assert jc.connect()
+    assert jc.configItemsVetted()
+
+    log_output = of.readlines()
+    error_lines = [line for line in log_output if 'ERROR' in line]
+    assert len(error_lines) == 0
+
+    builds = jc.getRecentBuilds(ref_time)
+    assert builds
+

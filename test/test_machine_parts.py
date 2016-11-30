@@ -16,7 +16,6 @@ def create_time_file(config_file, delta):
     now_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.time()))
     last_run_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.mktime(t.timetuple())))
     time_file_name = "{}_time.file".format(config_file.replace('.yml', ''))
-    #last_run_zulu = "2016-11-18 22:00:00 Z"
     with open("config/{}".format(time_file_name), 'w') as tf:
         tf.write(last_run_zulu)
 

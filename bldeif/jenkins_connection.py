@@ -23,6 +23,7 @@ VALID_ARTIFACT_ABBREV = None  # set later after config values for artifact prefi
 JENKINS_URL = "{prefix}/api/json"
 ALL_JOBS_URL = "{prefix}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
 VIEW_JOBS_URL = "{prefix}/view/{view}/api/json?depth=0&tree=jobs[name]"
+VIEW_JOBS_ENDPOINT = "/api/json?depth=0&tree=jobs[name]"
 VIEW_FOLDERS_URL = "{prefix}/view/{view}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
 # BUILD_ATTRS      = "number,id,fullDisplayName,timestamp,duration,result,url,changeSet[kind,items[*[*]]]"
 BUILD_ATTRS = "number,id,fullDisplayName,timestamp,duration,result,url,changeSet[kind,items[id,timestamp,date,msg]]"
@@ -327,17 +328,19 @@ class JenkinsConnection(BLDConnection):
 
     def getQualifyingJobs(self, view):
 
-        if not self.inventory.hasView(view['View']):
+        jenkins_view = self.inventory.getView(view['View'])
+        if not jenkins_view:
             raise ConfigurationError("specified view '%s' not present in list of existing Jenkins views" % view['View'])
 
         urlovals = {'prefix': self.base_url, 'view': urllib.parse.quote(view['View'])}
-        view_jobs_url = VIEW_JOBS_URL.format(**urlovals)
+        #view_jobs_url = VIEW_JOBS_URL.format(**urlovals)
+        view_jobs_url = jenkins_view.url + VIEW_JOBS_ENDPOINT.format(**urlovals)
         # self.log.debug("view: %s  req_url: %s" % (view, view_jobs_url))
         response = requests.get(view_jobs_url, auth=self.creds)
         jenk_jobs = response.json()
         jobs = [str(job['name']) for job in jenk_jobs.get('jobs', None)]
 
-        include_patt = view.get('include', '*')
+        include_patt = view.get('include', '.*')
         included_jobs = [job for job in jobs if re.search(include_patt, job) != None]
         excluded_jobs = []
         if 'exclude' in view:
@@ -402,13 +405,7 @@ class JenkinsConnection(BLDConnection):
             # print("config item for folder display name: %s --> %s" % (folder_display_name, repr(folder_conf)))
             ac_project = folder_conf.get('AgileCentral_Project', self.ac_project)
             # print "  AgileCentral_Project: %s" % ac_project
-
-            # fits = [(dn, f) for dn, f in self.view_folders['All'].items() if str(dn) == folder_display_name]
-            # if not fits:
-            #     continue
-            # fdn, job_folder = fits.pop(0)
             job_folder = self.inventory.getFolder(folder_name)
-
             # print("\n%s   folder" % (folder_name))
             key = '%s::%s' % (folder_name, ac_project)
             builds[key] = {}
@@ -438,16 +435,20 @@ class JenkinsConnection(BLDConnection):
             builds[key] = {}
             view_jobs = self.getQualifyingJobs(view)
             for job_name in view_jobs:
-                builds[key][job_name] = self.getBuildHistory(view_name, job_name, zulu_ref_time)
+                jenkins_view = self.inventory.getView(view_name)
+                jenkins_job = [job for job in jenkins_view.jobs if job.name == job_name][0]
+                builds[key][job_name] = self.getBuildHistory(view_name, jenkins_job, zulu_ref_time)
                 recent_builds_count += len(builds[key][job_name])
 
         for job in self.jobs:
             job_name = job['Job']
+            jenkins_job = self.inventory.getJob(job_name)
+            #jenkins_job = [job for job in self.inventory.jobs if job.name == job_name][0]
             ac_project = job.get('AgileCentral_Project', self.ac_project)
             key = 'All::%s' % ac_project
             if key not in builds:
                 builds[key] = {}
-            builds[key][job_name] = self.getBuildHistory('All', job_name, zulu_ref_time)
+            builds[key][job_name] = self.getBuildHistory('All', jenkins_job, zulu_ref_time)
             recent_builds_count += len(builds[key][job_name])
 
         log_msg = "recently added Jenkins Builds detected: %s"
@@ -462,18 +463,19 @@ class JenkinsConnection(BLDConnection):
 
     def getBuildHistory(self, view, job, ref_time):
         JOB_BUILDS_URL = "{prefix}/view/{view}/job/{job}/api/json?tree=builds[%s]" % BUILD_ATTRS
-
-        urlovals = {'prefix': self.base_url, 'view': quote(view), 'job': quote(job)}
-        job_builds_url = JOB_BUILDS_URL.format(**urlovals)
+        JOB_BUILDS_ENDPOINT = "/api/json?tree=builds[%s]" % BUILD_ATTRS
+        urlovals = {'prefix': self.base_url, 'view': quote(view), 'job': quote(job.name)}
+        #job_builds_url = JOB_BUILDS_URL.format(**urlovals)
+        job_builds_url = job.url + (JOB_BUILDS_ENDPOINT.format(**urlovals))
         # self.log.debug("view: %s  job: %s  req_url: %s" % (view, job, job_builds_url))
         raw_builds = requests.get(job_builds_url, auth=self.creds).json()['builds']
-        qualifying_builds = self.extractQualifyingBuilds(job, None, ref_time, raw_builds)
+        qualifying_builds = self.extractQualifyingBuilds(job.name, None, ref_time, raw_builds)
         return qualifying_builds
 
     def getFolderJobBuildHistory(self, folder_name, job, ref_time):
 
         #job_name = job.name
-        folder_job_builds_url = job.url + ('api/json?tree=builds[%s]' % FOLDER_JOB_BUILD_ATTRS)
+        folder_job_builds_url = job.url + ('/api/json?tree=builds[%s]' % FOLDER_JOB_BUILD_ATTRS)
         # print("    %s" % folder_job_builds_url)
         self.log.debug("folder: %s  job: %s  req_url: %s" % (folder_name, job.name, folder_job_builds_url))
         raw_builds = requests.get(folder_job_builds_url, auth=self.creds).json()['builds']
@@ -502,13 +504,30 @@ class JenkinsInventory:
 
 
     def getFolder(self, name):
-        folder = next((self.folders[folder] for folder in self.folders.keys() if folder == name), None)
+        target = name if name.startswith('/') else '/%s' % name
+        folder = next((self.folders[folder] for folder in self.folders.keys() if folder.endswith(target)), None)
         return folder
 
 
     def getView(self, view_path):
-        target_view = next((self.views[vp] for vp in self.views.keys() if vp == view_path), None)
+        view_path = '/%s' % view_path if view_path[0] != '/' else view_path
+        target_view = next((self.views[vp] for vp in self.views.keys() if vp.endswith(view_path)), None)
         return target_view
+
+    def getJob(self, job_name):
+        first_level_jobs = [job for job in self.jobs if job.name == job_name]
+        if first_level_jobs:
+            return first_level_jobs[0]
+
+        jobs = []
+        for folder_path in self.folders.keys():
+           matching_jobs = [job for job in self.folders[folder_path].jobs if job.name == job_name]
+           if matching_jobs: jobs.extend(matching_jobs)
+        for view_path in self.views.keys():
+            matching_jobs = [job for job in self.views[view_path].jobs if job.name == job_name]
+            if matching_jobs: jobs.extend(matching_jobs)
+
+        return jobs[0]
 
 
 ##############################################################################################
@@ -519,11 +538,10 @@ class JenkinsJob:
         self.container = container
         self.name      = info.get('name', 'UNKNOWN-ITEM')
         self._type     = info['_class'].split('.')[-1]
-        #self.job_path  = "%s::%s" % (self.container, self.name)
+        self.url       = "%s/job/%s" % (container, self.name)
 
-        self.job_path = "%s::%s" % (re.sub(r'%s/?' % base_url, '', container), self.name)
-        self.job_path = '/'.join(re.split('/?job/?', self.job_path))
-        self.url       = "%s/job/%s" % (base_url, self.name)
+        self.job_path  = "%s::%s" % (re.sub(r'%s/?' % base_url, '', container), self.name)
+        self.job_path  = '/'.join(re.split('/?job/?', self.job_path))
 
     def __str__(self):
         vj = "%s::%s" % (self.container, self.name)
@@ -539,9 +557,8 @@ class JenkinsView:
         self.container = container
         self.name      = info['name']  # .get('name', 'UNKNOWN-ITEM')
         self._type     = info['_class'].split('.')[-1]
-        job_container  = "%s/%s" % (self.container, self.name)
-        view_url       = "%s/view/%s" % (base_url, self.name)
-        self.jobs = [JenkinsJob(job, job_container, base_url=view_url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
+        self.url       = "%s/view/%s" % (base_url, self.name)
+        self.jobs      = [JenkinsJob(job, self.url, base_url=self.url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
 
     def __str__(self):
         vj = "%s::%s" % (self.container, self.name)
@@ -554,10 +571,10 @@ class JenkinsView:
 
 class JenkinsJobsFolder:
     def __init__(self, info, container='/',  folder_url=''):
-        self.name = '/%s' % info['name']
-        job_container  = "%s/%s" % (container, self.name)
-        folder_url = "%s/job/%s" % (folder_url, self.name)
-        self.jobs = [JenkinsJob(job, job_container, base_url=folder_url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
+        self.name      = '/%s' % info['name']
+        job_container  = "%s/job%s" % (container, self.name)
+        self.url       = "%s/job/%s" % (folder_url, self.name)
+        self.jobs      = [JenkinsJob(job, job_container, base_url=folder_url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
 
     def __str__(self):
         sub_jobs = len(self.jobs)

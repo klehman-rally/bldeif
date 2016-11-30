@@ -15,24 +15,24 @@ JenkinsBuildConnector:
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
         Password  :  None
-        MaxDepth  :  4
+        MaxDepth  :  2
         AgileCentral_DefaultBuildProject :  Jenkins
 
-        Jobs:
-            - Job: troglodyte
-            - Job: australopithicus
-
-        Views:
-            - View: Prairie
-              include: ^blue*
-              exclude: ^stem,fumar,launch
-
-            - View: Cliffside
+#        Jobs:
+#            - Job: troglodyte
+#            - Job: australopithicus
+#
+#        Views:
+#            - View: Prairie
+#              include: ^blue*
+#              exclude: ^stem,fumar,launch
+#
+#            - View: Cliffside
 
         Folders:
-            - Folder : immovable wombats
-            - Folder : crinkley
-              exclude: ^mud
+            - Folder : dungeon
+#            - Folder : crinkely
+#              exclude: ^mud
     Service:
         Preview       : False
         LogLevel      : DEBUG
