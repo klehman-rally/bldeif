@@ -26,7 +26,7 @@ from bldeif.utils.eif_exception import OperationalError, logAllExceptions
 ############################################################################################################
 
 ARCHITECTURE_ACRONYM = 'eif'
-__version__ = "0.3.2"
+__version__ = "0.7.0"
 
 EXISTENCE_PROCLAMATION = """
 ************************************************************************************************************************
@@ -41,8 +41,7 @@ EXISTENCE_PROCLAMATION = """
 LOCK_FILE  = 'LOCK.tmp'
 STD_TS_FMT = '%Y-%m-%d %H:%M:%S Z'
 
-#DEFAULT_ORIGIN_TIME = timegm(time.strptime("2016-06-01 00:00:00", "%Y-%m-%d %H:%M:%S"))
-DEFAULT_ORIGIN_TIME = timegm(time.strptime("2016-03-01 00:00:00", "%Y-%m-%d %H:%M:%S"))
+THREE_DAYS = 3 * 86400
 
 ############################################################################################################
 
@@ -134,6 +133,8 @@ class BuildConnectorRunner(object):
                 self.log = ActivityLogger(lf_name)
                 logAllExceptions(True, self.log)
                 self._operateService(config_file_path)
+        except Exception as msg:
+            self.log.error(msg)
         finally:
             try:
                 if own_lock: self.releaseLock()
@@ -166,12 +167,17 @@ class BuildConnectorRunner(object):
         return bsn
 
     def find_config_file(self, config_name):
-        valid_targets = ['%s' % config_name, '%s.yml' % config_name]
-        hits = [entry for entry in glob.glob('config/*') if config_name in entry]
-        if hits:
-            return hits[0]
+        relative_path = 'config/%s' % config_name
+        if os.path.exists(relative_path):
+            return relative_path
         else:
             return None
+        # valid_targets = ['%s' % config_name, '%s.yml' % config_name]
+        # hits = [entry for entry in glob.glob('config/*') if config_name in entry]
+        # if hits:
+        #     return hits[0]
+        # else:
+        #     return None
 
     def _operateService(self, config_file):
         started = finished = elapsed = None
@@ -190,12 +196,15 @@ class BuildConnectorRunner(object):
         if self.time_file.exists():
             last_run = self.time_file.read() # the last_run is in Zulu time (UTC) as an epoch seconds value
         else:
-            last_run = DEFAULT_ORIGIN_TIME
+            last_run = time.time() - (THREE_DAYS)
         last_run_zulu = time.strftime(STD_TS_FMT, time.gmtime(last_run))
         #self.log.info("Last Run %s --- Now %s" % (last_run_zulu, now_zulu))
         self.log.info("Time File value %s --- Now %s" % (last_run_zulu, now_zulu))
 
         self.connector = BLDConnector(config, self.log)
+        ##
+        self.log.debug("Got a BLDConnector instance, calling the BLDConnector.run ...")
+        ##
         status, builds = self.connector.run(last_run, self.extension)
 
         finished = time.time()
@@ -205,7 +214,7 @@ class BuildConnectorRunner(object):
         if self.preview:
             self.log.info("Preview mode in effect, time.file File not written/updated")
             return
-        if not status:
+        if not status and builds:
             # Not writing the time.file may cause repetitive detection of Builds, 
             # but that is better than missing out on Builds altogether
             self.log.info("There was an error in processing so the time.file was not written")
@@ -216,12 +225,15 @@ class BuildConnectorRunner(object):
             return
 
         # we've added builds successfully, so update the Time File (config/<config>_time.file)
-        last_job_name = builds.keys()[-1]    # builds is an OrderedDict, so the last job name is the last key added
-        last_job = builds[last_job_name][-1] # builds[last_job_name] is a list, take the last one
-        last_build_timestamp = str(last_job.Start).replace('T', ' ')[:19]
-        self.time_file.write(last_build_timestamp) 
-        self.log.info("time file written with value of %s Z" % last_build_timestamp)
-
+        #last_job_name = [k for k,v in builds.items()][-1]  #builds is an OrderedDict, so the last job name is the last key added
+        #last_job = builds[last_job_name][-1] # builds[last_job_name] is a list, take the last one
+        #last_build_timestamp = last_job.Start.replace('T', ' ')[:19]
+        try:
+            last_build_timestamp = min([v[-1].Start for k,v in builds.items()]).replace('T', ' ')[:19]
+            self.time_file.write(last_build_timestamp)
+            self.log.info("time file written with value of %s Z" % last_build_timestamp)
+        except Exception as msg:
+            raise OperationalError(msg)
 
     def buildTimeFileName(self, config_file):
         if config_file:
@@ -242,7 +254,7 @@ class BuildConnectorRunner(object):
         """
         for build in builds:
             preview_reminder = "(Preview Mode)" if self.preview else ""
-            factoid = "%d builds posted for job %s" % (len(builds[build]), build)
+            factoid = "%3d builds posted for job %s" % (len(builds[build]), build)
             self.log.info("%s: %s %s" % (config_name, factoid, preview_reminder))
         hours, rem = divmod(elapsed, 3600)
         mins, secs = divmod(rem, 60)
@@ -261,8 +273,8 @@ class BuildConnectorRunner(object):
             config = Konfabulator(config_file, self.log)
         except NonFatalConfigurationError as msg:
             pass # info for this will have already been logged or blurted
-        except:
-            raise
+        except Exception as msg:
+            raise ConfigurationError(msg)
         svc_conf = config.topLevel('Service')
         self.preview = False
         if svc_conf and svc_conf.get('Preview', None) == True:

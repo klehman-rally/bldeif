@@ -1,20 +1,16 @@
 
 import sys
 import re
-import types
 import time
-from calendar import timegm
-import string  # for the digits chars
-import urllib  # for the quote function
 
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError
-from connection import BLDConnection
+from bldeif.connection import BLDConnection
 
 from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.1.2"
+__version__ = "0.7.0"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -42,7 +38,6 @@ class AgileCentralConnection(BLDConnection):
         self.password_required = True
         self.build_def = {}  # key by Project, then value is in turn a dict keyed by Job name with number and date
                              # of last Build
-        self.job_bdf   = {}
 
     def name(self):
         return "AgileCentral"
@@ -63,7 +58,7 @@ class AgileCentralConnection(BLDConnection):
         return "Rally WSAPI %s" % self.rallyWSAPIVersion()
 
     def internalizeConfig(self, config):
-        super(AgileCentralConnection, self).internalizeConfig(config)
+        super().internalizeConfig(config)
 
         server = config.get('Server', False)
         if not server:
@@ -76,10 +71,74 @@ class AgileCentralConnection(BLDConnection):
 
         self.apikey          = config.get("APIKey", config.get("API_Key", None))
         self.workspace_name  = config.get("Workspace", None)
-        self.project_name    = config.get("DefaultProject",   None)
+        self.project_name    = config.get("Project",   None)  # This gets bled in by the BLDConnector
         self.restapi_debug   = config.get("Debug", False)
         self.restapi_logger  = self.log
         #self.restapi_logger = self.log if self.restapi_debug else None
+
+    def validate(self):
+        satisfactory = True
+
+        if self.username_required:
+            if not self.username and not self.apikey:
+                self.log.error("<Username> is required in the config file")
+                satisfactory = False
+            else:
+                self.log.debug(
+                    '%s - user entry "%s" detected in config file' % (self.__class__.__name__, self.username))
+
+        if self.password_required:
+            if not self.password and not self.apikey:
+                self.log.error("<Password> is required in the config file")
+                satisfactory = False
+            else:
+                self.log.debug('%s - password entry detected in config file' % self.__class__.__name__)
+
+        return satisfactory
+
+    def validateProjects(self, target_projects):
+        """
+            make requests to AgileCentral to retrieve basic info for each project in target_projects.
+            If any project name in target_projects does NOT have a corresponding project in AgileCentral
+            raise and Exception naming the offending project.
+        """
+        mep_projects     = list(set([project for project in target_projects if ' // '     in project]))
+        non_mep_projects = list(set([project for project in target_projects if ' // ' not in project]))
+        query = self._construct_ored_Name_query(non_mep_projects)
+        response = self.agicen.get('Project', fetch='Name,ObjectID', query=query, workspace=self.workspace_name,
+                                   project=None, projectScopeDown=True, pagesize=200)
+        if response.errors or response.resultCount == 0:
+            raise ConfigurationError(
+                'Unable to locate a Project with the name: %s in the target Workspace: %s' % (self.project_name, self.workspace_name))
+
+        found_projects = [project for project in response]
+        found_project_names = list(set([p.Name for p in found_projects]))
+        bogus = [name for name in target_projects if name not in found_project_names]
+        real_bogus = set(bogus) - set(mep_projects)
+        if real_bogus:
+            problem = "These projects mentioned in the config were not located in AgileCentral Workspace %s: %s" % (self.workspace_name, ",".join(real_bogus))
+            self.log.error(problem)
+            return False
+
+        #deal with the mep_projects
+        for mep in mep_projects:
+            proj = self.agicen.getProject(mep)
+            if proj:
+                found_projects.append(proj)
+
+        self._project_cache = {proj.Name : proj.ref for proj in found_projects}
+        return True
+
+
+    def _construct_ored_Name_query(self, target_projects):
+        if not target_projects: return ''
+        initial = '(Name = "%s")' % target_projects[0]
+        or_string = initial
+        for project in target_projects[1:]:
+            or_string = '(%s OR (Name = "%s"))' % (or_string, project)
+        return or_string
+
+        #return "(%s)" % or_string[1:-1]
 
     def setSourceIdentification(self, other_name, other_version):
         self.other_name = other_name
@@ -111,14 +170,10 @@ class AgileCentralConnection(BLDConnection):
 ##            print("")
 ##            print("before call to pyral.Rally(): %s    using workspace name: %s" % (before, self.workspace_name))
 ##            print("   credentials:  username |%s|  password |%s|  apikey |%s|" % (self.username, self.password, self.apikey))
-            if self.apikey and not (self.username and self.password):
-                self.agicen = Rally(self.server,  apikey=self.apikey, workspace=self.workspace_name,
-                                    version=self.rallyWSAPIVersion(), http_headers=custom_headers,
-                                    logger=self.restapi_logger, warn=False, debug=True)
-            else:
-                self.agicen = Rally(self.server,  username=self.username, password=self.password, workspace=self.workspace_name,
-                                    version=self.rallyWSAPIVersion(), http_headers=custom_headers,
-                                    logger=self.restapi_logger, warn=False, debug=True)
+            self.agicen = Rally(self.server, username=self.username, password=self.password, apikey=self.apikey,
+                                workspace=self.workspace_name, project=self.project_name,
+                                version=self.rallyWSAPIVersion(), http_headers=custom_headers,
+                                logger=self.restapi_logger, warn=False, debug=True)
             after = time.time()
 ##            print("after  call to pyral.Rally(): %s" % after)
 ##            print("initial Rally connect elapsed time: %6.3f  seconds" % (after - before))
@@ -126,10 +181,10 @@ class AgileCentralConnection(BLDConnection):
 ##
             if self.restapi_debug:
                 self.agicen.enableLogging('agicen_builds.log')
-        except Exception, msg:
+        except Exception as msg:
             self.log.debug(msg)
-            raise ConfigurationError("Unable to connect to Agile Central at %s as user %s" % \
-                                         (self.server, self.username))
+            raise ConfigurationError("Unable to connect to Agile Central at %s: %s" % \
+                                         (self.server, msg))
         self.log.info("Connected to Agile Central server: %s" % self.server)    
 
 ##        before = time.time()
@@ -149,16 +204,29 @@ class AgileCentralConnection(BLDConnection):
         self.log.info("    Workspace: %s" % self.workspace_name)
         self.log.info("    Project  : %s" % self.project_name)
         wksp = self.agicen.getWorkspace()
+        prjt  = self.agicen.getProject()
         self.workspace_ref = wksp.ref
+        self.project_ref   = prjt.ref
 
         # find all of the Projects under the AgileCentral_Project
 ##        before = time.time()
 ##        print("")
 ##        print("before call to agicen get Project: %s" % before)
-        response = self.agicen.get('Project', fetch='Name', workspace=self.workspace_name, 
+        response = self.agicen.get('Project', fetch='Name', workspace=self.workspace_name,
                                    project=self.project_name,
+                                   #project=None, #The current workspace "Alligators BLD Unigrations" does not contain a Project with the name of 'None'
                                    projectScopeDown=True,
                                    pagesize=200)
+        if response.errors or response.resultCount == 0:
+            raise ConfigurationError('Unable to locate a Project with the name: %s in the target Workspace' % self.project_name)
+
+        # detect any duplicate project names
+        self.project_bucket = {}
+        for proj in response:
+            if proj.Name not in self.project_bucket:
+                self.project_bucket[proj.Name] = 0
+            self.project_bucket[proj.Name] += 1
+        self.duplicated_project_names = [p for p,c in self.project_bucket.items() if c != 1]
 
         project_names = [proj.Name for proj in response]
 ##        after = time.time()
@@ -181,10 +249,11 @@ class AgileCentralConnection(BLDConnection):
         self.integration_name    = header_info['name']
         self.integration_vendor  = header_info['vendor']
         self.integration_version = header_info['version']
-        if header_info.has_key('other_version'):
+        if 'other_version' in header_info:
             self.integration_other_version = header_info['other_version']
 
-    def getRecentBuilds(self, ref_time):
+
+    def getRecentBuilds(self, ref_time, projects):
         """
             Obtain all Builds created in Agile Central at or after the ref_time parameter
             (which is a struct_time object)
@@ -196,24 +265,40 @@ class AgileCentralConnection(BLDConnection):
         self.log.info("Detecting recently added Agile Central Builds")
         selectors = ['CreationDate >= %s' % ref_time_iso]
         log_msg = '   recent Builds query: %s' %  ' and '.join(selectors)
-        self.log.info(log_msg) 
+        self.log.info(log_msg)
+        builds = {}
 
+        for project in projects:
+            response = self._retrieveBuilds(project, selectors)
+            log_msg = "  %d recently added Agile Central Builds detected for project: %s"
+            self.log.info(log_msg % (response.resultCount, project))
+
+            for build in response:
+                project_name = build.BuildDefinition.Project.Name
+                build_name   = build.BuildDefinition.Name
+                if project_name not in builds:
+                    builds[project_name] = {}
+                if build_name not in builds[project_name]:
+                    builds[project_name][build_name] = []
+                builds[project_name][build_name].append(build)
+
+        return builds
+
+
+    def _retrieveBuilds(self, project, selectors):
         fetch_fields = "ObjectID,CreationDate,Number,Start,Status,Duration,BuildDefinition,Name," +\
                        "Workspace,Project,Uri,Message,Changesets"
-
         try:
-            response = self.agicen.get('Build', 
-                                       fetch=fetch_fields, 
-                                      #fetch=True,
-                                       query=selectors, 
-                                       workspace=self.workspace_name, 
-                                       project=self.project_name,
+            response = self.agicen.get('Build',
+                                       fetch=fetch_fields,
+                                       query=selectors,
+                                       workspace=self.workspace_name,
+                                       project=project,
                                        projectScopeDown=True,
                                        order="CreationDate",
-                                       pagesize=200, limit=2000 
-                                      )
-            self._checkForProblems(response)
-        except Exception, msg:
+                                       pagesize=200, limit=2000
+                                       )
+        except Exception as msg:
             excp_type, excp_value, tb = sys.exc_info()
             mo = re.search(r"'(?P<ex_name>.+)'", str(excp_type))
             if mo:
@@ -221,124 +306,145 @@ class AgileCentralConnection(BLDConnection):
                 msg = '%s: %s\n' % (excp_type, str(excp_value))
             raise OperationalError(msg)
 
-        log_msg = "  %d recently added Agile Central Builds detected"
-        self.log.info(log_msg % response.resultCount)
-        builds = {}
-        for build in response:
-            project    = build.BuildDefinition.Project.Name
-            build_name = build.BuildDefinition.Name
-            if not builds.has_key(project):
-                builds[project] = {}
-            if not builds[project].has_key(build_name):
-                builds[project][build_name] = []
-            builds[project][build_name].append(build)
-        return builds
-    
-    def _checkForProblems(self, response):
-        """
-            Examine the response to see if there is any content for the 'Errors' or 'Warnings' keys.
-            and raise an Exception in that case.
-
-            TODO: Maybe detection of errors/warnings should result in an OperationalError instead
-        """
+        # Examine the response to see if there is any content for the 'Errors' or 'Warnings' keys.
+        # and raise an Exception in that case.
         if response.errors:
             raise Exception(response.errors[0][:80])
         if response.warnings:
             raise Exception(response.warnings[0][:80])
-        return False
 
-    
-    def _fillHeavyCache(self):
+        return response
+
+    def retrieveChangeset(self, sha):
+        query = 'Revision = %s' % sha
+        response = self.agicen.get('Changeset', fetch='ObjectID', query=query,
+                                    workspace=self.workspace_name,project=None)
+        # should we check for errors or warnings?
+        if response.resultCount > 0:
+            return response.next()
+        return None
+
+    def _fillBuildDefinitionCache(self,project):
         response = self.agicen.get('BuildDefinition', 
                                   #fetch=True,
                                   fetch='ObjectID,Name,Project,LastBuild,Uri', 
                                   query='Name != "Default Build Definition"',
                                   #workspace=self.workspace_ref, 
                                   workspace=self.workspace_name, 
-                                  project=None, 
+                                  #project=None,
+                                  #project=self.project_name,
+                                  project=project,
                                   projectScopeUp=False, projectScopeDown=True, 
-                                   order='Project.Name,Name')
-        
+                                  order='Project.Name,Name')
+
         if response.errors:
             raise OperationalError(str(response.errors))
 
         for build_defn in response:
 ##
-           #print("_fillHeavyCache:  BuildDefinition  Project: %s  JobName: %s" % \
+           #print("_fillBuildDefinitionCache:  BuildDefinition  Project: %s  JobName: %s" % \
            #        (build_defn.Project.Name, build_defn.Name))
 ##
             project  = build_defn.Project.Name
             job_name = build_defn.Name
-            if not self.build_def.has_key(project):
+            if not project in self.build_def:
                 self.build_def[project] = {}
             self.build_def[project][job_name] = build_defn
 
 
-    def ensureBuildDefinitionExistence(self, job, project, strict_project):
+    def ensureBuildDefinitionExistence(self, job, project, strict_project, job_uri):
         """
             use the self.build_def dict keyed by project at first level, job name at second level
             to determine if the job has a BuildDefinition for it.
 
-            Return the ObjectID for the BuildDefinition corresponding to the job (and project)
+            Returns a pyral BuildDefinition instance corresponding to the job (and project)
         """
-        # consult the "quick lookup" cache
-        if self.job_bdf.has_key(job):
-            return self.job_bdf[job]
+        # if project not in self.build_def:
+        #     self.build_def[project] = {}
+        #
+        # if job in self.build_def[project]:
+        #     return self.build_def[project][job]
 
-        # do we have a "heavy cache" populated?  If not, do it now...
-        if not self.build_def:
-            self.log.debug("Detected build definition heavy cache is empty, populating ...")
-            self._fillHeavyCache()
+        if project in self.build_def and job in self.build_def[project]:
+            return self.build_def[project][job]
+
+        # do we have the BuildDefinition cache populated?  If not, do it now...
+        if project not in self.build_def:  # to avoid build definition duplication
+            self.log.debug("Detected build definition cache for the project: {} is empty, populating ...".format(project))
+            self._fillBuildDefinitionCache(project)
 
         no_entry = False
-        # OK, the job is not in the "quick lookup" cache
-        # so look in the "heavy cache" to see if the job exists for the given project
-        if self.build_def.has_key(project):
-            if self.build_def[project].has_key(job):
-                self.job_bdf[job] = self.build_def[project][job] 
-                return self.job_bdf[job]
-
+        # OK, the job is not in the BuildDefinition cache
+        # so look in the BuildDefintion cache to see if the job exists for the given project
+        if project in self.build_def:
+            if job in self.build_def[project]:
+                return self.build_def[project][job]
         # Determine whether it is permitted for the project to exist under another project
         # if strict_project == True then at this point we'll have to create a BuildDefinintion
         # for this project-job pair
-        # if strict_project == False, then if the job exists in the "heavy cache" for some project (not the project parm)
-        # then we'd grab the BuildDefinition ObjectID that exists in the "heavy cache" for the 
+        # if strict_project == False, then if the job exists in the BuildDefinition cache for some project (not the project parm)
+        # then we'd grab the BuildDefinition ObjectID that exists in the BuildDefinition cache for the
         # other project and this job name,  and stick it in the "quick lookup" cache
-        if not strict_project:
-            # and we find a job name match in the "heavy cache", use it and update the "quick lookup" cache, and return
+        """
+        if strict_project == False:
+            # and we find a job name match in the BuildDefinition cache, use it and update the "quick lookup" cache, and return
             hits = []
-            for proj in self.build_def.keys():
-                for job_name in self.build_def[proj]:
-                    if job_name == job:
-                        hits.append(self.build_def[proj][job_name])
-            if hits: # there could be multiple, so we'll take the one having the most recent build
-                hits.sort(key=lambda build_defn: build_defn.LastBuild)
-                build_defn = hits[-1] # this will be the BuildDefinition with the most recent build
-                self.job_bdf[job] = build_defn
-                return build_defn
+            try:
+                for proj in self.build_def.keys():
+                    for job_name in self.build_def[proj]:
+                        if job_name == job:
+                            hits.append(self.build_def[proj][job_name])
+                if hits: # there could be multiple, so we'll take the one having the most recent build
+                    hits.sort(key=lambda build_defn: build_defn.LastBuild)
+            except Exception as msg:
+                print ("U-u-uge problem #6")
+                raise OperationalError(msg)
 
-        # At this point we haven't found a match for the job in the "heavy cache".
+            if hits:
+                build_defn = hits[-1] # this will be the BuildDefinition with the most recent build
+                return build_defn
+        """
+
+        # At this point we haven't found a match for the job in the BuildDefinition cache.
         # So, create a BuildDefinition for the job with the given project
+
+        # query = "Name = %s" % project
+        # response = self.agicen.get('Project', fetch='ObjectID', query=query, workspace=self.workspace_name,
+        #                            project=self.project_name,
+        #                            projectScopeDown=True,
+        #                            pagesize=200)
+        # if response.errors or response.resultCount == 0:
+        #     raise ConfigurationError(
+        #         'Unable to locate a Project with the name: %s in the target Workspace' % self.project_name)
+        #
+        # project_oids = [proj.ObjectID for proj in response]
+        # target_project_ref = "/project/%s" % project_oids[0]
+
+        target_project_ref = self._project_cache[project]
+
+
         bdf_info = {'Workspace' : self.workspace_ref,
-                    'Project'   : project,  # or self.agicen.get('Project', fetch='Name', query='Name = "%s"' % project)
+                    'Project'   : target_project_ref,
                     'Name'      : job,
-                    #'Description' : ".......",
-                    #'Uri'      : maybe something like {base_url}/job/{job} where base_url comes from other spoke conn
+                    'Uri'       : job_uri #something like {base_url}/job/{job} where base_url comes from other spoke conn
                    }
         try:
-           #build_defn = self.agicen.create('BuildDefinition', bdf_info)
-            print("Would be creating a BuildDefinition for job '%s' in Project '%s' ..." % (job, project))
-            build_defn = "builddefinition/#12345-9876"
+            self.log.debug("Creating a BuildDefinition for job '%s' in Project '%s' ..." % (job, project))
+            build_defn = self.agicen.create('BuildDefinition', bdf_info, workspace=self.workspace_name, project=project)
         except Exception as msg:
-            raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))        
-        # Put the freshly minted BuildDefinition in the "heavy" and "quick lookup" cache and return it
+            self.log.error("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
+            raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
+
+        # Put the freshly minted BuildDefinition in the BuildDefinition cache and return it
+        if project not in self.build_def:
+            self.build_def[project] = {}
+
         self.build_def[project][job] = build_defn
-        self.job_bdf = build_defn
         return build_defn
 
 
+
     def preCreate(self, int_work_item):
-        """
         """
         # transform the CommitTimestamp from epoch seconds into ISO-8601'ish format
         #timestamp = int_work_item['CommitTimestamp']
@@ -351,9 +457,14 @@ class AgileCentralConnection(BLDConnection):
         # get Start in to iso8601 format
         # Duration is in seconds.milliseconds format
         # Uri is link to the originating build system job number page
+        """
 
         int_work_item['Workspace']       = self.workspace_ref 
-        #int_work_item['BuildDefinition'] = self.build_definition_ref
+        int_work_item['BuildDefinition'] = int_work_item['BuildDefinition'].ref
+
+        if int_work_item.get('Changesets', False):
+            collection_payload = [{'_ref': "changeset/%s" % changeset.oid} for changeset in int_work_item['Changesets']]
+            int_work_item['Changesets']= collection_payload
 
         return int_work_item
 
@@ -364,14 +475,11 @@ class AgileCentralConnection(BLDConnection):
         base_uri = int_work_item['Uri']
         base_uri = base_uri[:-1] if base_uri and base_uri.endswith('/') else base_uri
 
-        # then reassign int_work_item['Uri'] with the base_uri and the leading chunk of int_work_item['Revision']
-        int_work_item['Uri'] = '%s/rev/%s' % (base_uri, int_work_item['Revision'][:16])
-
         try:
-            build = MockBuild(int_work_item)
-            #build = self.agicen.create('Build', int_work_item)
-            self.log.debug("  Created Build: %s #%s" % (build.BuildDefinition.Name, build.number))
-        except Exception, msg:
+            build = self.agicen.create('Build', int_work_item)
+            self.log.debug("  Created Build: %-36.36s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
+        except Exception as msg:
+            print("AgileCentralConnection._createInternal detected an Exception, {0}".format(sys.exc_info()[1]))
             excp_type, excp_value, tb = sys.exc_info()
             mo = re.search(r"'(?P<ex_name>.+)'", str(excp_type))
             if mo:
@@ -382,19 +490,28 @@ class AgileCentralConnection(BLDConnection):
         return build
 
 
-    def buildExists(self, build_name, number):
+    def buildExists(self, build_defn, number):
         """
-            Issue a query against Build to obtain the Build identified by build_name and number.
+            Issue a query against Build to obtain the Build identified by build_defn.Name and number.
             Return a boolean indication of whether such an item exists.
         """
-        criteria = ['BuildDefinition.Name = %s' % build_name,
-                    'Number = %s' % number
-                   ]
-        response = self.agicen.get('Build', fetch="CreationDate,Number,Name,BuildDefinition", 
-                                            query=criteria,
-                                            workspace=self.workspace_name, 
-                                            project=self.project_name,
-                                            projectScopeDown=True) 
+        criteria = ['BuildDefinition.Name = %s' % build_defn.Name, 'Number = %s' % number]
+        response = self.agicen.get('Build', fetch="CreationDate,Number,Name,BuildDefinition", query=criteria,
+                                            workspace=self.workspace_name, project=self.project_name, projectScopeDown=True)
         return response.status_code == 200 and response.resultCount > 0
 
 
+    def populateChangesetsCollectionOnBuild(self, build, changesets):
+        csrefs = [{ "_ref" : "changeset/%s" % cs.oid} for cs in changesets]
+        cs_coll_ref = build.Changesets
+        #self.agicen.addCollection(cs_coll_ref, csrefs)
+
+    def matchToChangesets(self, vcs_commits):
+        valid_changesets = []
+        for commit in vcs_commits:
+            query = ('Revision = "%s"' % commit)
+            response = self.agicen.get("Changeset", fetch="ObjectID", query=query, workspace=self.workspace_name, project=None)
+            if response.resultCount > 0:
+                changeset = response.next()
+                valid_changesets.append(changeset)
+        return valid_changesets

@@ -6,19 +6,14 @@
 import sys, os, platform
 import time
 import re
-from datetime    import datetime
 from collections import OrderedDict
 
-import bldeif
-
-from bldeif.connection            import BLDConnection
-from bldeif.utils.klog            import ActivityLogger
 from bldeif.utils.eif_exception   import FatalError, ConfigurationError, OperationalError
 from bldeif.utils.claslo          import ClassLoader
 
 ##############################################################################################
 
-__version__ = "0.3.6"
+__version__ = "0.7.0"
 
 PLUGIN_SPEC_PATTERN       = re.compile(r'^(?P<plugin_class>\w+)\s*\((?P<plugin_config>[^\)]*)\)\s*$')
 PLAIN_PLUGIN_SPEC_PATTERN = re.compile(r'(?P<plugin_class>\w+)\s*$')
@@ -27,7 +22,7 @@ ARCHITECTURE_PKG = 'bldeif'
 
 ##############################################################################################
 
-class BLDConnector(object):
+class BLDConnector:
 
     def __init__(self, config, logger):
         self.config = config
@@ -68,17 +63,46 @@ class BLDConnector(object):
 
         self.establishConnections()
 
-        self.validate()  # basically just calls validate on both connection instances
+        if not self.validate():  # basically just calls validate on both connection instances
+            raise ConfigurationError("Validation failed")
         self.log.info("Initialization complete: Delegate connections operational, ready for scan/reflect ops")
 
 
     def internalizeConfig(self, config):
         self.agicen_conf = config.topLevel('AgileCentral')
         self.bld_conf    = config.topLevel(self.bld_name)
+        self.agicen_conf['Project'] = self.bld_conf['AgileCentral_DefaultBuildProject']
         self.svc_conf    = config.topLevel('Service')
 
         self.strict_project = self.svc_conf.get('StrictProject', False)
-        self.max_builds     = self.svc_conf.get('MaxBuilds', 100)
+        self.max_builds     = self.svc_conf.get('MaxBuilds', 20)
+
+        default_project = self.agicen_conf['Project']
+
+        # create a list of AgileCentral_Project values, start with the default project value
+        # and then add add as you see overrides in the config.
+        # eventually, we'll strip out any duplicates
+        self.target_projects = [default_project]  # the default project always is considered for obtaining build info
+
+        if "Views" in self.bld_conf:
+            self.views = self.bld_conf["Views"]
+            for view in self.views:
+                view_name = view['View']
+                self.target_projects.append(view.get('AgileCentral_Project', default_project))
+
+        if "Folders" in self.bld_conf:
+            self.folders = self.bld_conf["Folders"]
+            for folder_conf in self.folders:
+                folder_display_name = folder_conf['Folder']
+                self.target_projects.append(folder_conf.get('AgileCentral_Project', default_project))
+
+        if "Jobs" in self.bld_conf:
+            self.jobs = self.bld_conf["Jobs"]
+            for job in self.jobs:
+                job_name = job['Job']
+                self.target_projects.append(job.get('AgileCentral_Project', default_project))
+        self.target_projects = list(set(self.target_projects))  # to obtain unique project names
+
 
     def establishConnections(self):
         self.agicen_conn = self.agicen_conn_class(self.agicen_conf, self.log)
@@ -106,6 +130,9 @@ class BLDConnector(object):
 
         if not self.agicen_conn.validate():
             self.log.info("AgileCentralConnection validation failed")
+            return False
+        if not self.agicen_conn.validateProjects(self.target_projects):
+            self.log.info("AgileCentralConnection validation for Projects failed")
             return False
         self.log.info("AgileCentralConnection validation succeeded")
 
@@ -166,70 +193,69 @@ class BLDConnector(object):
             action = "would add"
             self.log.info('***** Preview Mode *****   (no Builds will be created in Agile Central)')
 
-        try:
-            agicen_ref_time, bld_ref_time = self.getRefTimes(last_run)
-            recent_agicen_builds = agicen.getRecentBuilds(agicen_ref_time)
-            recent_bld_builds    =    bld.getRecentBuilds(bld_ref_time)
-            unrecorded_builds \
-                = self._identifyUnrecordedBuilds(recent_agicen_builds, 
-                                                 recent_bld_builds, 
-                                                 bld_ref_time)
-            self.log.info("unrecorded Builds count: %d" % len(unrecorded_builds))
-            self.log.info("no more than %d builds per job will be recorded on this run" % self.max_builds)
-            
-            recorded_builds = OrderedDict()
-            added_count = 0
-            builds_posted = {}
-            # sort the unrecorded_builds into build chrono order, oldest to most recent, then project and job
-            unrecorded_builds.sort(key=lambda build_info: (build_info[1].timestamp, build_info[2], build_info[1]))   
-            for job, build, project, view in unrecorded_builds:
-                if not job in builds_posted:
-                    builds_posted[job] = 0
+
+        agicen_ref_time, bld_ref_time = self.getRefTimes(last_run)
+        recent_agicen_builds = agicen.getRecentBuilds(agicen_ref_time, self.target_projects)
+        recent_bld_builds    =    bld.getRecentBuilds(bld_ref_time)
+        self._showBuildInformation(recent_agicen_builds, recent_bld_builds)
+        unrecorded_builds = self._identifyUnrecordedBuilds(recent_agicen_builds, recent_bld_builds)
+        self.log.info("unrecorded Builds count: %d" % len(unrecorded_builds))
+        self.log.info("no more than %d builds per job will be recorded on this run" % self.max_builds)
+        if self.svc_conf['VCSData']:
+            self.dumpChangesetInfo(unrecorded_builds)
+
+        recorded_builds = OrderedDict()
+        builds_posted = {}
+        # sort the unrecorded_builds into build chrono order, oldest to most recent, then project and job
+        unrecorded_builds.sort(key=lambda build_info: (build_info[1].timestamp, build_info[2], build_info[1]))
+        for job, build, project, view in unrecorded_builds:
+            if build.result == 'None':
+                self.log.warn("%s #%s job/build was not processed because is still running" %(job, build.number))
+                continue
+            #self.log.debug("current job: %s  build: %s" % (job, build))
+            if not job in builds_posted:
+                builds_posted[job] = 0
+            if builds_posted[job] >= self.max_builds:
+                continue
+            if preview_mode:
+                continue
+
+            desc = '%s %s #%s | %s | %s  not yet reflected in Agile Central'
+            bts = time.strftime("%Y-%m-%d %H:%M:%S Z", time.gmtime(build.timestamp/1000.0))
+            #self.log.debug(desc % (pm_tag, job, build.number, build.result, bts))
+            build_data = build.as_tuple_data()
+            info = OrderedDict(build_data)
+
+            build_job_uri = "/".join(build.url.split('/')[:-2])
+            build_defn = agicen.ensureBuildDefinitionExistence(job, project, self.strict_project, build_job_uri)
+
+            if agicen.buildExists(build_defn, build.number):
+                self.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, job))
+                continue
+
+
+            # pull out any build.changeSets commit IDs and see if they match up with AgileCentral Changeset items Revision attribute
+            # if so, get all such commit IDs and their associated Changeset ObjectID, then
+            # add that "collection" as the Build's Changesets collection
+
+            agicen_build = self.postBuildsToAgileCentral(info, build_defn, build)
+            if agicen_build:
                 builds_posted[job] += 1
-                if builds_posted[job] > self.max_builds:
-                    continue
-                desc = '%s %s #%s | %s | %s  not yet reflected in Agile Central'
-                cts = time.strftime("%Y-%m-%d %H:%M:%S Z", time.gmtime(build.timestamp/1000.0))
-                self.log.debug(desc % (pm_tag, job, build.number, build.result, cts))
-                job_uri = bld.constructJobUri(job)
-                job_url = bld.constructJobBuildUrl(job, build.number)
-                start_time = datetime.utcfromtimestamp(build.timestamp / 1000.0).strftime('%Y-%m-%dT%H:%M:%SZ')
-                info = OrderedDict([
-                                    ('Name',     job),
-                                    ('Number',   build.number),
-                                    ('Status',   str(build.result)),
-                                    ('Start',    start_time),
-                                    ('Duration', build.duration / 1000.0),
-                                    ('Uri',      job_url)
-                                   ])
-
-
-                if preview_mode:
-                    continue
-
-##
-                build_defn = agicen.ensureBuildDefinitionExistence(job, project, self.strict_project, job_uri)
-                try:
-##
-                    #build_defn = agicen.ensureBuildDefinitionExistence(job, project, self.strict_project, job_uri)
-                    if not agicen.buildExists(job, build_defn, build.number):
-                        info['BuildDefinition'] = build_defn
-                        acb = agicen_build = agicen.createBuild(info)
-                        if not recorded_builds.has_key(job):
-                            recorded_builds[job] = []
-                        recorded_builds[job].append(acb)
-                    else:
-                        self.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, job))
-                except Exception as msg:
-                    raise OperationalError(msg)
+                if job not in recorded_builds:
+                    recorded_builds[job] = []
+                recorded_builds[job].append(agicen_build)
             status = True
-        except OperationalError:
-            # already resulted in a log message
-            pass
-        except Exception:
-            raise
 
         return status, recorded_builds
+
+    def postBuildsToAgileCentral(self, info, build_defn, build):
+        vcs_commits = self.detectCommitsForJenkinsBuild(build)
+        info['BuildDefinition'] = build_defn
+        changesets = self.agicen_conn.matchToChangesets(vcs_commits)
+        if changesets:
+            info['Changesets'] = changesets
+        agicen_build = self.agicen_conn.createBuild(info)
+        return agicen_build
 
 
     def getRefTimes(self, last_run):
@@ -242,12 +268,28 @@ class BLDConnector(object):
         agicen_lookback = self.agicen_conn.lookback
         bld_lookback    = self.bld_conn.lookback 
         agicen_ref_time = time.gmtime(last_run - agicen_lookback)
-        #bld_ref_time   = time.gmtime(last_run - bld_lookback)   # TODO: why doesn't this symmetry work?
-        bld_ref_time   = time.localtime(last_run - bld_lookback)
+        bld_ref_time    = time.gmtime(last_run - bld_lookback)
         return agicen_ref_time, bld_ref_time
 
 
-    def _identifyUnrecordedBuilds(self, agicen_builds, bld_builds, ref_time):
+    def _showBuildInformation(self, agicen_builds, bld_builds):
+        ##
+        for project, job_builds in agicen_builds.items():
+            print("Agile Central project: %s" % project)
+            for job, builds in job_builds.items():
+                print("    %-36.36s : %3d build items" % (job, len(builds)))
+        print("")
+
+        ##
+        for view, job_builds in bld_builds.items():
+            print("Jenkins View: %s" % view)
+            for job, builds in job_builds.items():
+                print("    %-36.36s : %3d build items" % (job, len(builds)))
+        print("")
+        ##
+
+
+    def _identifyUnrecordedBuilds(self, agicen_builds, bld_builds):
         """
             If there are items in the agicen_builds for which there is  a counterpart in 
             the bld_builds, the information has already been reflected in Agile Central.  --> NOOP
@@ -258,20 +300,6 @@ class BLDConnector(object):
             If there are items in the agicen_builds for which there is no counterpart in 
             the bld_builds, information has been lost,  dat would be some bad... --> ERROR
         """
-##
-        for project, job_builds in agicen_builds.items():
-            print("Agile Central project: %s" % project)
-            for job, builds in job_builds.items():
-                print("    %-36.36s : %3d build items" % (job, len(builds)))
-        print("")
-
-##
-        for view, job_builds in bld_builds.items():
-            print("Jenkins View: %s" % view)
-            for job, builds in job_builds.items():
-                print("    %-36.36s : %3d build items" % (job, len(builds)))
-        print("")
-##
         reflected_builds   = []
         unrecorded_builds  = []
 
@@ -280,10 +308,10 @@ class BLDConnector(object):
             for job, builds in jobs.items():
                 for build in builds:
                     # look first for a matching project key in agicen_builds
-                    if agicen_builds.has_key(project):
+                    if project in agicen_builds:
                         job_builds = agicen_builds[project]
                         # now look for a matching job in job_builds
-                        if job_builds.has_key(job):
+                        if job in job_builds:
                             ac_build_nums = [int(bld.Number) for bld in job_builds[job]]
                             if build.number in ac_build_nums:
                                 reflected_builds.append((job, build, project, view))
@@ -292,5 +320,23 @@ class BLDConnector(object):
                     
         return unrecorded_builds
 
-####################################################################################
 
+    def dumpChangesetInfo(self, builds):
+        for job, build, project, view in builds:
+            self.log.yuge(build)
+            for cs in build.changeSets:
+                self.log.yuge(str(cs))
+
+
+    def detectCommitsForJenkinsBuild(self, build):
+        shas = set([cs.id for cs in build.changeSets])
+
+        bacs = []
+        for sha in shas:
+            ac_changeset = self.agicen_conn.retrieveChangeset(sha)
+            if ac_changeset:
+                bacs.append(ac_changeset)
+
+        return bacs
+
+####################################################################################

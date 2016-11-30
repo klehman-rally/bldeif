@@ -33,11 +33,11 @@ def main(args):
     try:
         connector_runner = BuildConnectorRunner(args)
         connector_runner.run()
-    except ConfigurationError, msg:
+    except ConfigurationError as msg:
         # raising a ConfigurationError will cause an ERROR to be logged
         sys.stderr.write('ERROR: %s detected a fatal configuration error. See log file.\n' % PROG)
         sys.exit(1)
-    except Exception, msg:
+    except Exception as msg:
         sys.stderr.write('ERROR: %s encountered an ERROR condition.\n' % PROG)
         # blurt out a formatted stack trace
         excp_type, excp_value, tb = sys.exc_info()

@@ -1,0 +1,43 @@
+
+---
+
+JenkinsBuildConnector:
+
+    AgileCentral:
+        Server    :  rally1.rallydev.com
+        APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
+        Workspace :  Alligators BLD Unigrations
+
+    Jenkins:
+        Protocol  : http
+        Server    : int-win7bldmstr.f4tech.com
+        Port      : 8080
+        Prefix    :
+        Auth      : false
+        AgileCentral_DefaultBuildProject: Sandbox
+
+        Jobs:
+            - Job : VCSEIF-git-master
+
+            - Job: WICoCo-master build
+              AgileCentral_Project: Dynamic
+
+            - Job: jenkins-rally-build-publisher
+              AgileCentral_Project: Static
+
+    Service:
+        Preview       : True
+        LogLevel      : DEBUG
+        MaxBuilds     : 50   # current implementation is this is a per job maximum not total builds
+        StrictProject : True
+        VCSData       : True
+        # What is the StrictProject entry used for?
+        #
+        # If your team/project morphs into another AC project, you might not have to
+        # update your config file(s) if you've set the Service -> StrictProject to False
+        #  (If you have a BuildDefinition for the job in question associated with another
+        #   Project that the account accessing Agile Central can find, and the original
+        #   Project is moribund or has been renamed, the connector will post the Builds
+        #   to be associated with the BuildDefinition with the Name of the Jenkins job.)
+
+...

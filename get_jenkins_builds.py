@@ -1,119 +1,87 @@
 
 import sys
 import time
+import urllib
+from pprint import pprint
+quote = urllib.parse.quote
+
+import requests
+
 sys.path.insert(0, 'bldeif')
 
-from bldeif.jenkins_connection import JenkinsConnection
 from bldeif.utils.klog import ActivityLogger
 
-from pprint import pprint
+############################################################################################
 
-import yaml
+ACTION_WORD_PATTERN    = re.compile(r'[A-Z][a-z]+')
+ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
+VALID_ARTIFACT_ABBREV  = None # set later after config values for artifact prefixes are known
+
+JENKINS_URL      = "{prefix}/api/json"
+ALL_JOBS_URL     = "{prefix}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
+VIEW_JOBS_URL    = "{prefix}/view/{view}/api/json?depth=0&tree=jobs[name]"
+VIEW_FOLDERS_URL = "{prefix}/view/{view}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
+#BUILD_ATTRS      = "number,id,fullDisplayName,timestamp,duration,result,url,changeSet[kind,items[*[*]]]"
+BUILD_ATTRS      = "number,id,fullDisplayName,timestamp,duration,result,url,changeSet[kind,items[id,timestamp,date,msg]]"
+JOB_BUILDS_URL   = "{prefix}/view/{view}/job/{job}/api/json?tree=builds[%s]" % BUILD_ATTRS
+FOLDER_JOBS_URL  = "{prefix}/job/{folder_name}/api/json?tree=jobs[displayName,name,url]"
+#FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,changeSet[kind,items[*[*]]]"
+FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,changeSet[kind,items[id,timestamp,date,msg]]"
+FOLDER_JOB_BUILDS_MINIMAL_ATTRS = "number,id,timestamp,result"
+FOLDER_JOB_BUILDS_URL = "{prefix}/job/{folder_name}/jobs/{job_name}/api/json?tree=builds[%s]" % FOLDER_JOB_BUILD_ATTRS
+FOLDER_JOB_BUILD_URL  = "{prefix}/job/{folder_name}/jobs/{job_name}/{number}/api/json"
+#VALID_JENKINS_CONTAINERS = ['Jobs', 'Views', 'Folders']
+
+############################################################################################
 
 
-config_chunk = """
+class DepthCharge:
+    def __init__(self, server, port, user, password, logger):
+        self.protocol         = 'http'
+        self.server           = server
+        self.port             = port
+        self.auth             = True
+        self.user             = user
+        self.password         = password
+        self.base_url = "http://{0}:{1}".format(self.server, self.port)
+        self.creds = (self.user, self.password)
+        self.log   = logger
 
-    Jenkins:
-        Protocol : http
-        Server   : int-win7bldmstr
-        Port     : 8080
-        Prefix   :
-        Auth     : false
-        User     : 
-        Password :
-        API_Token: 320ca9ae9408d099183aa052ff3199c2 
+        self.all_views        = []
+        self.all_jobs         = []
+        self.view_folders     = {}
+        self.job_folders      = {}
 
-        AgileCentral_Workspace: Rally
-        AgileCentral_Project: Engineering
+    def connect(self):
+        urlovals = {'prefix': self.base_url}
+        jenkins_url = JENKINS_URL.format(**urlovals)
+        response = requests.get(jenkins_url, auth=self.creds)
+        status = response.status_code
+        jenkins_info = response.json()
 
-       #Views:
-            #- View: WRK EIF
-            #  include: ^master-*
-            #  exclude: ^feature-*,cq,clearquest
-            #  AgileCentral_Project: Alligator Tiers
+        print("Jenkins DepthCharge response keys:")
+        pprint(jenkins_info.keys())
 
-            #  JobNameNumber: 
-            #      - 'Foobar #123'
-            #      - 'MischieviousMonkey Farm Implement #7'
+        self.all_views = [str(view['name']) for view in jenkins_info['views']]
+        #for view in self.all_views:
+         #   self.log.debug("View: {0}".format(view))
+        self.all_jobs  = [str( job['name']) for job  in jenkins_info['jobs']]
+        #for job in self.all_jobs:
+        #    self.log.debug("Job: {0}".format(job))
+        self.primary_view = jenkins_info['primaryView']['name']
 
-            #- View: WRK EIF Deliverables
-            #  include: ^master-*
-            # AgileCentral_Project: Alligator Tiers
+        self.view_folders['All'] = self.getViewFolders('All')
+        self.log.debug("PrimaryView: {0}".format(self.primary_view))
 
-            #- View: Smoke and Release
-            #  include: smoke-test-TFS2015
-            #  exclude: bz,bugzilla,QC11,CQ
-            # #AgileCentral_Project: while (e_coyote)
-            #  AgileCentral_Project: Alligator Tiers
+        return True
 
-        Jobs:
-            - Job: WICoCo-master build
-              AgileCentral_Project: TPFKA Outer Limits
+    def descend(self):
+        pass
 
-            - Job: jenkins-rally-build-publisher
-              AgileCentral_Project: Alligator Tiers
- 
-    Service:
-        Preview: True
-"""
-
-alt_chunk = """
-    Jenkins:
-        Protocol : http
-        Server   : almci
-        Port     : 80
-        Prefix   :
-        Auth     : false
-        User     : 
-        Password :
-        Debug    : True
-
-        AgileCentral_Workspace: Rally
-        AgileCentral_Project: Engineering
-
-        Folders:
-            - Folder: ALM
-            - Folder: ALM Prod
-            - Folder: Pinata
-
-    Service:
-        Preview: True
-        LogLevel: DEBUG
-"""
-
-#conf = yaml.load(config_chunk)
-conf = yaml.load(alt_chunk)
-jenkconf = conf['Jenkins']
-
-#pprint(jenkconf)
-#print("=" * 80)
-#print("")
+############################################################################################
 
 logger  = ActivityLogger("jenk.log", policy='calls', limit=1000)
-jenkins = JenkinsConnection(jenkconf, logger)
+jenk = DepthCharge("tiema03-u183073.ca.com", 8080, 'jenkins', 'rallydev', logger)
+
 started = time.time()
-try:
-    jenkins.connect()
-except Exception as ex:
-    # does ex include the following text?  
-    #  Max retries exceeded with url: /manage .* nodename nor servname provided, or not known'
-    print sys.exc_info[0] # or 1 or 2 for the exception text
-
-ref_timestamp = (2016, 3, 1, 0, 0, 0, 5, 0, -1)
-
-builds = jenkins.getRecentBuilds(ref_timestamp)
-finished = time.time()
-for view_and_project in builds:
-    view, project = view_and_project.split('::', 1)
-    print("Jenkins View: %s" % view)
-    print("AgileCentral Project: %s" % project)
-    for job in builds[view_and_project]:
-        print("     Job: %s" % job)
-        build_results = builds[view_and_project][job]
-        for build in builds[view_and_project][job]:
-            print("%s%s" % (" " * 8, build))
-        print("")
-
-print("")
-print("Elapsed processing time: %6.3f seconds" % (finished - started))
-
+jenk.connect()

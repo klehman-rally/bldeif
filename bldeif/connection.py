@@ -1,37 +1,8 @@
 
+import re
+
 from collections import OrderedDict
-#from bldeif.utils.ordered_dict    import OrderedDict
-#from bldeif.utils.piya_exceptions import ConfigurationError
-
-#############################################################################################################
-
-class BuildSelector(object):
-
-    def __init__(self, condition):
-        """
-            A BuildSelector instance is of the form: 
-                attribute relational_operator value_or_expression
-            Prime our 3 instance attributes of interest in case the regex match fails
-        """
-        self.attribute = ""
-        self.relation  = ""
-        self.value     = ""
-        # define our extractor regex to handle a string with "attribute relation value_or_expression_that_may have spaces"
-        # examples: 'Number > 1000' or 'Changesets != []' or "Name = 'CI-coverage-metrics'"
-        # We only support these relational operators (=, !=, <, <=, >, >=) 
-        attr_identifier_pattern = '[a-zA-Z@$%&*].*[a-zA-Z0-9_@$%&*]+'
-        relational_operators     = ['=', '!=', '<', '<=', '>', '>=']
-        relations = "%s" % [relational_operators.join('|')]
-        selector_pattern_string = "^(?P<attribute>)\s+(?P<relation>)\s+(?P<value>.+)$" % ( attr_identifier_pattern, relations)
-
-        selector_patt = re.compile(selector_pattern_string)
-        mo = selector_patt.match(condition)
-        if mo:
-            self.attribute = mo.group('attribute').strip()
-            self.relation  = mo.group('relation')
-            self.value     = mo.group('value').strip()
-        if not (self.attribute and self.relation and self.value):
-            raise ConfigurationError("Invalid %s Selector specification: %s" % (self._type, condition))
+from bldeif.utils.eif_exception import ConfigurationError
 
 #############################################################################################################
 
@@ -51,7 +22,7 @@ class BLDConnection(object):
         """
             abstract, provider should return a non-empty string with name of the specific connector
         """
-        raise NotImplementedError, "A BLDConnection subclass must implement the name method"
+        raise NotImplementedError("A BLDConnection subclass must implement the name method")
 
     #Placeholder to put the version of the connector
     def version(self):
@@ -59,11 +30,11 @@ class BLDConnection(object):
             abstract, provider should return a non-empty string with version 
             identification of the specific connector
         """
-        raise NotImplementedError, "All descendants of the BLDConnection class need to implement version()"
+        raise NotImplementedError("All descendants of the BLDConnection class need to implement version()")
         #Should return a string
 
     def getBackendVersion(self):
-        raise NotImplementedError, "All descendants of the BLDConnection class need to implement getBackendVersion()"
+        raise NotImplementedError("All descendants of the BLDConnection class need to implement getBackendVersion()")
         #Should return a string representing the version of the back-end system the instance of this class is connected to
 
     def connect(self):
@@ -73,7 +44,7 @@ class BLDConnection(object):
             just mean that the target and credentials are adequate to post a request and
             receive a non-error response.
         """
-        raise NotImplementedError, "All descendants of the BLDConnection class need to implement connect()"
+        raise NotImplementedError("All descendants of the BLDConnection class need to implement connect()")
         #Should return True or False
 
     def disconnect(self):
@@ -83,7 +54,7 @@ class BLDConnection(object):
             As many connectors are stateless, the disconnection may be as easy as 
             resetting an instance variable to None
         """
-        raise NotImplementedError, "All descendants of the BLDConnection class need to implement disconnect()"
+        raise NotImplementedError("All descendants of the BLDConnection class need to implement disconnect()")
         #Should return True or False
 
     def fieldExists(self, field_name):
@@ -91,48 +62,13 @@ class BLDConnection(object):
             Return a boolean truth value (True/False) depending on whether the targeted
             field_name exists for the current connection on a Build
         """
-        raise NotImplementedError, "All descendants of the BLDConnection class need to implement fieldExists(field_name)"
+        raise NotImplementedError("All descendants of the BLDConnection class need to implement fieldExists(field_name)")
 
 
     def validate(self):
         """
         """
-        satisfactory = True
-
-        if self.username_required:
-            if not self.username:
-                self.log.error("<Username> is required in the config file")
-                satisfactory = False
-            else:
-                self.log.debug('%s - user entry "%s" detected in config file' % (self.__class__.__name__, self.username))
-
-        if self.password_required:
-            if not self.password:
-                self.log.error("<Password> is required in the config file")
-                satisfactory = False
-            else:
-                self.log.debug('%s - password entry detected in config file' % self.__class__.__name__)
-
-        satisfactory = self.hasValidBuildSelectors()
-
-        return satisfactory
-
-
-    def hasValidBuildSelectors(self):
-        """
-            This method should be overridden in the BLDConnection subclass for 
-            connections whose target does not support standard relational 
-            operators of (=, !=, <, >, <=, and >=) .
-        """
-        if len(self.build_selectors) == 0: 
-            return True
-        status = True
-        for bs in self.build_selectors:
-            if not self.fieldExists(bs.field):
-                self.log.error("BuildSelector field_name %s not found" % bs.field)
-                status = False
-
-        return status
+        raise NotImplementedError("All descendants of the BLDConnection class need to implement a validation method")
 
 
     def internalizeConfig(self, config):
@@ -149,15 +85,6 @@ class BLDConnection(object):
         #print("Connection debug value is {0}".format(self.debug))
         if self.debug:
             self.log.setLevel('DEBUG')
-
-        # minimum valid selector spec is 6 chars, 'xy = z'
-        bad_build_selectors = [sel for sel in self.build_selectors if len(sel) < 6]
-        if bad_build_selectors:
-            raise ConfigurationError("One or more BuildSelector specifications is structurally invalid")
-        
-        if self.build_selectors:
-            #transform our textual selector conditions to BuildSelector instances
-            self.build_selectors = [BuildSelector(cs) for cs in self.build_selectors]
 
 
     def getRecentBuilds(self, ref_time):

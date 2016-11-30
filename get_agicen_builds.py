@@ -52,7 +52,13 @@ CONFIG_CHUNK = """
 
 def main(args):
 
-    conf = yaml.load(CONFIG_CHUNK)
+    if args:
+        config_file_name = args.pop(0)
+        with open("config/%s" % config_file_name, 'r') as f:
+             uber_conf = yaml.load(f)
+        conf = uber_conf['JenkinsBuildConnector']
+    else:
+        conf = yaml.load(CONFIG_CHUNK)
     ac_conf = conf['AgileCentral']
 
     #pprint(ac_conf)

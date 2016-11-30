@@ -6,6 +6,7 @@ import re
 import socket
 import time
 import datetime
+import pwd
 
 ########################################################################################
 
@@ -18,12 +19,12 @@ class ProcTable(object):
         try:
             import win32com.client
             op_sys = 'windows'
-        except Exception, msg:
+        except Exception as msg:
             pass
 
         try:
             import pwd
-        except Exception, msg:
+        except Exception as msg:
             pass
 
         if op_sys == 'posix':
@@ -43,7 +44,7 @@ class ProcTable(object):
         command = 'ps -ef'
         command_vector = command.split(' ') # to make our command a list of strings
         ps_output = subprocess.Popen(command_vector, stdout=subprocess.PIPE).communicate()[0]
-        pslines = ps_output.split("\n")
+        pslines = ps_output.decode().split("\n")
         hdr_line = pslines[0]
         cmd_column_ix = hdr_line.index('CMD')
         #proc_lines =  pslines[1:len(pslines)-1] # the last line is a blank line...

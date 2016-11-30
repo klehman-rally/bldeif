@@ -20,7 +20,7 @@ class ClassLoader(object):
 ##
 
         def qualified(subdir, item):
-            return fn.endswith('.py') and os.path.isfile('%s/%s' % (subdir, fn))
+            return item.endswith('.py') and os.path.isfile('%s/%s' % (subdir, item))
 
         pyfiles = [fn for fn in os.listdir(pkgdir) if qualified(pkgdir, fn)]
         module_names = [os.path.splitext(fn)[0] for fn in pyfiles]

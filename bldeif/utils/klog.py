@@ -209,7 +209,7 @@ class FileOutput(StreamOutput):
 
         try:
             self.stream = open(fname, mode)
-        except Exception, msg:
+        except Exception as msg:
             problem = 'Error opening logfile: %s --> %s, using stdout instead\n' % (fname, msg)
             sys.stderr.write(problem)
             self.stream = sys.stdout
@@ -230,7 +230,7 @@ class FileOutput(StreamOutput):
 #########################################################################################
 
 class ActivityLogger(object):
-    valid_levels = ['DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'CRITICAL', 'FATAL']
+    valid_levels = ['DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'CRITICAL', 'FATAL', 'YUGE']
     level_value  = {'DEBUG'    : 1,
                     'INFO'     : 2,
                     'WARN'     : 3,
@@ -238,6 +238,7 @@ class ActivityLogger(object):
                     'ERROR'    : 4,
                     'CRITICAL' : 5,
                     'FATAL'    : 6,
+                    'YUGE'     : 7,
                    }
     exception_level = 5
 
@@ -255,19 +256,19 @@ class ActivityLogger(object):
         if level_name.upper() in ActivityLogger.valid_levels:
           self.current_level = ActivityLogger.level_value[level_name.upper()]
 ##
-##        print "current ActivityLogger level set to |%s|" % self.current_level
+##        print("current ActivityLogger level set to |%s|" % self.current_level)
 ##
   
     def log(self, msg, level, exception_triggered=False):
         # check to see if msg is None, String, List, Dict, Int, Float, 
         # Class, Class instance, Exception, Exception instance
-        if type(msg) == types.UnicodeType:
-            msg = str(msg)
-        if type(msg) not in [types.StringType, types.NoneType, types.IntType, types.FloatType]:
-            msg = self._augment(msg)
+        #if type(msg) == types.UnicodeType:
+        #    msg = str(msg)
+        #if type(msg) not in [types.StringType, types.NoneType, types.IntType, types.FloatType]:
+        #    msg = self._augment(msg)
 ##
-##        print "ActivityLogger.log  message level: |%s|  current log level |%s|" % \
-##              (self.level_value[level], self.current_level)
+##        print("ActivityLogger.log  message level: |%s|  current log level |%s|" % \
+##              (self.level_value[level], self.current_level))
 ##
         if self.level_value[level] >= self.current_level:
             self.sink.log(msg, level, exception_triggered=exception_triggered)
@@ -281,13 +282,13 @@ class ActivityLogger(object):
         if type(original) in [types.DictType, types.ListType, types.TupleType]:
             return repr(original)
 ##
-##        print "in ActivityLogger._augment: original parm value: |%s|" % repr(original)
-##        print "type of original msg: %s " % type(original)
+##        print("in ActivityLogger._augment: original parm value: |%s|" % repr(original))
+##        print("type of original msg: %s " % type(original))
 ##        type_as_string = repr(type(original))
 ##        if '(<type ' in type_as_string:
 ##            print "i saw the type identifier in the type"
 ####        else:
-##            print "no type identifier in the type"
+##            print("no type identifier in the type")
 ##
         # for now, punt by turning the original into a types.StringType
         augmented = "%s" % original
@@ -312,6 +313,9 @@ class ActivityLogger(object):
 
     def fatal(self, msg, exception_triggered=True):
         self.log(msg, 'FATAL', exception_triggered=exception_triggered)
+
+    def yuge(self, msg):
+        self.log(msg, 'YUGE')
 
     def write(self, msg, level=None):
       if not level or level not in ActivityLogger.valid_levels:

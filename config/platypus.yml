@@ -1,0 +1,35 @@
+
+---
+JenkinsBuildConnector:
+
+    AgileCentral:
+        Server    :  rally1.rallydev.com
+        APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
+        Workspace :  Alligators BLD Unigrations
+
+    Jenkins:
+        Protocol  :  http
+        Server    :  tiema03-u183073.ca.com
+        Port      :  8080
+        API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
+        Username  :  jenkins
+        Password  :  encoded-c-m-F-s-b-H-l-k-Z-X-Y-=
+        MaxDepth  :  5
+        AgileCentral_DefaultBuildProject :  Jenkins
+
+        Jobs:
+            - Job: centaur-mordant
+              AgileCentral_Project: Jenkins // Salamandra
+        
+        Folders:
+            - Folder: frozique
+              AgileCentral_Project: Jenkins // Corral // Salamandra
+        
+
+    Service:
+            Preview: False
+            LogLevel: DEBUG
+            MaxBuilds: 50
+            VCSData: True
+...
+
