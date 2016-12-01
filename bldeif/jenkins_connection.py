@@ -26,11 +26,11 @@ VIEW_JOBS_URL = "{prefix}/view/{view}/api/json?depth=0&tree=jobs[name]"
 VIEW_JOBS_ENDPOINT = "/api/json?depth=0&tree=jobs[name]"
 VIEW_FOLDERS_URL = "{prefix}/view/{view}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
 # BUILD_ATTRS      = "number,id,fullDisplayName,timestamp,duration,result,url,changeSet[kind,items[*[*]]]"
-BUILD_ATTRS = "number,id,fullDisplayName,timestamp,duration,result,url,changeSet[kind,items[id,timestamp,date,msg]]"
+BUILD_ATTRS = "number,id,fullDisplayName,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg]]"
 JOB_BUILDS_URL = "{prefix}/view/{view}/job/{job}/api/json?tree=builds[%s]" % BUILD_ATTRS
 FOLDER_JOBS_URL = "{prefix}/job/{folder_name}/api/json?tree=jobs[displayName,name,url]"
 # FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,changeSet[kind,items[*[*]]]"
-FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,changeSet[kind,items[id,timestamp,date,msg]]"
+FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg]]"
 FOLDER_JOB_BUILDS_MINIMAL_ATTRS = "number,id,timestamp,result"
 FOLDER_JOB_BUILDS_URL = "{prefix}/job/{folder_name}/jobs/{job_name}/api/json?tree=builds[%s]" % FOLDER_JOB_BUILD_ATTRS
 FOLDER_JOB_BUILD_URL = "{prefix}/job/{folder_name}/jobs/{job_name}/{number}/api/json"
@@ -593,6 +593,7 @@ class JenkinsBuild(object):
         self.name = name
         self.number = int(raw['number'])
         self.result = str(raw['result'])
+        self.actions = raw['actions']
         self.result = 'INCOMPLETE' if self.result == 'ABORTED' else self.result
 
         self.id_str = str(raw['id'])
@@ -624,7 +625,16 @@ class JenkinsBuild(object):
         total = (self.timestamp + self.duration) / 1000
         self.finished = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(total))
         self.url = raw['url']
+        self.repository = self.ripActions()
         self.changeSets = self.ripChangeSets(raw['changeSet']['kind'], raw['changeSet']['items'])
+
+    def ripActions(self):
+        repo = ''
+        repo_info = [item['remoteUrls'][0].split('/')[-1]  for item in self.actions if 'remoteUrls' in item]
+        if repo_info:
+            repo = repo_info[0]
+        return repo
+
 
     def ripChangeSets(self, vcs, changesets):
         tank = [JenkinsChangeset(vcs, cs_info) for cs_info in changesets]
@@ -664,11 +674,11 @@ class JenkinsBuild(object):
 #############################################################################################
 
 class JenkinsChangeset:
-    def __init__(self, vcs, wad):
-        self.vcs = vcs
-        self.commitId = wad['id']
-        self.timestamp = wad['timestamp']
-        self.message = wad['msg']
+    def __init__(self, vcs, commit):
+        self.vcs       = vcs
+        self.commitId  = commit['id']
+        self.timestamp = commit['timestamp']
+        self.message   = commit['msg']
         # self.ac_artifacts = []
         # try:
         #     results = re.findall(r'((S|US|DE|TA|TC|D)[1-9]\d*)', self.message.upper())
@@ -676,7 +686,7 @@ class JenkinsChangeset:
         # except:
         #     pass
         # DE123 >US3413124 ([TC145234])
-        # self.changes = [JenkinsChangesetFile(changeItem) for changeItem in wad['paths']]
+        # self.changes = [JenkinsChangesetFile(changeItem) for changeItem in commit['paths']]
 
     def __str__(self):
         changeset = "   VCS %s  Commit ID # %s  Timestamp: %s  Message: %s " % \
@@ -686,5 +696,5 @@ class JenkinsChangeset:
 
 class JenkinsChangesetFile:
     def __init__(self, item):
-        self.action = item['editType']
+        self.action    = item['editType']
         self.file_path = item['file']

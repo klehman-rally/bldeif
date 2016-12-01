@@ -351,6 +351,9 @@ class AgileCentralConnection(BLDConnection):
                 self.build_def[project] = {}
             self.build_def[project][job_name] = build_defn
 
+    def ensureChangesetsExist(self, build, project):
+        pass
+
 
     def ensureBuildDefinitionExistence(self, job, project, strict_project, job_uri):
         """

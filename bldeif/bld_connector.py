@@ -220,6 +220,8 @@ class BLDConnector:
             if preview_mode:
                 continue
 
+            changesets = agicen.ensureChangesetsExist(build, project)
+
             desc = '%s %s #%s | %s | %s  not yet reflected in Agile Central'
             bts = time.strftime("%Y-%m-%d %H:%M:%S Z", time.gmtime(build.timestamp/1000.0))
             #self.log.debug(desc % (pm_tag, job, build.number, build.result, bts))
