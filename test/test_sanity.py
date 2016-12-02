@@ -439,24 +439,23 @@ def test_same_name_jobs_in_diff_folders():
     target_job_builds = []
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
-    builds = jc.getRecentBuilds(ref_time.utctimetuple())
+    jenkins_builds = jc.getRecentBuilds(ref_time.utctimetuple())
 
-    target_job_builds = [build_info[job_name] for view_project, build_info  in builds.items() if job_name in build_info.keys() ]
+    target_job_builds = [build_info[job_name] for view_project, build_info  in jenkins_builds.items() if job_name in build_info.keys() ]
     bc = bsh.BLDConnector(tkonf, logger)
 
     agicen = bc.agicen_conn.agicen
     query = ['CreationDate >= %s' % ref_time.isoformat()]
-    for view_proj, build_view in builds.items():
+    for view_proj, build_view in jenkins_builds.items():
         print(view_proj)
         for builds in build_view.values():
             for build in builds:
                 print("    %s" % build)
                 project = view_proj.split('::')[1]
                 print ("PROJECT %s" %project)
-                build_defn = bc.agicen_conn.ensureBuildDefinitionExistence(job_name, project, True, build.url)
-                build_data = build.as_tuple_data()
-                info = bsh.OrderedDict(build_data)
-                agicen_build = bc.postBuildsToAgileCentral(info, build_defn, build)
+                build_defn = bc.agicen_conn.ensureBuildDefinitionExists(job_name, project, build.url)
+                assert build_defn.Project.Name == project
+                agicen_build = bc.postBuildsToAgileCentral(build_defn, build, [], job_name)
                 assert agicen_build is not None
                 assert agicen_build.BuildDefinition.Project.Name == project
 

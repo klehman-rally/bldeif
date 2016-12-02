@@ -55,6 +55,7 @@ def test_Top_changesets():
                 if build.number != magic_number:
                     continue
                 #print(build)
+                print (build.repository)
                 assert build.repository == repo_name
                 assert build.changeSets
                 assert build.changeSets[0].vcs == vcs

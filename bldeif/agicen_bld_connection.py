@@ -2,6 +2,7 @@
 import sys
 import re
 import time
+from datetime import datetime
 
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError
 from bldeif.connection import BLDConnection
@@ -351,23 +352,121 @@ class AgileCentralConnection(BLDConnection):
                 self.build_def[project] = {}
             self.build_def[project][job_name] = build_defn
 
-    def ensureChangesetsExist(self, build, project):
-        pass
+
+    def prepAgileCentralBuildPrerequisites(self, target_build, project):
+        """
+            Given a target_build which has information about a build that has been completed on
+             some target build system, accommodate/create the following:
+                SCMRepository    based on the target_build.repo value
+                Changesets       based on the target_build.changeSets
+                BuildDefinition  based on the target_build.job  (which is the job name)
+             Any or all or none of these things may already be present in AgileCentral, and if
+             not create what is necessary.
+             Return back the SCMRepository, Changesets, and BuildDefinition.
+             These will be a  pyral entity for each or a list of pyral entities in the case of Changesets
+        """
+        scm_repo   = None
+        changesets = None
+        build_defn = None
+        if target_build.changeSets:
+            ac_changesets, missing_changesets = self.getCorrespondingChangesets(target_build)
+            # check for ac_changesets, if present take the SCMRepository of the first in the list (very arbitrary!)
+            if ac_changesets:
+                criteria = 'Name = "%s"' % ac_changesets[0].SCMRepository.Name
+                scm_repo = self.agicen.get('SCMRepository', fetch="Name", query=criteria, instance=True)
+            else:
+                scm_repo = self.ensureSCMRepositoryExists(target_build.repository, missing_changesets[0].vcs)
+            changesets = self.ensureChangesetsExist(scm_repo, project, ac_changesets, missing_changesets)
+        build_defn = self.ensureBuildDefinitionExists(target_build.name, project, target_build.url)
+        return changesets, build_defn
 
 
-    def ensureBuildDefinitionExistence(self, job, project, strict_project, job_uri):
+    def getCorrespondingChangesets(self, build) :
+        build_changesets = build.changeSets
+        if not build_changesets:
+            return [], []
+        ids = [cs.commitId for cs in build_changesets]
+        scm_repository_name = ''
+        for id in ids:
+            criteria = '(Revision = "{0}")'.format(id)
+            response = self.agicen.get('Changeset', fetch="ObjectID,Revision,SCMRepository,Name", query=criteria)
+            if response.resultCount:
+                hits = [item for item in response]
+                scm_repository_name = hits[0].SCMRepository.Name
+                break
+
+        if scm_repository_name:
+            fields = "ObjectID,Revision"
+            query = "(SCMRepository.Name = {})".format(scm_repository_name)
+
+            response = self.agicen.get('Changeset', fetch=fields, query=query, order="Name", pagesize=20, limit=20)
+            if response.resultCount:
+                changesets = [item for item in response]
+
+            changeset_revisions        = [cs.Revision for cs in changesets]
+            build_changesets_revisions = [bc.commitId for bc in build_changesets]
+            missing = set(build_changesets_revisions) - set(changeset_revisions)
+            present = set(build_changesets_revisions) - set(missing)
+            return present, missing
+        else:
+            vcs_type = build_changesets[0].vcs
+            self.ensureSCMRepositoryExists(build.repository, vcs_type)
+
+
+
+    #
+    # def getSCMRepository(self, scm_repo_ref):
+    #     criteria = '(ObjectID = "{0}")'.format(scm_repo_ref.split('/')[-1])
+    #     scm_repo = self.agicen.get('SCMRepository', fetch="Name", query=criteria, instance=True)
+    #     if scm_repo:
+    #         return scm_repo
+
+
+    def ensureSCMRepositoryExists(self, repo_name, vcs_type):
+        repo_name = repo_name.replace('\\','/')
+        name = repo_name.split('/')[-1]
+        response = self.agicen.get('SCMRepository', fetch="Name,ObjectID", query = '(Name contains "{0}")'.format(name))
+        if response.resultCount:
+            scm_repos = [item for item in response]
+            if scm_repos[0].Name.lower() == name.lower():
+                return scm_repos[0]
+
+        scm_repo_payload = {'Name': repo_name,'SCMType': vcs_type}
+        try:
+            scm_repo = self.agicen.create('SCMRepository', scm_repo_payload)
+            self.log.info("Created SCMRepository %s (%s)" % (scm_repo.Name, scm_repo.ObjectID))
+        except RallyRESTAPIError as msg:
+            self.log.error('Error detected on attempt to create SCMRepository %s' % msg)
+            raise OperationalError("Could not create SCMRepository %s" % repo_name)
+
+        return scm_repo
+
+
+    def ensureChangesetsExists(self, scm_repo, project, ac_changesets, missing_changesets):
+        for mc in missing_changesets:
+            changeset_payload = {
+                'SCMRepository'   : scm_repo.ref,
+                'Revision'        : mc.Revision,
+                'CommitTimestamp' : datetime.utcfromtimestamp(mc.timestamp / 1000).strftime('%Y-%m-%dT%H:%M:%SZ')
+            }
+            try:
+                changeset = self.agicen.create('Changeset', changeset_payload)
+                self.log.debug("Created Changeset %s" % changeset.ObjectID)
+            except RallyRESTAPIError as msg:
+                self.log.error('Error detected on attempt to create Changeset %s' % msg)
+                raise OperationalError("Could not create Changeset  %s" % msg)
+            ac_changesets.append(changeset)
+
+        return ac_changesets
+
+
+    def ensureBuildDefinitionExists(self, job, project, job_uri):
         """
             use the self.build_def dict keyed by project at first level, job name at second level
             to determine if the job has a BuildDefinition for it.
 
             Returns a pyral BuildDefinition instance corresponding to the job (and project)
         """
-        # if project not in self.build_def:
-        #     self.build_def[project] = {}
-        #
-        # if job in self.build_def[project]:
-        #     return self.build_def[project][job]
-
         if project in self.build_def and job in self.build_def[project]:
             return self.build_def[project][job]
 
@@ -376,55 +475,13 @@ class AgileCentralConnection(BLDConnection):
             self.log.debug("Detected build definition cache for the project: {} is empty, populating ...".format(project))
             self._fillBuildDefinitionCache(project)
 
-        no_entry = False
         # OK, the job is not in the BuildDefinition cache
-        # so look in the BuildDefintion cache to see if the job exists for the given project
+        # so look in the BuildDefinition cache to see if the job exists for the given project
         if project in self.build_def:
             if job in self.build_def[project]:
                 return self.build_def[project][job]
-        # Determine whether it is permitted for the project to exist under another project
-        # if strict_project == True then at this point we'll have to create a BuildDefinintion
-        # for this project-job pair
-        # if strict_project == False, then if the job exists in the BuildDefinition cache for some project (not the project parm)
-        # then we'd grab the BuildDefinition ObjectID that exists in the BuildDefinition cache for the
-        # other project and this job name,  and stick it in the "quick lookup" cache
-        """
-        if strict_project == False:
-            # and we find a job name match in the BuildDefinition cache, use it and update the "quick lookup" cache, and return
-            hits = []
-            try:
-                for proj in self.build_def.keys():
-                    for job_name in self.build_def[proj]:
-                        if job_name == job:
-                            hits.append(self.build_def[proj][job_name])
-                if hits: # there could be multiple, so we'll take the one having the most recent build
-                    hits.sort(key=lambda build_defn: build_defn.LastBuild)
-            except Exception as msg:
-                print ("U-u-uge problem #6")
-                raise OperationalError(msg)
-
-            if hits:
-                build_defn = hits[-1] # this will be the BuildDefinition with the most recent build
-                return build_defn
-        """
-
-        # At this point we haven't found a match for the job in the BuildDefinition cache.
-        # So, create a BuildDefinition for the job with the given project
-
-        # query = "Name = %s" % project
-        # response = self.agicen.get('Project', fetch='ObjectID', query=query, workspace=self.workspace_name,
-        #                            project=self.project_name,
-        #                            projectScopeDown=True,
-        #                            pagesize=200)
-        # if response.errors or response.resultCount == 0:
-        #     raise ConfigurationError(
-        #         'Unable to locate a Project with the name: %s in the target Workspace' % self.project_name)
-        #
-        # project_oids = [proj.ObjectID for proj in response]
-        # target_project_ref = "/project/%s" % project_oids[0]
 
         target_project_ref = self._project_cache[project]
-
 
         bdf_info = {'Workspace' : self.workspace_ref,
                     'Project'   : target_project_ref,
@@ -444,7 +501,6 @@ class AgileCentralConnection(BLDConnection):
 
         self.build_def[project][job] = build_defn
         return build_defn
-
 
 
     def preCreate(self, int_work_item):
@@ -495,13 +551,16 @@ class AgileCentralConnection(BLDConnection):
 
     def buildExists(self, build_defn, number):
         """
-            Issue a query against Build to obtain the Build identified by build_defn.Name and number.
+            Issue a query against Build to obtain the Build identified by build_defn.ObjectID and number.
             Return a boolean indication of whether such an item exists.
         """
-        criteria = ['BuildDefinition.Name = %s' % build_defn.Name, 'Number = %s' % number]
-        response = self.agicen.get('Build', fetch="CreationDate,Number,Name,BuildDefinition", query=criteria,
+        criteria = ['BuildDefinition.ObjectID = %s' % build_defn.ObjectID, 'Number = %s' % number]
+        response = self.agicen.get('Build', fetch="CreationDate,Number,Name,BuildDefinition,Project", query=criteria,
                                             workspace=self.workspace_name, project=self.project_name, projectScopeDown=True)
-        return response.status_code == 200 and response.resultCount > 0
+
+        if response.resultCount:
+            return response.next()
+        return None
 
 
     def populateChangesetsCollectionOnBuild(self, build, changesets):

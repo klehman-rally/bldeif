@@ -473,7 +473,6 @@ class JenkinsConnection(BLDConnection):
         return qualifying_builds
 
     def getFolderJobBuildHistory(self, folder_name, job, ref_time):
-
         #job_name = job.name
         folder_job_builds_url = job.url + ('/api/json?tree=builds[%s]' % FOLDER_JOB_BUILD_ATTRS)
         # print("    %s" % folder_job_builds_url)
@@ -630,11 +629,16 @@ class JenkinsBuild(object):
 
     def ripActions(self):
         repo = ''
-        repo_info = [item['remoteUrls'][0].split('/')[-1]  for item in self.actions if 'remoteUrls' in item]
+        #repo_info = [item['remoteUrls'][0].split('/')[-1]  for item in self.actions if 'remoteUrls' in item]
+        repo_info = [self.makeup_scm_repo_name(item['remoteUrls'][0]) for item in self.actions if 'remoteUrls' in item]
         if repo_info:
             repo = repo_info[0]
         return repo
 
+    def makeup_scm_repo_name(self, remote_url):
+        remote_url = re.sub(r'\.git$', '', remote_url)
+        max_length = 256
+        return remote_url.split('/')[-1][-max_length:]
 
     def ripChangeSets(self, vcs, changesets):
         tank = [JenkinsChangeset(vcs, cs_info) for cs_info in changesets]

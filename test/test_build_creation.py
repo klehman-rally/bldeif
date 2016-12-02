@@ -9,21 +9,6 @@ from datetime import datetime, timedelta
 from collections import OrderedDict
 
 
-# @pytest.fixture
-# def setup_config(filename, simple=True):
-#     aci = sh.AC_Creds_Inflator(sh.DEFAULT_AGILE_CENTRAL_SERVER, sh.DEFAULT_AC_API_KEY, None, None,
-#                                sh.DEFAULT_AC_WORKSPACE)
-#
-#     config_raw = sh.SIMPLE_CONFIG_TEMPLATE.replace('<!AC_CREDS_INFO!>', str(aci))
-#
-#     with open(filename, 'w') as out:
-#         out.write(config_raw)
-#
-#     logger = sh.ActivityLogger('test.log')
-#     konf = sh.Konfabulator(filename, logger)
-#     return logger, konf
-
-
 def test_create_build_with_no_commits():
     #filename = "../config/buildorama.yml"
     filename = "config/buildorama.yml"
@@ -43,7 +28,7 @@ def test_create_build_with_no_commits():
     build.url = "http://jenkey.dfsa.com:8080/job/bashfulmonkies/532"
     build_job_uri = "/".join(build.url.split('/')[:-2])
 
-    build_defn = agicen.ensureBuildDefinitionExistence(job_name, 'Jenkins', True, build_job_uri)
+    build_defn = agicen.ensureBuildDefinitionExists(job_name, 'Jenkins', build_job_uri)
     assert build_defn is not None
 
     changesets = agicen.matchToChangesets(commits)
@@ -82,7 +67,24 @@ def test_create_build_having_commits():
     job_name, build_number, status  = '%s' %build_name, 74, 'SUCCESS'
     started, duration = build_start, 43
     # use some SHA values corresponding to some actual Agile Central Changeset items in our target Workspace
-    commits = ['CHOCOLATE', 'MORE CHOCOLATE']
+    commits = ['CHOCOLATE', 'MORE CHOCOLATE'] # these are actual shas
+    random_scm_repo_name = "Velocirat"
+    random_scm_type = "abacus"
+
+
+    #scm_repo = create_scm_repo(agicen, random_scm_repo_name, random_scm_type)
+    scm_repo = agicen.ensureSCMRepositoryExists(random_scm_repo_name, random_scm_type)
+    for sha in commits:
+        changeset_payload = {
+            'SCMRepository': scm_repo.ref,
+            'Revision': sha,
+            'CommitTimestamp': '2016-12-31'
+        }
+        try:
+            changeset = agicen.agicen.create('Changeset', changeset_payload)
+        except Exception as msg:
+            raise Exception("Could not create Changeset  %s" % msg)
+
     build = bsh.MockJenkinsBuild(job_name, build_number, status, started, duration, commits)
     build.url = "http://jenkey.dfsa.com:8080/job/hugrycats/%s" % build_number
     build_job_uri = "/".join(build.url.split('/')[:-2])
@@ -90,7 +92,7 @@ def test_create_build_having_commits():
 
     # run the same code as above to matchToChangesets
     # assert that some were found
-    build_defn = agicen.ensureBuildDefinitionExistence(job_name, 'Jenkins', True, build_job_uri)
+    build_defn = agicen.ensureBuildDefinitionExists(job_name, 'Jenkins', build_job_uri)
     assert build_defn is not None
 
     changesets = agicen.matchToChangesets(commits)

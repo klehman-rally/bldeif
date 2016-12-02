@@ -203,12 +203,12 @@ def test_namesake_projects():
     # create some mock builds for associated with the mep Projects
     # throw those against
     #builds = createMockBuilds(['centaur-mordant', 'australopithicus'])
-    job = 'australopithicus'
+    job_name = 'australopithicus'
     build_start = int((datetime.datetime.now() - datetime.timedelta(minutes=60)).timestamp())
     build_number, status = 532, 'SUCCESS'
     started, duration = build_start, 231
     commits = []
-    build = bsh.MockJenkinsBuild(job, build_number, status, started, duration, commits)
+    build = bsh.MockJenkinsBuild(job_name, build_number, status, started, duration, commits)
     build.changeSets = []
     build.url = "http://jenkey.dfsa.com:8080/job/bashfulmonkies/532"
 
@@ -217,18 +217,18 @@ def test_namesake_projects():
     assert 'Project' not in info
 
     build_job_uri = "/".join(build.url.split('/')[:-2])
-    build_defn = agiconn.ensureBuildDefinitionExistence(job, 'Jenkins // Corral // Salamandra', True, build_job_uri)
-    assert build_defn.Name == job
+    build_defn = agiconn.ensureBuildDefinitionExists(job_name, 'Jenkins // Corral // Salamandra', build_job_uri)
+    assert build_defn.Name == job_name
     assert build_defn.Project.ObjectID == tp.oid
 
     if agiconn.buildExists(build_defn, build.number):
-        agiconn.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, job))
+        agiconn.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, job_name))
 
     # pull out any build.changeSets commit IDs and see if they match up with AgileCentral Changeset items Revision attribute
     # if so, get all such commit IDs and their associated Changeset ObjectID, then
     # add that "collection" as the Build's Changesets collection
 
-    agicen_build = bc.postBuildsToAgileCentral(info, build_defn, build)
+    agicen_build = bc.postBuildsToAgileCentral(build_defn, build, [], job_name)
     assert agicen_build.BuildDefinition.ref == build_defn.ref
 
     # build_defn = agiconn.agicen.ensureBuildDefinitionExistence(job, 'Jenkins', True, build_job_uri)
