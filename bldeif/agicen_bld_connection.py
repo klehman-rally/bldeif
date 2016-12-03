@@ -11,7 +11,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -443,11 +443,15 @@ class AgileCentralConnection(BLDConnection):
 
 
     def ensureChangesetsExists(self, scm_repo, project, ac_changesets, missing_changesets):
+        all_mentioned_artifact_fids = {mc.commitId: self.parseForArtifacts(mc.msg) for mc in missing_changesets}
+        valid_artifact_fids         = self.validatedArtifacts(all_mentioned_artifact_fids, project)
         for mc in missing_changesets:
+            valid_artifacts = valid_artifact_fids[mc.commitId]
             changeset_payload = {
                 'SCMRepository'   : scm_repo.ref,
                 'Revision'        : mc.Revision,
-                'CommitTimestamp' : datetime.utcfromtimestamp(mc.timestamp / 1000).strftime('%Y-%m-%dT%H:%M:%SZ')
+                'CommitTimestamp' : datetime.utcfromtimestamp(mc.timestamp / 1000).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'Artifacts'       : valid_artifacts
             }
             try:
                 changeset = self.agicen.create('Changeset', changeset_payload)
@@ -457,8 +461,45 @@ class AgileCentralConnection(BLDConnection):
                 raise OperationalError("Could not create Changeset  %s" % msg)
             ac_changesets.append(changeset)
 
+            # if there are artifacts mentioned in the changeset.msg, find
+
         return ac_changesets
 
+    def parseForArtifacts(self, commit_message):
+        prefixes = ['S', 'US', 'DE', 'TA', 'TC', 'DS', 'TS']
+        fid_pattern = r'((%s)\d+)' % '|'.join(prefixes)
+        result = re.findall(fid_pattern, commit_message, re.IGNORECASE)
+        return [item[0].upper() for item in result]
+
+
+    def validatedArtifacts(self, commit_fid):
+        # commit_fid is a dict
+        # commit_fid = {commitID: [S123,DE123], ...}
+        fids = list(set([fid for fids in commit_fid.values() for fid in fids]))
+        query = self.makeOrQuery("FormattedID", fids)
+        response = self.agicen.get('Artifact', fetch="FormattedID,ObjectID", query=query, project=None, pagesize=200, start=1)
+        found_arts = [art for art in response]
+        va = {}
+        for ident in commit_fid.keys():
+            va[ident] = []
+            matches = [found_art for found_art in found_arts if found_art.FormattedID in commit_fid[ident]]
+            if matches:
+                va[ident] = matches
+        return va
+
+    def makeOrQuery(self,field, values):
+        if not values:
+            return None
+
+        values = list(values)
+        query = '(%s = "%s")' %(field, values[0])
+        if len(values) == 1:
+            return query
+        else:
+            values.pop(0)
+            for v in values:
+                query = '(%s OR (%s = "%s"))' % (query, field, v)
+            return query
 
     def ensureBuildDefinitionExists(self, job, project, job_uri):
         """

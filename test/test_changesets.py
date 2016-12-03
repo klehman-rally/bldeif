@@ -10,6 +10,8 @@ import build_spec_helper   as bsh
 import spec_helper as sh
 from bldeif.utils.klog       import ActivityLogger
 from bldeif.bld_connector_runner import BuildConnectorRunner
+from bldeif.utils.konfabulus import Konfabulator
+from bldeif.agicen_bld_connection import AgileCentralConnection
 
 STANDARD_CONFIG = 'honey-badger.yml'
 MIN_CONFIG1     = 'bluestem.yml'
@@ -62,4 +64,43 @@ def test_Top_changesets():
                 # for changeset in build.changeSets:
                 #    print(changeset)
 
+
+def test_validatedArtifacts():
+    commit_fid = {
+        'chocolate': ['DE1','US1','DE3'],
+        'bacon'    : ['US4'],
+        'broccoli' : []
+    }
+
+    logger = ActivityLogger('kublakhan.log')
+    konf = Konfabulator('config/buildorama.yml', logger)
+    jenk_conf = konf.topLevel('Jenkins')
+    ac_conf = konf.topLevel('AgileCentral')
+    ac_conf['Project'] = jenk_conf['AgileCentral_DefaultBuildProject'] #leak proj from jenkins section to ac section
+    agicen = AgileCentralConnection(ac_conf, logger)
+    agicen.other_name = 'FoobarRulz'
+    assert agicen.connect()
+    result = agicen.validatedArtifacts(commit_fid)
+    assert result['bacon']    == []
+    assert result['broccoli'] == []
+    #assert result['chocolate'][0].FormattedID == 'DE1'
+    valid_chocolates = ['DE1', 'US1']
+    assert sorted([a.FormattedID for a in result['chocolate']]) == valid_chocolates
+
+    assert  [art.FormattedID for artifacts in result.values() for art in artifacts if art.FormattedID == 'US1'][0] == 'US1'
+    # teeny more complex...
+    commit_fid['vanilla'] = ['US1', 'US2', 'US12']
+    valid_vanillas = ['US1', 'US2']
+    result = agicen.validatedArtifacts(commit_fid)
+    assert sorted([a.FormattedID for a in result['vanilla']]) == valid_vanillas
+    commit_fid['chocolate'] = ['US1', 'US1', 'US1']
+    valid_chocolates = ['US1']
+    result = agicen.validatedArtifacts(commit_fid)
+    assert sorted([a.FormattedID for a in result['chocolate']]) == valid_chocolates
+    commit_fid = {}
+    result = agicen.validatedArtifacts(commit_fid)
+    assert len(result) == 0
+
+
+#
 

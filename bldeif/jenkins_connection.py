@@ -14,7 +14,7 @@ quote = urllib.parse.quote
 
 ############################################################################################
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 ACTION_WORD_PATTERN = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
@@ -30,7 +30,7 @@ BUILD_ATTRS = "number,id,fullDisplayName,timestamp,duration,result,url,actions[r
 JOB_BUILDS_URL = "{prefix}/view/{view}/job/{job}/api/json?tree=builds[%s]" % BUILD_ATTRS
 FOLDER_JOBS_URL = "{prefix}/job/{folder_name}/api/json?tree=jobs[displayName,name,url]"
 # FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,changeSet[kind,items[*[*]]]"
-FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg]]"
+FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg,affectedPaths]]"
 FOLDER_JOB_BUILDS_MINIMAL_ATTRS = "number,id,timestamp,result"
 FOLDER_JOB_BUILDS_URL = "{prefix}/job/{folder_name}/jobs/{job_name}/api/json?tree=builds[%s]" % FOLDER_JOB_BUILD_ATTRS
 FOLDER_JOB_BUILD_URL = "{prefix}/job/{folder_name}/jobs/{job_name}/{number}/api/json"
@@ -630,13 +630,13 @@ class JenkinsBuild(object):
     def ripActions(self):
         repo = ''
         #repo_info = [item['remoteUrls'][0].split('/')[-1]  for item in self.actions if 'remoteUrls' in item]
-        repo_info = [self.makeup_scm_repo_name(item['remoteUrls'][0]) for item in self.actions if 'remoteUrls' in item]
+        repo_info = [self.makeup_scm_repo_name(item['remoteUrls']) for item in self.actions if 'remoteUrls' in item]
         if repo_info:
             repo = repo_info[0]
         return repo
 
     def makeup_scm_repo_name(self, remote_url):
-        remote_url = re.sub(r'\.git$', '', remote_url)
+        remote_url = re.sub(r'\/\.git$', '', remote_url)
         max_length = 256
         return remote_url.split('/')[-1][-max_length:]
 

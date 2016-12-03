@@ -13,7 +13,7 @@ from bldeif.utils.claslo          import ClassLoader
 
 ##############################################################################################
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 PLUGIN_SPEC_PATTERN       = re.compile(r'^(?P<plugin_class>\w+)\s*\((?P<plugin_config>[^\)]*)\)\s*$')
 PLAIN_PLUGIN_SPEC_PATTERN = re.compile(r'(?P<plugin_class>\w+)\s*$')
@@ -197,7 +197,7 @@ class BLDConnector:
         agicen_ref_time, bld_ref_time = self.getRefTimes(last_run)
         recent_agicen_builds = agicen.getRecentBuilds(agicen_ref_time, self.target_projects)
         recent_bld_builds    =    bld.getRecentBuilds(bld_ref_time)
-        self._showBuildInformation(recent_agicen_builds, recent_bld_builds)
+        #self._showBuildInformation(recent_agicen_builds, recent_bld_builds)
         unrecorded_builds = self._identifyUnrecordedBuilds(recent_agicen_builds, recent_bld_builds)
         self.log.info("unrecorded Builds count: %d" % len(unrecorded_builds))
         self.log.info("no more than %d builds per job will be recorded on this run" % self.max_builds)

@@ -518,8 +518,6 @@ def test_existing_job():
     assert other_job not in jobs_snarfed
     assert my_job in jobs_snarfed
 
-    print ("FAMOUS WAMBATS-----------------")
-
     ref_time = datetime.now() - timedelta(minutes=10)
     folder = "immovable wombats"
     my_job = "Top"
