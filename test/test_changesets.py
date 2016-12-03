@@ -34,6 +34,17 @@ def connect_to_jenkins(config_file):
     jc = bsh.JenkinsConnection(jenk_conf, ActivityLogger('inventory.log'))
     return jc
 
+def connect_to_ac(config_file):
+    logger = ActivityLogger('kublakhan.log')
+    konf = Konfabulator('config/buildorama.yml', logger)
+    jenk_conf = konf.topLevel('Jenkins')
+    ac_conf = konf.topLevel('AgileCentral')
+    ac_conf['Project'] = jenk_conf['AgileCentral_DefaultBuildProject']  # leak proj from jenkins section to ac section
+    agicen = AgileCentralConnection(ac_conf, logger)
+    agicen.other_name = 'Jenkins'
+    agicen.connect()
+    return agicen
+
 def test_Top_changesets():
     target_job = 'Top'
     magic_number = 71
@@ -102,5 +113,23 @@ def test_validatedArtifacts():
     assert len(result) == 0
 
 
-#
+def test_changeset_creation_with_artifacts_collection():
+    query = '((FormattedID = US1) OR (FormattedID = DE1))'
+    agicen_conn = connect_to_ac('config/buildorama.yml')
+    response = agicen_conn.agicen.get('Artifact', fetch="Name,ObjectID,FormattedID",query=query,project=None)
+    artifacts = [art.ref for art in response]
+    #artifacts = [art for art in response]
+    scm_repo = agicen_conn.agicen.get('SCMRepository', fetch="Name,ObjectID", query = '(Name =  wombat)', instance = True)
+    bogus_changeset_payload = {
+        'SCMRepository': scm_repo.ref,
+        'Revision': 'aa1123',
+        'CommitTimestamp': '2016-12-04',
+        'Artifacts': artifacts
+    }
+    assert bogus_changeset_payload['Artifacts'] is not None
+    changeset = agicen_conn.agicen.create('Changeset', bogus_changeset_payload)
+    assert changeset is not None
+    assert len(changeset.Artifacts) == 2
+    print(changeset.oid)
+
 
