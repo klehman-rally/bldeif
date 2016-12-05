@@ -12,7 +12,16 @@ import jenkins_spec_helper as jsh
 import spec_helper as sh
 import utility     as util
 
-def create_time_file(config_file, delta):
+def create_time_file(config_file, **kwargs):
+    # test for kwargs having hours, minutes, seconds, days, years etc.
+    if 'seconds' in kwargs:
+        delta = int(int(kwargs['seconds']) / 60.0)
+    elif 'minutes' in kwargs:
+        delta = int(kwargs['minutes'])
+    elif 'hours' in kwargs:
+        delta = int(kwargs['hours']) * 60
+    elif 'days' in kwargs:
+        delta = int(kwargs['days']) * 1440
     t = datetime.now() - timedelta(minutes=delta)
     now_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.time()))
     last_run_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.mktime(t.timetuple())))
@@ -26,7 +35,7 @@ def test_bld_connector_runner():
     #default_lookback = 3600  # 1 hour in seconds
     config_lookback = 7200  # this is in seconds, even though in the config file the units are minutes
     config_file = 'wombat.yml'
-    last_run_zulu = create_time_file(config_file, 60)
+    last_run_zulu = create_time_file(config_file, minutes=60)
     #t = int(time.mktime(time.strptime(last_run_zulu, '%Y-%m-%d %H:%M:%S Z'))) - default_lookback
     t = int(time.mktime(time.strptime(last_run_zulu, '%Y-%m-%d %H:%M:%S Z')))  - config_lookback
     last_run_minus_lookback_zulu = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.localtime(t))
@@ -112,7 +121,7 @@ def test_dont_duplicate_builds():
     ymlfile = open("config/{}".format(config_file), 'r')
     conf = yaml.load(ymlfile)
     project = conf['JenkinsBuildConnector']['Jenkins']['Jobs'][0]['AgileCentral_Project']
-    create_time_file(config_file, 2)
+    create_time_file(config_file, minutes=2)
     args = [config_file]
     runner = BuildConnectorRunner(args)
     assert runner.first_config == config_file

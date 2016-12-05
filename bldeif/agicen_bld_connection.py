@@ -3,6 +3,7 @@ import sys
 import re
 import time
 from datetime import datetime
+import bldeif.utils.ac_prefixes  as utils
 
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError
 from bldeif.connection import BLDConnection
@@ -466,7 +467,7 @@ class AgileCentralConnection(BLDConnection):
         return ac_changesets
 
     def parseForArtifacts(self, commit_message):
-        prefixes = ['S', 'US', 'DE', 'TA', 'TC', 'DS', 'TS']
+        prefixes = [prefix for item in utils.get_all_prefixes() for prefix in item.values()]
         fid_pattern = r'((%s)\d+)' % '|'.join(prefixes)
         result = re.findall(fid_pattern, commit_message, re.IGNORECASE)
         return [item[0].upper() for item in result]

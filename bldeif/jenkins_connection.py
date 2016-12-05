@@ -630,7 +630,7 @@ class JenkinsBuild(object):
     def ripActions(self):
         repo = ''
         #repo_info = [item['remoteUrls'][0].split('/')[-1]  for item in self.actions if 'remoteUrls' in item]
-        repo_info = [self.makeup_scm_repo_name(item['remoteUrls']) for item in self.actions if 'remoteUrls' in item]
+        repo_info = [self.makeup_scm_repo_name(item['remoteUrls'][0]) for item in self.actions if 'remoteUrls' in item]
         if repo_info:
             repo = repo_info[0]
         return repo

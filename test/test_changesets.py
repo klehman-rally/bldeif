@@ -3,7 +3,7 @@ import re
 import yaml
 import json
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from bldeif.bld_connector    import BLDConnector
 from bldeif.utils.time_file  import TimeFile
 import build_spec_helper   as bsh
@@ -48,6 +48,8 @@ def connect_to_ac(config_file):
 def test_Top_changesets():
     target_job = 'Top'
     magic_number = 71
+    magic_date   = date(2016,11,29)
+    days_offset  = (datetime.now().date() - magic_date).days
     repo_name = 'wombats'
     vcs = 'git'
     jc = connect_to_jenkins(STANDARD_CONFIG)
@@ -59,7 +61,7 @@ def test_Top_changesets():
     del jc.folders[1]
     assert jc.folders
 
-    t = datetime.now() - timedelta(days=1)
+    t = datetime.now() - timedelta(days=days_offset)
     ref_time = t.utctimetuple()
     builds = jc.getRecentBuilds(ref_time)
     for build_info in builds.values():
