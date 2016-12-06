@@ -12,6 +12,7 @@ from bldeif.utils.klog       import ActivityLogger
 from bldeif.bld_connector_runner import BuildConnectorRunner
 from bldeif.utils.konfabulus import Konfabulator
 from bldeif.agicen_bld_connection import AgileCentralConnection
+import utility as util
 
 STANDARD_CONFIG = 'honey-badger.yml'
 MIN_CONFIG1     = 'bluestem.yml'
@@ -84,24 +85,15 @@ def test_validatedArtifacts():
         'bacon'    : ['US4'],
         'broccoli' : []
     }
-
-    logger = ActivityLogger('kublakhan.log')
-    konf = Konfabulator('config/buildorama.yml', logger)
-    jenk_conf = konf.topLevel('Jenkins')
-    ac_conf = konf.topLevel('AgileCentral')
-    ac_conf['Project'] = jenk_conf['AgileCentral_DefaultBuildProject'] #leak proj from jenkins section to ac section
-    agicen = AgileCentralConnection(ac_conf, logger)
-    agicen.other_name = 'FoobarRulz'
-    assert agicen.connect()
+    agicen = connect_to_ac('config/buildorama.yml')
     result = agicen.validatedArtifacts(commit_fid)
     assert result['bacon']    == []
     assert result['broccoli'] == []
-    #assert result['chocolate'][0].FormattedID == 'DE1'
     valid_chocolates = ['DE1', 'US1']
     assert sorted([a.FormattedID for a in result['chocolate']]) == valid_chocolates
 
     assert  [art.FormattedID for artifacts in result.values() for art in artifacts if art.FormattedID == 'US1'][0] == 'US1'
-    # teeny more complex...
+
     commit_fid['vanilla'] = ['US1', 'US2', 'US12']
     valid_vanillas = ['US1', 'US2']
     result = agicen.validatedArtifacts(commit_fid)
@@ -119,9 +111,9 @@ def test_changeset_creation_with_artifacts_collection():
     query = '((FormattedID = US1) OR (FormattedID = DE1))'
     agicen_conn = connect_to_ac('config/buildorama.yml')
     response = agicen_conn.agicen.get('Artifact', fetch="Name,ObjectID,FormattedID",query=query,project=None)
-    artifacts = [art.ref for art in response]
-    #artifacts = [art for art in response]
-    scm_repo = agicen_conn.agicen.get('SCMRepository', fetch="Name,ObjectID", query = '(Name =  wombat)', instance = True)
+    #artifacts = [art.ref for art in response]
+    artifacts = [art for art in response]
+    scm_repo = agicen_conn.agicen.get('SCMRepository', fetch="Name,ObjectID", query = '(Name = wombat)', project=None, instance = True)
     bogus_changeset_payload = {
         'SCMRepository': scm_repo.ref,
         'Revision': 'aa1123',
@@ -134,4 +126,36 @@ def test_changeset_creation_with_artifacts_collection():
     assert len(changeset.Artifacts) == 2
     print(changeset.oid)
 
+
+def test_ensureSCMRepositoryExists():
+    ultimate_repo_name = 'wombat'
+    util.delete_scm_repo(ultimate_repo_name)
+    agicen_conn = connect_to_ac('config/buildorama.yml')
+
+    name = 'alpha/wombat/.git'
+    scm_type = 'git'
+    #repo = util.create_scm_repo(name, scm_type)
+    bogus_raw = {'id':'666','number':'42', 'result':'SUCCESS',
+                 'timestamp' : int(time.time()),
+                 'duration'  : 1000, 'url': 'http://xyz:8080',
+                 'actions'   : [{'remoteUrls': [name]}],
+                 'changeSet' : {'kind':'git','items':[]}}
+    build1 = bsh.JenkinsBuild('DownWithCoalaBears', bogus_raw)
+    assert build1.repository   == 'wombat'
+
+    #changesets, build_defn = agicen_conn.prepAgileCentralBuildPrerequisites(build1, agicen_conn.project_name)
+    repo1 = agicen_conn.ensureSCMRepositoryExists(build1.repository, scm_type)
+
+    name = 'beta/wombat/.git'
+    scm_type = 'git'
+    bogus_raw = {'id': '123', 'number': '1', 'result': 'SUCCESS',
+                 'timestamp': int(time.time()),
+                 'duration': 1000, 'url': 'http://xyz:8080',
+                 'actions': [{'remoteUrls': [name]}],
+                 'changeSet': {'kind': 'git', 'items': []}}
+    build2 = bsh.JenkinsBuild('WombatsRUs', bogus_raw)
+    assert build2.repository   == 'wombat'
+    repo2 = agicen_conn.ensureSCMRepositoryExists(build2.repository, scm_type)
+    assert repo1.ObjectID == repo2.ObjectID
+    assert build1.repository == build2.repository
 

@@ -12,7 +12,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -424,15 +424,20 @@ class AgileCentralConnection(BLDConnection):
 
 
     def ensureSCMRepositoryExists(self, repo_name, vcs_type):
+        """
+            Use the WSAPI case-insensitive Name contains ... syntax so that we can "match" a name like 'wombat' to 'Wombat'
+            in case the users have manually already created a 'Wombat' SCMRepository either manually or via VCS Connector
+        """
         repo_name = repo_name.replace('\\','/')
         name = repo_name.split('/')[-1]
         response = self.agicen.get('SCMRepository', fetch="Name,ObjectID", query = '(Name contains "{0}")'.format(name))
         if response.resultCount:
             scm_repos = [item for item in response]
-            if scm_repos[0].Name.lower() == name.lower():
-                return scm_repos[0]
+            exact_matches = [scm_repo for scm_repo in scm_repos if scm_repo.Name.lower() == repo_name.lower()]
+            if exact_matches:
+                return exact_matches[0]
 
-        scm_repo_payload = {'Name': repo_name,'SCMType': vcs_type}
+        scm_repo_payload = {'Name': repo_name, 'SCMType': vcs_type}
         try:
             scm_repo = self.agicen.create('SCMRepository', scm_repo_payload)
             self.log.info("Created SCMRepository %s (%s)" % (scm_repo.Name, scm_repo.ObjectID))
