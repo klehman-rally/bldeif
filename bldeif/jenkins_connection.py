@@ -14,27 +14,25 @@ quote = urllib.parse.quote
 
 ############################################################################################
 
-__version__ = "0.8.1"
+__version__ = "0.8.2"
 
 ACTION_WORD_PATTERN = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
 VALID_ARTIFACT_ABBREV = None  # set later after config values for artifact prefixes are known
 
-JENKINS_URL = "{prefix}/api/json"
-ALL_JOBS_URL = "{prefix}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
-VIEW_JOBS_URL = "{prefix}/view/{view}/api/json?depth=0&tree=jobs[name]"
-VIEW_JOBS_ENDPOINT = "/api/json?depth=0&tree=jobs[name]"
-VIEW_FOLDERS_URL = "{prefix}/view/{view}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
-# BUILD_ATTRS      = "number,id,fullDisplayName,timestamp,duration,result,url,changeSet[kind,items[*[*]]]"
 BUILD_ATTRS = "number,id,fullDisplayName,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg]]"
-JOB_BUILDS_URL = "{prefix}/view/{view}/job/{job}/api/json?tree=builds[%s]" % BUILD_ATTRS
-FOLDER_JOBS_URL = "{prefix}/job/{folder_name}/api/json?tree=jobs[displayName,name,url]"
-# FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,changeSet[kind,items[*[*]]]"
 FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg,affectedPaths]]"
 FOLDER_JOB_BUILDS_MINIMAL_ATTRS = "number,id,timestamp,result"
-FOLDER_JOB_BUILDS_URL = "{prefix}/job/{folder_name}/jobs/{job_name}/api/json?tree=builds[%s]" % FOLDER_JOB_BUILD_ATTRS
-FOLDER_JOB_BUILD_URL = "{prefix}/job/{folder_name}/jobs/{job_name}/{number}/api/json"
 
+JENKINS_URL      = "{prefix}/api/json"
+ALL_JOBS_URL     = "{prefix}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
+VIEW_JOBS_URL    = "{prefix}/view/{view}/api/json?depth=0&tree=jobs[name]"
+VIEW_JOBS_ENDPOINT = "/api/json?depth=0&tree=jobs[name]"
+VIEW_FOLDERS_URL = "{prefix}/view/{view}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
+JOB_BUILDS_URL   = "{prefix}/view/{view}/job/{job}/api/json?tree=builds[%s]" % BUILD_ATTRS
+FOLDER_JOBS_URL  = "{prefix}/job/{folder_name}/api/json?tree=jobs[displayName,name,url]"
+FOLDER_JOB_BUILDS_URL = "{prefix}/job/{folder_name}/jobs/{job_name}/api/json?tree=builds[%s]" % FOLDER_JOB_BUILD_ATTRS
+FOLDER_JOB_BUILD_URL  = "{prefix}/job/{folder_name}/jobs/{job_name}/{number}/api/json"
 
 # VALID_JENKINS_CONTAINERS = ['Jobs', 'Views', 'Folders']
 
@@ -100,7 +98,10 @@ class JenkinsConnection(BLDConnection):
         self.backend_version = self._getJenkinsVersion()
         self.log.info("Connected to Jenkins server: %s running at version %s" % (self.server, self.backend_version))
         self.log.info("Url: %s" % self.base_url)
-
+        self.job_class_exists = self._checkJenkinsJobClassProp()
+        if not self.job_class_exists:
+            msg = "The Jenkins REST API doesn't return a _class property in the response. Update to Jenkins 2.2 or greater to use this connector"
+            raise ConfigurationError(msg)
         self.obtainJenkinsInventory()
         return True
 
@@ -248,6 +249,16 @@ class JenkinsConnection(BLDConnection):
             version = extract.pop(0)
         return version
 
+    def _checkJenkinsJobClassProp(self):
+        class_exists = False
+        jenkins_url = "%s/api/json" %self.base_url
+        self.log.debug(jenkins_url)
+        response = requests.get(jenkins_url, auth=self.creds)
+        extract = [key for key in response.json() if key == '_class']
+        if extract:
+            class_exists = True
+        return class_exists
+
     def disconnect(self):
         """
             Just reset our jenkins instance variable to None
@@ -326,6 +337,14 @@ class JenkinsConnection(BLDConnection):
 
         return True
 
+    def dump_targets(self):
+        for job in self.jobs:
+            self.log.debug('Job: %s' % job)
+        for view in self.views:
+            self.log.debug('View: %s' % view)
+        for folder in self.folders:
+            self.log.debug('Folder: %s' % folder)
+
     def getQualifyingJobs(self, view):
 
         jenkins_view = self.inventory.getView(view['View'])
@@ -340,13 +359,15 @@ class JenkinsConnection(BLDConnection):
         jenk_jobs = response.json()
         jobs = [str(job['name']) for job in jenk_jobs.get('jobs', None)]
 
-        include_patt = view.get('include', '.*')
+        include_patt = view.get('include', '*')
+        include_patt = include_patt.replace('*', '\.*')
         included_jobs = [job for job in jobs if re.search(include_patt, job) != None]
         excluded_jobs = []
         if 'exclude' in view:
             exclusions = re.split(',\s*', view['exclude'])
             for job in jobs:
                 for exclusion in exclusions:
+                    exclusion = exclusion.replace('*', '\.*')
                     if re.search(exclusion, job):
                         excluded_jobs.append(job)
                         break
@@ -389,9 +410,9 @@ class JenkinsConnection(BLDConnection):
             Construct a dict keyed by Jenkins-View-Name::AgileCentral_ProjectName
             with a list of JenkinsBuild items for each key
         """
-        zulu_ref_time = time.gmtime(time.mktime(ref_time))
+        zulu_ref_time = time.localtime(time.mktime(ref_time))  # ref_time is already in UTC, so don't convert again (hence use of time.localtime()
         ref_time_readable = time.strftime("%Y-%m-%d %H:%M:%S Z", zulu_ref_time)
-        ref_time_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", zulu_ref_time)
+        #ref_time_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", zulu_ref_time)
         # ref_time_merc_iso = ref_time_iso.replace('T', ' ').replace('Z', '')
         pending_operation = "Detecting recently added Jenkins Builds (added on or after %s)"
         self.log.info(pending_operation % ref_time_readable)

@@ -81,7 +81,7 @@ def test_Top_changesets():
 
 def test_validatedArtifacts():
     commit_fid = {
-        'chocolate': ['DE1','US1','DE3'],
+        'chocolate': ['DE1','US1','DE2'],
         'bacon'    : ['US4'],
         'broccoli' : []
     }

@@ -12,7 +12,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.8.1"
+__version__ = "0.8.2"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -85,16 +85,16 @@ class AgileCentralConnection(BLDConnection):
             if not self.username and not self.apikey:
                 self.log.error("<Username> is required in the config file")
                 satisfactory = False
-            else:
-                self.log.debug(
-                    '%s - user entry "%s" detected in config file' % (self.__class__.__name__, self.username))
+            #else:
+            #    self.log.debug(
+            #        '%s - user entry "%s" detected in config file' % (self.__class__.__name__, self.username))
 
         if self.password_required:
             if not self.password and not self.apikey:
                 self.log.error("<Password> is required in the config file")
                 satisfactory = False
-            else:
-                self.log.debug('%s - password entry detected in config file' % self.__class__.__name__)
+            #else:
+            #    self.log.debug('%s - password entry detected in config file' % self.__class__.__name__)
 
         return satisfactory
 
@@ -377,7 +377,9 @@ class AgileCentralConnection(BLDConnection):
                 scm_repo = self.agicen.get('SCMRepository', fetch="Name", query=criteria, instance=True)
             else:
                 scm_repo = self.ensureSCMRepositoryExists(target_build.repository, missing_changesets[0].vcs)
+
             changesets = self.ensureChangesetsExist(scm_repo, project, ac_changesets, missing_changesets)
+
         build_defn = self.ensureBuildDefinitionExists(target_build.name, project, target_build.url)
         return changesets, build_defn
 
@@ -412,15 +414,7 @@ class AgileCentralConnection(BLDConnection):
         else:
             vcs_type = build_changesets[0].vcs
             self.ensureSCMRepositoryExists(build.repository, vcs_type)
-
-
-
-    #
-    # def getSCMRepository(self, scm_repo_ref):
-    #     criteria = '(ObjectID = "{0}")'.format(scm_repo_ref.split('/')[-1])
-    #     scm_repo = self.agicen.get('SCMRepository', fetch="Name", query=criteria, instance=True)
-    #     if scm_repo:
-    #         return scm_repo
+            return [], build_changesets
 
 
     def ensureSCMRepositoryExists(self, repo_name, vcs_type):
@@ -448,15 +442,16 @@ class AgileCentralConnection(BLDConnection):
         return scm_repo
 
 
-    def ensureChangesetsExists(self, scm_repo, project, ac_changesets, missing_changesets):
-        all_mentioned_artifact_fids = {mc.commitId: self.parseForArtifacts(mc.msg) for mc in missing_changesets}
-        valid_artifact_fids         = self.validatedArtifacts(all_mentioned_artifact_fids, project)
+    def ensureChangesetsExist(self, scm_repo, project, ac_changesets, missing_changesets):
+        all_mentioned_artifact_fids = {mc.commitId: self.parseForArtifacts(mc.message) for mc in missing_changesets}
+        valid_artifact_fids         = self.validatedArtifacts(all_mentioned_artifact_fids)
         for mc in missing_changesets:
             valid_artifacts = valid_artifact_fids[mc.commitId]
             changeset_payload = {
                 'SCMRepository'   : scm_repo.ref,
-                'Revision'        : mc.Revision,
+                'Revision'        : mc.commitId,
                 'CommitTimestamp' : datetime.utcfromtimestamp(mc.timestamp / 1000).strftime('%Y-%m-%dT%H:%M:%SZ'),
+                'Message'         : mc.message,
                 'Artifacts'       : valid_artifacts
             }
             try:

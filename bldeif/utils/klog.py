@@ -314,9 +314,6 @@ class ActivityLogger(object):
     def fatal(self, msg, exception_triggered=True):
         self.log(msg, 'FATAL', exception_triggered=exception_triggered)
 
-    def yuge(self, msg):
-        self.log(msg, 'YUGE')
-
     def write(self, msg, level=None):
       if not level or level not in ActivityLogger.valid_levels:
           self.sink.write(msg)

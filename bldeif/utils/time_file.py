@@ -60,7 +60,7 @@ class TimeFile(object):
                         std = True
                         #print "detected standard ts format..."
                         ts = time.strptime(entry, STD_TS_FORMAT)
-                        last_run_timestamp = calendar.timegm(time.strptime(entry, STD_TS_FORMAT))
+                        last_run_timestamp = calendar.timegm(ts)
                     if not (iso or std):
                         prob = "Invalid format for timefile entry: %s, reverting to default of %s"
                         self.log.error(prob % (entry, default))

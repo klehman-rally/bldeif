@@ -13,7 +13,7 @@ from bldeif.utils.claslo          import ClassLoader
 
 ##############################################################################################
 
-__version__ = "0.8.1"
+__version__ = "0.8.2"
 
 PLUGIN_SPEC_PATTERN       = re.compile(r'^(?P<plugin_class>\w+)\s*\((?P<plugin_config>[^\)]*)\)\s*$')
 PLAIN_PLUGIN_SPEC_PATTERN = re.compile(r'(?P<plugin_class>\w+)\s*$')
@@ -140,6 +140,7 @@ class BLDConnector:
             self.log.info("%sConnection validation failed" % self.bld_name)
             return False
         self.log.info("%sConnection validation succeeded" % self.bld_name)
+        self.bld_conn.dump_targets()
 
         self.log.info("Connector validation completed")
 
@@ -201,7 +202,7 @@ class BLDConnector:
         unrecorded_builds = self._identifyUnrecordedBuilds(recent_agicen_builds, recent_bld_builds)
         self.log.info("unrecorded Builds count: %d" % len(unrecorded_builds))
         self.log.info("no more than %d builds per job will be recorded on this run" % self.max_builds)
-        if self.svc_conf['VCSData']:
+        if self.svc_conf['ShowVCSData']:
             self.dumpChangesetInfo(unrecorded_builds)
 
         recorded_builds = OrderedDict()
@@ -323,9 +324,9 @@ class BLDConnector:
 
     def dumpChangesetInfo(self, builds):
         for job, build, project, view in builds:
-            self.log.yuge(build)
+            self.log.debug(build)
             for cs in build.changeSets:
-                self.log.yuge(str(cs))
+                self.log.debug(str(cs))
 
 
     def detectCommitsForJenkinsBuild(self, build):
