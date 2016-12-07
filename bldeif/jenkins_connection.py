@@ -20,7 +20,7 @@ ACTION_WORD_PATTERN = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
 VALID_ARTIFACT_ABBREV = None  # set later after config values for artifact prefixes are known
 
-BUILD_ATTRS = "number,id,fullDisplayName,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg]]"
+BUILD_ATTRS = "number,id,fullDisplayName,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg,paths[file]]]"
 FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg,affectedPaths]]"
 FOLDER_JOB_BUILDS_MINIMAL_ATTRS = "number,id,timestamp,result"
 
@@ -205,6 +205,23 @@ class JenkinsConnection(BLDConnection):
         #print("gfp container: %-20.20s  folder_name: %-20.20s  path: %-20.20s result --> %s" % (container, folder_name, path, fqp))
 
         return fqp
+
+    def showQualifiedViewJobs(self):
+        """
+            Consult self.views and get all the jobs associated with those views
+        """
+        print("\n  Configured Views and Qualified Jobs \n  ---------------\n")
+        views = sorted(self.inventory.views.keys(), key=lambda s: s.lower())
+
+        qualified_views = [view for view in views if view in self.views]
+        for vk in qualified_views:
+            print('    %s' % vk)
+            jenkins_view = self.inventory.views[vk]
+            for job in jenkins_view.jobs:
+                # look in self.views[vk] to get the include and exclude regex patts
+                # disqualify the job if it doesn't match an explicit include pattern or it matches an exclude pattern
+                print('        %s' % job.name)
+            print("")
 
     def showViewJobs(self, target='All'):
         """
@@ -704,6 +721,7 @@ class JenkinsChangeset:
         self.commitId  = commit['id']
         self.timestamp = commit['timestamp']
         self.message   = commit['msg']
+        self.uri       = ','.join([path['file'] for path in commit['paths']])
         # self.ac_artifacts = []
         # try:
         #     results = re.findall(r'((S|US|DE|TA|TC|D)[1-9]\d*)', self.message.upper())

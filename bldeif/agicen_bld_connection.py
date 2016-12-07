@@ -452,6 +452,7 @@ class AgileCentralConnection(BLDConnection):
                 'Revision'        : mc.commitId,
                 'CommitTimestamp' : datetime.utcfromtimestamp(mc.timestamp / 1000).strftime('%Y-%m-%dT%H:%M:%SZ'),
                 'Message'         : mc.message,
+                'Uri'             : mc.uri,
                 'Artifacts'       : valid_artifacts
             }
             try:
