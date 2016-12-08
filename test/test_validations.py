@@ -21,7 +21,7 @@ PLATYPUS_SERVICES="""
     Preview       : False
     LogLevel      : DEBUG
     MaxBuilds     : 50
-    VCSData       : True
+    ShowVCSData   : True
 """
 
 def test_default_config_spoke_validation():

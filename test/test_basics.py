@@ -31,7 +31,7 @@ def test_services_non_default():
     service_struct = {
         'Preview': False,
         'LogLevel': 'INFO',
-        'VCSData': False
+        'ShowVCSData': False
     }
     logger, konf = sh.setup_config(filename, 'DEFAULT_JENKINS_STRUCTURE', service_struct)
     assert konf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
@@ -49,7 +49,7 @@ def test_non_default_services():
     service_struct = {
         'Preview': False,
         'LogLevel': 'INFO',
-        'VCSData': False
+        'ShowVCSData': False
     }
     logger, konf = sh.setup_config(filename, jenkin_struct, service_struct)
     assert konf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']

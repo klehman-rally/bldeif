@@ -30,7 +30,7 @@ JenkinsBuildConnector:
         LogLevel      : DEBUG
         MaxBuilds     : 50   # current implementation is this is a per job maximum not total builds
         StrictProject : True
-        VCSData       : True
+        ShowVCSData       : True
         # What is the StrictProject entry used for?
         #
         # If your team/project morphs into another AC project, you might not have to

@@ -60,7 +60,7 @@ DEFAULT_SERVICES = """
         LogLevel      : DEBUG
         MaxBuilds     : 50
         StrictProject : True
-        VCSData       : True
+        ShowVCSData       : True
 """
 
 SIMPLE_CONFIG_TEMPLATE = """
@@ -172,7 +172,7 @@ class Jenkins_Params_Inflator:
         if type(services) == str:
             services = yaml.load(services)
 
-        legal_settings = ['Preview', 'LogLevel', 'MaxBuilds', 'VCSData']
+        legal_settings = ['Preview', 'LogLevel', 'MaxBuilds', 'ShowVCSData']
         bogus_settings = [setting for setting in services if setting not in legal_settings]
         if bogus_settings:
             raise Exception("Supplied services %s contain bogus items: %s" % (services, bogus_settings))

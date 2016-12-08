@@ -37,6 +37,6 @@ JenkinsBuildConnector:
         LogLevel      : DEBUG
         MaxBuilds     : 50
         StrictProject : True
-        VCSData       : True
+        ShowVCSData       : True
 
 ...

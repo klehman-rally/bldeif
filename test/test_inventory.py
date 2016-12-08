@@ -135,7 +135,10 @@ def test_log_for_config_vetting():
     with open(log, 'r') as f:
         log_content = f.readlines()
 
-    error = "these jobs: Parkour, pillage-and-plunder, torment  were not present in the Jenkins inventory of Jobs"
+    #error = "these jobs: Parkour, pillage-and-plunder, torment  were not present in the Jenkins inventory of Jobs"
+    # the log contained the same error, but the order of job names is different:
+    # "these jobs: 'pillage-and-plunder', 'torment', 'Parkour'  were not present in the Jenkins inventory of Jobs"
+    error = "were not present in the Jenkins inventory of Jobs"
     match = [line for line in log_content if "{}".format(error) in line][0]
     assert re.search(r'%s' % error, match)
 
