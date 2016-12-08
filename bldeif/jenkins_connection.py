@@ -20,8 +20,12 @@ ACTION_WORD_PATTERN = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
 VALID_ARTIFACT_ABBREV = None  # set later after config values for artifact prefixes are known
 
-BUILD_ATTRS = "number,id,fullDisplayName,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg,paths[file]]]"
-FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg,affectedPaths]]"
+#BUILD_ATTRS = "number,id,fullDisplayName,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg,affectedPaths,paths[file]]]"
+#FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg,affectedPaths]]"
+#FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg,affectedPaths,paths[file]]]"
+
+BUILD_ATTRS = "number,id,fullDisplayName,timestamp,duration,result,url,actions[remoteUrls],changeSet[*[*[*]]]"
+FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[*[*[*]]]"
 FOLDER_JOB_BUILDS_MINIMAL_ATTRS = "number,id,timestamp,result"
 
 JENKINS_URL      = "{prefix}/api/json"

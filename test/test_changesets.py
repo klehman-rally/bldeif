@@ -68,7 +68,7 @@ def test_Top_changesets():
     for build_info in builds.values():
         for builds in build_info.values():
             for build in builds:
-                if build.number != magic_number:
+                if build.number != magic_number or build.name != target_job:
                     continue
                 #print(build)
                 print (build.repository)
