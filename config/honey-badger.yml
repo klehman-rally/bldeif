@@ -31,13 +31,12 @@ JenkinsBuildConnector:
 
         Folders:
             - Folder : immovable wombats
-            - Folder : crinkley
+            - Folder : crinkely
               exclude: ^mud
     Service:
         Preview       : False
         LogLevel      : DEBUG
         MaxBuilds     : 50
-        StrictProject : True
-        ShowVCSData       : True
+        ShowVCSData   : True
 
 ...

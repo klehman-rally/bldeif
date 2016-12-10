@@ -3,6 +3,7 @@ import re
 import yaml
 import json
 import time
+import requests
 from datetime import datetime, timedelta, date
 from bldeif.bld_connector    import BLDConnector
 from bldeif.utils.time_file  import TimeFile
@@ -23,6 +24,7 @@ BAD_CONFIG2     = 'genghis.yml'
 BAD_CONFIG3     = 'caligula.yml'
 SHALLOW_CONFIG  = 'shallow.yml'
 DEEP_CONFIG     = 'deepstate.yml'
+SVN_CONFIG      = 'sarajevo.yml'
 
 def connect_to_jenkins(config_file):
     config_file = "config/{}".format(config_file)
@@ -55,6 +57,7 @@ def test_Top_changesets():
     vcs = 'git'
     jc = connect_to_jenkins(STANDARD_CONFIG)
     assert jc.connect()
+    jc.validate()
     jobs = jc.inventory.jobs
     assert next((job for job in jobs if job.name == target_job))
     jc.views = []
@@ -113,6 +116,7 @@ def test_changeset_creation_with_artifacts_collection():
     response = agicen_conn.agicen.get('Artifact', fetch="Name,ObjectID,FormattedID",query=query,project=None)
     #artifacts = [art.ref for art in response]
     artifacts = [art for art in response]
+    scm_repo = agicen_conn.ensureSCMRepositoryExists('wombat', 'git')
     scm_repo = agicen_conn.agicen.get('SCMRepository', fetch="Name,ObjectID", query = '(Name = wombat)', project=None, instance = True)
     bogus_changeset_payload = {
         'SCMRepository': scm_repo.ref,
@@ -135,11 +139,18 @@ def test_ensureSCMRepositoryExists():
     name = 'alpha/wombat/.git'
     scm_type = 'git'
     #repo = util.create_scm_repo(name, scm_type)
+    item = {
+        "commitId": "a7f48eb99ac8064c65a1fde3239cb8094bac8709foobar",
+        "timestamp": 1480550939000,
+        "msg": "DE1000 wombats stink",
+        "date": "2016-11-30 19:08:59 -0500",
+        "paths": [{"editType": "edit","file": "foobar"}]
+    }
     bogus_raw = {'id':'666','number':'42', 'result':'SUCCESS',
                  'timestamp' : int(time.time()),
                  'duration'  : 1000, 'url': 'http://xyz:8080',
                  'actions'   : [{'remoteUrls': [name]}],
-                 'changeSet' : {'kind':'git','items':[]}}
+                 'changeSet' : {'kind':'git','items':[item]}}
     build1 = bsh.JenkinsBuild('DownWithCoalaBears', bogus_raw)
     assert build1.repository   == 'wombat'
 
@@ -152,10 +163,71 @@ def test_ensureSCMRepositoryExists():
                  'timestamp': int(time.time()),
                  'duration': 1000, 'url': 'http://xyz:8080',
                  'actions': [{'remoteUrls': [name]}],
-                 'changeSet': {'kind': 'git', 'items': []}}
+                 'changeSet': {'kind': 'git', 'items': [item]}}
     build2 = bsh.JenkinsBuild('WombatsRUs', bogus_raw)
     assert build2.repository   == 'wombat'
     repo2 = agicen_conn.ensureSCMRepositoryExists(build2.repository, scm_type)
     assert repo1.ObjectID == repo2.ObjectID
     assert build1.repository == build2.repository
 
+
+def test_build_with_SVN_commit():
+    jc = connect_to_jenkins(SVN_CONFIG)
+    assert jc.connect()
+    folder_job_builds_url = "http://localhost:8080/job/sarajevo/job/parade/api/json?tree=builds[number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[*[*[*]]]]"
+    raw_builds = requests.get(folder_job_builds_url, auth=jc.creds).json()['builds']
+    some_build_num = 2
+    build = [build for build in raw_builds if build['number'] == some_build_num][0]
+    assert build['changeSet']['kind'] == 'svn'
+    actions   = build['actions']
+    revisions = build['changeSet']['revisions']
+
+    assert     [bld for bld in actions    for k,v in bld.items() if k == '_class']
+    assert not [bld for bld in actions    for k,v in bld.items() if k == 'remoteUrls' ]
+    assert     [rev for rev in revisions  for k,v in rev.items() if k == 'module' ]
+    assert     [rev for rev in revisions  for k,v in rev.items() if k == 'revision']
+
+    assert revisions[0]['revision'] == 2
+    assert revisions[0]['module'] == 'file:///Users/pairing/svn-repo-sarajevo'
+
+def test_build_with_GIT_commit():
+    jc = connect_to_jenkins(STANDARD_CONFIG)
+    assert jc.connect()
+    folder_job_builds_url = "http://tiema03-u183073.ca.com:8080/job/immovable%20wombats/job/Top/api/json?tree=builds[number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[*[*[*]]]]"
+    raw_builds = requests.get(folder_job_builds_url, auth=jc.creds).json()['builds']
+    some_build_num = 71
+    build = [build for build in raw_builds if build['number'] == some_build_num][0]
+    assert build['changeSet']['kind'] == 'git'
+    assert 'revisions' not in build['changeSet']
+    assert [bld for bld in build['actions'] for k,v in bld.items() if k == 'remoteUrls' ]
+
+
+def test_SVN_changesets():
+    target_job = 'parade'
+    magic_number = 2
+    magic_date   = date(2016,12,8)
+    repo_name = 'svn-repo-sarajevo'
+    vcs = 'svn'
+    days_offset  = (datetime.now().date() - magic_date).days
+    jc = connect_to_jenkins(SVN_CONFIG)
+    assert jc.connect()
+    assert jc.validate()
+    jobs = jc.inventory.jobs
+    assert next((job for job in jobs if job.name == target_job))
+    jc.views = []
+    jc.jobs  = []
+    assert jc.folders
+
+    t = datetime.now() - timedelta(days=days_offset)
+    ref_time = t.utctimetuple()
+    builds = jc.getRecentBuilds(ref_time)
+    for build_info in builds.values():
+        for builds in build_info.values():
+            for build in builds:
+                if build.number != magic_number or build.name != target_job:
+                    continue
+                print(build)
+                print (build.repository)
+                assert build.repository == repo_name
+                assert build.changeSets
+                assert build.changeSets[0].vcs == vcs

@@ -140,7 +140,8 @@ class BLDConnector:
             self.log.info("%sConnection validation failed" % self.bld_name)
             return False
         self.log.info("%sConnection validation succeeded" % self.bld_name)
-        self.bld_conn.dump_targets()
+        self.bld_conn.dumpTargets()
+        self.bld_conn.showQualifiedJobs()
 
         self.log.info("Connector validation completed")
 

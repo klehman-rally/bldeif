@@ -65,6 +65,7 @@ def test_folder_config():
     jenk_conf = tkonf.topLevel('Jenkins')
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
+    jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
     assert (job_name in builds["%s::%s" % (folder, jenk_conf['AgileCentral_DefaultBuildProject'])]) == True
@@ -149,6 +150,7 @@ def test_find_build():
     time.sleep(10)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
+    jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
     for view_project, jobs in builds.items():
@@ -199,6 +201,7 @@ def test_find_two_builds():
     time.sleep(10)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
+    jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
     for view_project, jobs in builds.items():
@@ -257,6 +260,7 @@ def test_find_builds_of_two_jobs():
     time.sleep(10)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
+    jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
     # for view_project, jobs in builds.items():
@@ -347,6 +351,7 @@ def test_find_builds_in_different_containers():
     time.sleep(10)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
+    jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
     for job_name in three_jobs:
@@ -439,6 +444,7 @@ def test_same_name_jobs_in_diff_folders():
     target_job_builds = []
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
+    jc.validate()
     jenkins_builds = jc.getRecentBuilds(ref_time.utctimetuple())
 
     target_job_builds = [build_info[job_name] for view_project, build_info  in jenkins_builds.items() if job_name in build_info.keys() ]
@@ -492,6 +498,7 @@ def test_depth():
 
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     assert (jc.connect()) == True
+    assert jc.validate()
 
     assert 'freddy-flintstone' not in jc.all_jobs
 
@@ -502,7 +509,9 @@ def test_existing_job():
     other_job = "Carver"
     jobs = [my_job, other_job ]
     jc = sh.build_immovable_wombats(folder, jobs)
+    jc.validate()
     time.sleep(10)
+
     builds = jc.getRecentBuilds(ref_time.utctimetuple())
     #target_job_builds = [build_info[my_job] for container_proj, build_info in builds.items() if my_job in build_info.keys()][0]
     #print (target_job_builds)
@@ -524,7 +533,9 @@ def test_existing_job():
     other_job = "Carver"
     jobs = [my_job, other_job]
     jc = sh.build_immovable_wombats(folder, jobs)
+    jc.validate()
     time.sleep(10)
+
     builds = jc.getRecentBuilds(ref_time.utctimetuple())
     # target_job_builds = [build_info[my_job] for container_proj, build_info in builds.items() if my_job in build_info.keys()][0]
     # print (target_job_builds)
