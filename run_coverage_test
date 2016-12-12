@@ -1,0 +1,8 @@
+#!/bin/zsh
+
+export PYTHONPATH="."
+
+PYTEST=/Library/Frameworks/Python.framework/Versions/3.5/bin/pytest
+
+for file in test/test_*.py
+    python3.5 $PYTEST --cov=bldeif --cov-report=html:cov_html --cov-append --tb=short $file

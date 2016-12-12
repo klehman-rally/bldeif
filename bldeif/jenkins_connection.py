@@ -14,31 +14,26 @@ quote = urllib.parse.quote
 
 ############################################################################################
 
-__version__ = "0.8.2"
+__version__ = "0.9.0"
 
 ACTION_WORD_PATTERN = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
 VALID_ARTIFACT_ABBREV = None  # set later after config values for artifact prefixes are known
 
-#BUILD_ATTRS = "number,id,fullDisplayName,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg,affectedPaths,paths[file]]]"
-#FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg,affectedPaths]]"
-#FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[kind,items[id,timestamp,date,msg,affectedPaths,paths[file]]]"
-
 BUILD_ATTRS = "number,id,fullDisplayName,timestamp,duration,result,url,actions[remoteUrls],changeSet[*[*[*]]]"
 FOLDER_JOB_BUILD_ATTRS = "number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[*[*[*]]]"
 FOLDER_JOB_BUILDS_MINIMAL_ATTRS = "number,id,timestamp,result"
 
-JENKINS_URL      = "{prefix}/api/json"
-ALL_JOBS_URL     = "{prefix}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
-VIEW_JOBS_URL    = "{prefix}/view/{view}/api/json?depth=0&tree=jobs[name]"
-VIEW_JOBS_ENDPOINT = "/api/json?depth=0&tree=jobs[name]"
-VIEW_FOLDERS_URL = "{prefix}/view/{view}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
-JOB_BUILDS_URL   = "{prefix}/view/{view}/job/{job}/api/json?tree=builds[%s]" % BUILD_ATTRS
-FOLDER_JOBS_URL  = "{prefix}/job/{folder_name}/api/json?tree=jobs[displayName,name,url]"
+JENKINS_URL           = "{prefix}/api/json"
+ALL_JOBS_URL          = "{prefix}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
+#VIEW_JOBS_URL         = "{prefix}/view/{view}/api/json?depth=0&tree=jobs[name]"
+#VIEW_JOBS_ENDPOINT    = "/api/json?depth=0&tree=jobs[name]"
+VIEW_FOLDERS_URL      = "{prefix}/view/{view}/api/json?tree=jobs[displayName,name,url,jobs[displayName,name,url]]"
+JOB_BUILDS_URL        = "{prefix}/view/{view}/job/{job}/api/json?tree=builds[%s]" % BUILD_ATTRS
+FOLDER_JOBS_URL       = "{prefix}/job/{folder_name}/api/json?tree=jobs[displayName,name,url]"
 FOLDER_JOB_BUILDS_URL = "{prefix}/job/{folder_name}/jobs/{job_name}/api/json?tree=builds[%s]" % FOLDER_JOB_BUILD_ATTRS
 FOLDER_JOB_BUILD_URL  = "{prefix}/job/{folder_name}/jobs/{job_name}/{number}/api/json"
 
-# VALID_JENKINS_CONTAINERS = ['Jobs', 'Views', 'Folders']
 
 ############################################################################################
 
@@ -146,7 +141,6 @@ class JenkinsConnection(BLDConnection):
             detailed_fetch = "%s[%s]" % (basic_fields, detailed_fetch)
         return detailed_fetch
 
-
     def obtainJenkinsInventory(self):
         """
              Utilize the Jenkins REST API endpoint to obtain all visible/accessible Jenkins Jobs/Views/Folders
@@ -157,23 +151,10 @@ class JenkinsConnection(BLDConnection):
         urlovals = {'prefix': self.base_url}
 
         fields = self.makeFieldsString(self.maxDepth)
-        # pprint(fields)
-        # fields = '_class,name,displayName,jobs[_class,name,displayName,jobs[_class,name,displayName,jobs]]'
         jenkins_url = "%s?depth=%d&tree=%s" % (JENKINS_URL.format(**urlovals), self.maxDepth, fields)
         response = requests.get(jenkins_url, auth=self.creds)
         status = response.status_code
         jenkins_info = response.json()
-
-        # self.all_views = [str(view['name']) for view in jenkins_info['views']]
-        # for view in self.all_views:
-        #   self.log.debug("View: {0}".format(view))
-        # self.all_jobs = [str(job['name']) for job in jenkins_info['jobs']]
-        # for job in self.all_jobs:
-        #    self.log.debug("Job: {0}".format(job))
-        # self.primary_view = jenkins_info['primaryView']['name']
-
-        # self.view_folders['All'] = self.getViewFolders('All')
-        # self.log.debug("PrimaryView: {0}".format(self.primary_view))
 
         job_bucket = []
         folder_bucket = {}
@@ -193,7 +174,6 @@ class JenkinsConnection(BLDConnection):
             job_bucket.append(JenkinsJob(job, container=container, base_url=self.base_url))
         for folder in folders:
             name = folder.get('name', 'NO-NAME-FOLDER')
-            #folder_key = '%s/%s' % (container, name)
             fcon = self.get_folder_full_path(container, name)
             folder_bucket[fcon] = JenkinsJobsFolder(folder, container, folder_url="%s/job/%s" % (container, name))
             folder_views = [view for view in folder['views'] if not view['_class'].endswith('AllView')]
@@ -274,7 +254,9 @@ class JenkinsConnection(BLDConnection):
 
     def showFolderJobs(self, target='All'):
         """
-
+            folder/path/foo
+               job 1
+               job 2
         """
         print("\n  Folders and Jobs \n  ---------------\n")
         folders = sorted(self.inventory.folders.keys(), key=lambda s: s.lower())
@@ -282,18 +264,15 @@ class JenkinsConnection(BLDConnection):
             folders = [f for f in folders if f == target]
         for fn in folders:
             print('    %s' % fn)
-            #jenkins_folder = self.inventory.folders[fk]
-            #for job in jenkins_folder.jobs:
-            #   print('        %s' % job.name)
-            #print("")
 
 
     def validate(self):
         """
+            Make sure any requisite conditions are satisfied.
+            Are credentials needed and supplied?
+            Are the Jenkins Job/Views/Folders targets accurately identified?
         """
         satisfactory = True
-
-        # if self.username_required:
         if not self.username:
             self.username = 'username'
             self.log.info("Literal 'username' is used")
@@ -415,14 +394,6 @@ class JenkinsConnection(BLDConnection):
         jenkins_view = self.inventory.getView(view['View'])
         all_view_jobs = jenkins_view.jobs
 
-        # urlovals = {'prefix': self.base_url, 'view': urllib.parse.quote(view['View'])}
-        # #view_jobs_url = VIEW_JOBS_URL.format(**urlovals)
-        # view_jobs_url = jenkins_view.url + VIEW_JOBS_ENDPOINT.format(**urlovals)
-        # # self.log.debug("view: %s  req_url: %s" % (view, view_jobs_url))
-        # response = requests.get(view_jobs_url, auth=self.creds)
-        # jenk_jobs = response.json()
-        # jobs = [job for job in jenk_jobs.get('jobs', None)]
-
         include_patt = view.get('include', '*')
         include_patt = include_patt.replace('*', '\.*')
         included_jobs = [job for job in all_view_jobs if re.search(include_patt, job.name) != None]
@@ -436,18 +407,7 @@ class JenkinsConnection(BLDConnection):
                         excluded_jobs.append(job)
                         break
 
-        # print("\n".join(included_jobs))
-        # print("\n")
-        # print("\n".join(excluded_jobs))
-
         qualifying_jobs = list(set(included_jobs) - set(excluded_jobs))
-        # qualifying_jobs = []
-        # for job in included_jobs:
-        #     if job not in excluded_jobs:
-        #         qualifying_jobs.append(job)
-
-        # print("\n".join(qualifying_jobs))
-        # print("\n")
         return qualifying_jobs
 
     def showQualifiedJobs(self):
@@ -468,27 +428,6 @@ class JenkinsConnection(BLDConnection):
                 self.log.debug("        %s" % job.name)
 
 
-    #def getViewFolders(self, view):
-    #    if view not in self.all_views:
-    #        raise ConfigurationError("specified view '%s' not present in list of existing Jenkins views" % view['View'])
-    #
-    #    urlovals = {'prefix': self.base_url, 'view': quote(view)}
-    #    view_job_folders_url = VIEW_FOLDERS_URL.format(**urlovals)
-    #    # self.log.debug("view: %s  req_url: %s" % (view, view_job_folders_url))
-    #    response = requests.get(view_job_folders_url, auth=self.creds)
-    #    jenk_stuff = response.json()
-    #    jenk_jobs = [job for job in jenk_stuff.get('jobs', None)]
-    #    view_folders = {}
-    #    # self.log.debug('Folders:')
-    #    for job in jenk_jobs:
-    #        if not 'jobs' in job:
-    #            continue
-    #        jenkins_folder = JenkinsJobsFolder(job['name'], job['url'], job['jobs'])
-    #        view_folders[jenkins_folder.name] = jenkins_folder
-    #        # self.log.debug(jenkins_folder)
-    #    return view_folders
-
-
     def getRecentBuilds(self, ref_time):
         """
             Obtain all Builds created in Jenkins at or after the ref_time parameter
@@ -500,8 +439,6 @@ class JenkinsConnection(BLDConnection):
         """
         zulu_ref_time = time.localtime(time.mktime(ref_time))  # ref_time is already in UTC, so don't convert again (hence use of time.localtime()
         ref_time_readable = time.strftime("%Y-%m-%d %H:%M:%S Z", zulu_ref_time)
-        #ref_time_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", zulu_ref_time)
-        # ref_time_merc_iso = ref_time_iso.replace('T', ' ').replace('Z', '')
         pending_operation = "Detecting recently added Jenkins Builds (added on or after %s)"
         self.log.info(pending_operation % ref_time_readable)
 
@@ -517,33 +454,6 @@ class JenkinsConnection(BLDConnection):
                 builds[key][job.name] = self.getFolderJobBuildHistory(folder_name, job, zulu_ref_time)
                 recent_builds_count += len(builds[key][job.name])
 
-        #for folder_conf in self.folders:
-        #    # print "folder_conf: %s" % repr(folder_conf)
-        #    folder_name = folder_conf['Folder']
-        #    # print("config item for folder display name: %s --> %s" % (folder_display_name, repr(folder_conf)))
-        #    ac_project = folder_conf.get('AgileCentral_Project', self.ac_project)
-        #    # print "  AgileCentral_Project: %s" % ac_project
-        #    job_folder = self.inventory.getFolder(folder_name)
-        #    # print("\n%s   folder" % (folder_name))
-        #    key = '%s::%s' % (folder_name, ac_project)
-        #    builds[key] = {}
-        #    for job in job_folder.jobs:
-        #        job_name = job.name
-        #        # TODO: prototype a means of qualifying each job through this folder's inclusion/exclusion config
-        #        if 'exclude' in folder_conf:
-        #            excluded = False
-        #            exclusions = re.split(',\s*', folder_conf['exclude'])
-        #            for exclusion in exclusions:
-        #                if re.search(exclusion, job_name) and len(exclusion) > 0:
-        #                    excluded = True
-        #            if excluded:
-        #                # print("         excluding job: %s" % job_url)
-        #                continue
-        #
-        #        # print "    %s" % job['url']
-        #        builds[key][job_name] = self.getFolderJobBuildHistory(job_folder.name, job, zulu_ref_time)
-        #        recent_builds_count += len(builds[key][job_name])
-
         for view_conf in self.views:
             view_name  = view_conf['View']
             ac_project = view_conf.get('AgileCentral_Project', self.ac_project)
@@ -552,20 +462,6 @@ class JenkinsConnection(BLDConnection):
             for job in self.vetted_view_jobs[key]:
                 builds[key][job.name] = self.getBuildHistory(view_name, job, zulu_ref_time)
                 recent_builds_count += len(builds[key][job.name])
-
-        #for view in self.views:
-        #    view_name = view['View']
-        #    ac_project = view.get('AgileCentral_Project', self.ac_project)
-        #    # print(view_name)
-        #    # print("view info: %s" % repr(view))
-        #    key = '%s::%s' % (view_name, ac_project)
-        #    builds[key] = {}
-        #    view_jobs = self.getQualifyingViewJobs(view)
-        #    for job_name in view_jobs:
-        #        jenkins_view = self.inventory.getView(view_name)
-        #        jenkins_job = [job for job in jenkins_view.jobs if job.name == job_name][0]
-        #        builds[key][job_name] = self.getBuildHistory(view_name, jenkins_job, zulu_ref_time)
-        #        recent_builds_count += len(builds[key][job_name])
 
         for job in self.jobs:
             job_name = job['Job']
@@ -589,20 +485,16 @@ class JenkinsConnection(BLDConnection):
         return builds
 
     def getBuildHistory(self, view, job, ref_time):
-        #JOB_BUILDS_URL = "{prefix}/view/{view}/job/{job}/api/json?tree=builds[%s]" % BUILD_ATTRS
         JOB_BUILDS_ENDPOINT = "/api/json?tree=builds[%s]" % BUILD_ATTRS
         urlovals = {'prefix': self.base_url, 'view': quote(view), 'job': quote(job.name)}
-        #job_builds_url = JOB_BUILDS_URL.format(**urlovals)
         job_builds_url = job.url + (JOB_BUILDS_ENDPOINT.format(**urlovals))
-        # self.log.debug("view: %s  job: %s  req_url: %s" % (view, job, job_builds_url))
+        self.log.debug("view: %s  job: %s  req_url: %s" % (view, job, job_builds_url))
         raw_builds = requests.get(job_builds_url, auth=self.creds).json()['builds']
         qualifying_builds = self.extractQualifyingBuilds(job.name, None, ref_time, raw_builds)
         return qualifying_builds
 
     def getFolderJobBuildHistory(self, folder_name, job, ref_time):
-        #job_name = job.name
         folder_job_builds_url = job.url + ('/api/json?tree=builds[%s]' % FOLDER_JOB_BUILD_ATTRS)
-        # print("    %s" % folder_job_builds_url)
         self.log.debug("folder: %s  job: %s  req_url: %s" % (folder_name, job.name, folder_job_builds_url))
         raw_builds = requests.get(folder_job_builds_url, auth=self.creds).json()['builds']
         qualifying_builds = self.extractQualifyingBuilds(job.name, folder_name, ref_time, raw_builds)
@@ -723,7 +615,6 @@ class JenkinsBuild(object):
         self.timestamp = raw['timestamp']
         self.url    = str(raw['url'])
 
-
         if re.search('^\d+$', self.id_str):
             self.id_as_ts = time.gmtime(self.timestamp / 1000)
             self.id_str = str(self.timestamp)
@@ -770,7 +661,6 @@ class JenkinsBuild(object):
 
     def ripActionsForRepositoryName(self):
         repo = ''
-        #repo_info = [item['remoteUrls'][0].split('/')[-1]  for item in self.actions if 'remoteUrls' in item]
         repo_info = [self.makeup_scm_repo_name(item['remoteUrls'][0]) for item in self.actions if 'remoteUrls' in item]
         if repo_info:
             repo = repo_info[0]
@@ -836,16 +726,7 @@ class JenkinsChangeset:
         self.commitId  = commit['commitId']
         self.timestamp = commit['timestamp']
         self.message   = commit['msg']
-        #self.uri       = ','.join([path['file'] for path in commit['paths']])
         self.uri       = commit['paths'][0]['file'] if commit['paths'] else '.'
-        # self.ac_artifacts = []
-        # try:
-        #     results = re.findall(r'((S|US|DE|TA|TC|D)[1-9]\d*)', self.message.upper())
-        #     self.ac_artifacts = list(set([item[0] for item in results]))
-        # except:
-        #     pass
-        # DE123 >US3413124 ([TC145234])
-        # self.changes = [JenkinsChangesetFile(changeItem) for changeItem in commit['paths']]
 
     def __str__(self):
         changeset = "   VCS %s  Commit ID # %s  Timestamp: %s  Message: %s " % \

@@ -10,8 +10,7 @@ from collections import OrderedDict
 
 
 def test_create_build_with_no_commits():
-    #filename = "../config/buildorama.yml"
-    filename = "config/buildorama.y ml"
+    filename = "config/buildorama.yml"
     logger, konf = sh.setup_config(filename)
 
     konf.topLevel('AgileCentral')['Project'] = 'Jenkins'

@@ -12,7 +12,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.8.2"
+__version__ = "0.9.0"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -76,7 +76,7 @@ class AgileCentralConnection(BLDConnection):
         self.project_name    = config.get("Project",   None)  # This gets bled in by the BLDConnector
         self.restapi_debug   = config.get("Debug", False)
         self.restapi_logger  = self.log
-        #self.restapi_logger = self.log if self.restapi_debug else None
+
 
     def validate(self):
         satisfactory = True
@@ -216,7 +216,6 @@ class AgileCentralConnection(BLDConnection):
 ##        print("before call to agicen get Project: %s" % before)
         response = self.agicen.get('Project', fetch='Name', workspace=self.workspace_name,
                                    project=self.project_name,
-                                   #project=None, #The current workspace "Alligators BLD Unigrations" does not contain a Project with the name of 'None'
                                    projectScopeDown=True,
                                    pagesize=200)
         if response.errors or response.resultCount == 0:
@@ -327,14 +326,10 @@ class AgileCentralConnection(BLDConnection):
         return None
 
     def _fillBuildDefinitionCache(self,project):
-        response = self.agicen.get('BuildDefinition', 
-                                  #fetch=True,
+        response = self.agicen.get('BuildDefinition',
                                   fetch='ObjectID,Name,Project,LastBuild,Uri', 
                                   query='Name != "Default Build Definition"',
-                                  #workspace=self.workspace_ref, 
-                                  workspace=self.workspace_name, 
-                                  #project=None,
-                                  #project=self.project_name,
+                                  workspace=self.workspace_name,
                                   project=project,
                                   projectScopeUp=False, projectScopeDown=True, 
                                   order='Project.Name,Name')
@@ -366,9 +361,7 @@ class AgileCentralConnection(BLDConnection):
              Return back the SCMRepository, Changesets, and BuildDefinition.
              These will be a  pyral entity for each or a list of pyral entities in the case of Changesets
         """
-        scm_repo   = None
         changesets = None
-        build_defn = None
         if target_build.changeSets:
             ac_changesets, missing_changesets = self.getCorrespondingChangesets(target_build)
             # check for ac_changesets, if present take the SCMRepository of the first in the list (very arbitrary!)
@@ -462,8 +455,6 @@ class AgileCentralConnection(BLDConnection):
                 self.log.error('Error detected on attempt to create Changeset %s' % msg)
                 raise OperationalError("Could not create Changeset  %s" % msg)
             ac_changesets.append(changeset)
-
-            # if there are artifacts mentioned in the changeset.msg, find
 
         return ac_changesets
 
@@ -606,10 +597,10 @@ class AgileCentralConnection(BLDConnection):
         return None
 
 
-    def populateChangesetsCollectionOnBuild(self, build, changesets):
-        csrefs = [{ "_ref" : "changeset/%s" % cs.oid} for cs in changesets]
-        cs_coll_ref = build.Changesets
-        #self.agicen.addCollection(cs_coll_ref, csrefs)
+    # def populateChangesetsCollectionOnBuild(self, build, changesets):
+    #     csrefs = [{ "_ref" : "changeset/%s" % cs.oid} for cs in changesets]
+    #     cs_coll_ref = build.Changesets
+    #     #self.agicen.addCollection(cs_coll_ref, csrefs)
 
     def matchToChangesets(self, vcs_commits):
         valid_changesets = []

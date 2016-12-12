@@ -59,8 +59,7 @@ DEFAULT_SERVICES = """
         Preview       : True
         LogLevel      : DEBUG
         MaxBuilds     : 50
-        StrictProject : True
-        ShowVCSData       : True
+        ShowVCSData   : True
 """
 
 SIMPLE_CONFIG_TEMPLATE = """

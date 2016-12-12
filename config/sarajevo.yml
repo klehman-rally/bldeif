@@ -10,27 +10,20 @@ JenkinsBuildConnector:
 
     Jenkins:
         Protocol  :  http
-        Server    :  tiema03-u183073.ca.com
+        Server    :  localhost
         Port      :  8080
-        API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
-        Username  :  jenkins
-        Password  :  None
+        API_Token :  bogus
+        Username  :  bogus
+        Password  :  bogus
         AgileCentral_DefaultBuildProject :  Jenkins
         Lookback  :  30000
 
-        Views:
-            - View: Prairie
-              include: ^blue*
-              exclude: ^stem,fumar,launch
-              AgileCentral_Project: Salamandra
-
-        Jobs:
-            - Job: troglodyte
-              AgileCentral_Project: Salamandra
-
         Folders:
-            - Folder : immovable wombats
-              AgileCentral_Project: Static
+            - Folder : pencil
+
+            - Folder : sarajevo
+              AgileCentral_Project: Manual Test SVN
+
 
     Service:
         Preview       : False

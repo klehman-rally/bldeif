@@ -134,7 +134,7 @@ def test_detect_same_name_projects():
     assert bc.agicen_conn.duplicated_project_names[0] == 'Salamandra'
 
 def test_project_path_separators():
-    filename = "config/templ.yml"
+    filename = "config/temp.yml"
     logger, tkonf = sh.setup_test_config(filename)
     assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
     jenk_conf = tkonf.topLevel('Jenkins')

@@ -33,12 +33,14 @@
 
         You can run multiple configs per invocation.
 
+        *** OBVIATED ***  we no longer allow the StrictProject tag in a config file
         If your team/project morphs into another AC project, you might not have to
         update your config file(s) if you've set the Service -> StrictProject to False
           (If you have a BuildDefinition for the job in question associated with another
            Project that the account accessing Agile Central can find, and the original
            Project is moribund or has been renamed, the connector will post the Builds
            to be associated with the BuildDefinition with the Name of the Jenkins job.)
+        *********************************
 
       Ability to handle Jenkins instances that have the CloudBees Folders plugin.
          (in this context a folder is really just a job, that happens to have subsidiary jobs)

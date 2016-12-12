@@ -85,9 +85,10 @@ class Konfabulator(object):
         # set up defaults for the Service section if that section isn't in the config file
         if 'Service' not in self.config:
             self.config['Service'] = {}
-            self.config['Service']['LogLevel'] = 'Info'
-            self.config['Service']['Preview']  = False
-            self.config['Service']['StrictProject']  = False
+            self.config['Service']['LogLevel']    = 'Info'
+            self.config['Service']['Preview']     = False
+            self.config['Service']['MaxBuilds']   = 50
+            self.config['Service']['ShowVCSData'] = True
             self.config['Service']['PostBatchExtension']  = None
 
         while section_headers:

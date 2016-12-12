@@ -1,4 +1,4 @@
-
+# intended to be used for a full connector test
 ---
 JenkinsBuildConnector:
 
@@ -6,7 +6,6 @@ JenkinsBuildConnector:
         Server    :  rally1.rallydev.com
         APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
         Workspace :  Alligators BLD Unigrations
-        Lookback  :  120
 
     Jenkins:
         Protocol  :  http
@@ -14,25 +13,24 @@ JenkinsBuildConnector:
         Port      :  8080
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
-        Password  :  None
-        MaxDepth  :  2
-        AgileCentral_DefaultBuildProject :  Jenkins
+        Password  :  encoded-T-m-9-u-Z-Q-=-=
+        MaxDepth  :  3
+        AgileCentral_DefaultBuildProject :  Manual Test 1
 
-#        Jobs:
-#            - Job: troglodyte
-#            - Job: australopithicus
+        Jobs:
+            - Job: wildland butchery
 #
 #        Views:
-#            - View: Prairie
-#              include: ^blue*
-#              exclude: ^stem,fumar,launch
+#            - View: Shoreline
+#              include: ^B*
+#              exclude: ^C*
 #
-#            - View: Cliffside
+#        Folders:
+#            - Folder : Zoolander
+#              AgileCentral_Project: Sub Project Manual Test 11
+#              include: juvenile
+#              exclude: hall of mirrors
 
-        Folders:
-            - Folder : dungeon
-#            - Folder : crinkely
-#              exclude: ^mud
     Service:
         Preview       : False
         LogLevel      : DEBUG
@@ -40,3 +38,4 @@ JenkinsBuildConnector:
         ShowVCSData   : True
 
 ...
+

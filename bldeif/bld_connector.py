@@ -13,7 +13,7 @@ from bldeif.utils.claslo          import ClassLoader
 
 ##############################################################################################
 
-__version__ = "0.8.2"
+__version__ = "0.9.0"
 
 PLUGIN_SPEC_PATTERN       = re.compile(r'^(?P<plugin_class>\w+)\s*\((?P<plugin_config>[^\)]*)\)\s*$')
 PLAIN_PLUGIN_SPEC_PATTERN = re.compile(r'(?P<plugin_class>\w+)\s*$')
@@ -73,9 +73,7 @@ class BLDConnector:
         self.bld_conf    = config.topLevel(self.bld_name)
         self.agicen_conf['Project'] = self.bld_conf['AgileCentral_DefaultBuildProject']
         self.svc_conf    = config.topLevel('Service')
-
-        self.strict_project = self.svc_conf.get('StrictProject', False)
-        self.max_builds     = self.svc_conf.get('MaxBuilds', 20)
+        self.max_builds  = self.svc_conf.get('MaxBuilds', 20)
 
         default_project = self.agicen_conf['Project']
 
@@ -199,7 +197,6 @@ class BLDConnector:
         agicen_ref_time, bld_ref_time = self.getRefTimes(last_run)
         recent_agicen_builds = agicen.getRecentBuilds(agicen_ref_time, self.target_projects)
         recent_bld_builds    =    bld.getRecentBuilds(bld_ref_time)
-        #self._showBuildInformation(recent_agicen_builds, recent_bld_builds)
         unrecorded_builds = self._identifyUnrecordedBuilds(recent_agicen_builds, recent_bld_builds)
         self.log.info("unrecorded Builds count: %d" % len(unrecorded_builds))
         self.log.info("no more than %d builds per job will be recorded on this run" % self.max_builds)
@@ -248,17 +245,6 @@ class BLDConnector:
             return existing_agicen_build
         agicen_build = self.agicen_conn.createBuild(info)
         return agicen_build
-
-
-    # def postBuildsToAgileCentral(self, info, build_defn, build):
-    #     vcs_commits = self.detectCommitsForJenkinsBuild(build)
-    #     info['BuildDefinition'] = build_defn
-    #     changesets = self.agicen_conn.matchToChangesets(vcs_commits)
-    #     if changesets:
-    #         info['Changesets'] = changesets
-    #     agicen_build = self.agicen_conn.createBuild(info)
-    #     return agicen_build
-
 
     def getRefTimes(self, last_run):
         """

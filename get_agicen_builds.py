@@ -30,7 +30,6 @@ config_chunk = """
     Service:
         LogLevel: INFO
         Preview: True
-        StrictProject: True
 """
 
 CONFIG_CHUNK = """
@@ -45,7 +44,6 @@ CONFIG_CHUNK = """
     Service:
         LogLevel: INFO
         Preview: True
-        StrictProject: True
 """
 
 ###########################################################################################################

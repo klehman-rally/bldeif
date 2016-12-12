@@ -5,7 +5,7 @@
 # bldeif  -- Record builds from a build system in CA Agile Central
 #
 USAGE = """
-Usage: python bldeif_connector.py <config_file.yml>
+Usage: python bldeif_connector <config_file.yml>
  
        where the config file named must have content in YAML format with 2 major sections;
          one for the AgileCentral system, one for the Build system (Jenkins?) with

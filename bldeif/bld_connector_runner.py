@@ -26,7 +26,7 @@ from bldeif.utils.eif_exception import OperationalError, logAllExceptions
 ############################################################################################################
 
 ARCHITECTURE_ACRONYM = 'eif'
-__version__ = "0.8.2"
+__version__ = "0.9.0"
 
 EXISTENCE_PROCLAMATION = """
 ************************************************************************************************************************
@@ -202,9 +202,7 @@ class BuildConnectorRunner(object):
         self.log.info("Time File value %s --- Now %s" % (last_run_zulu, now_zulu))
 
         self.connector = BLDConnector(config, self.log)
-        ##
         self.log.debug("Got a BLDConnector instance, calling the BLDConnector.run ...")
-        ##
         status, builds = self.connector.run(last_run, self.extension)
 
         finished = time.time()
