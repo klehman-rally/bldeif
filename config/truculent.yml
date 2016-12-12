@@ -6,7 +6,7 @@ JenkinsBuildConnector:
         Server    :  rally1.rallydev.com
         APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
         Workspace :  Alligators BLD Unigrations
-        Lookback  :  120
+        Lookback  :  0
 
     Jenkins:
         Protocol  :  http
@@ -14,29 +14,18 @@ JenkinsBuildConnector:
         Port      :  8080
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
-        Password  :  None
-        MaxDepth  :  4
-        AgileCentral_DefaultBuildProject :  Jenkins
+        Password  :  encoded-T-m-9-u-Z-Q-=-=
+        MaxDepth  :  5
+        AgileCentral_DefaultBuildProject :  Static
 
         Jobs:
-            - Job: troglodyte
-            - Job: australopithicus
+            - Job: truculent elk medallions
+              AgileCentral_Project :  Jenkins
 
-        Views:
-            - View: Prairie
-              include: ^blue*
-              exclude: ^stem,fumar,launch
-
-            - View: Cliffside
-
-        Folders:
-            - Folder : immovable wombats
-            - Folder : crinkely
-              exclude: ^mud
     Service:
         Preview       : False
         LogLevel      : DEBUG
         MaxBuilds     : 50
-        ShowVCSData   : True
+        ShowVCSData       : True
 
 ...

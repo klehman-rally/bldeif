@@ -10,8 +10,18 @@ from bldeif.bld_connector    import BLDConnector
 from bldeif.utils.time_file  import TimeFile
 import jenkins_spec_helper as jsh
 import spec_helper as sh
+import utility     as util
 
-def create_time_file(config_file, delta):
+def create_time_file(config_file, **kwargs):
+    # test for kwargs having hours, minutes, seconds, days, years etc.
+    if 'seconds' in kwargs:
+        delta = int(int(kwargs['seconds']) / 60.0)
+    elif 'minutes' in kwargs:
+        delta = int(kwargs['minutes'])
+    elif 'hours' in kwargs:
+        delta = int(kwargs['hours']) * 60
+    elif 'days' in kwargs:
+        delta = int(kwargs['days']) * 1440
     t = datetime.now() - timedelta(minutes=delta)
     now_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.time()))
     last_run_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.mktime(t.timetuple())))
@@ -25,7 +35,7 @@ def test_bld_connector_runner():
     #default_lookback = 3600  # 1 hour in seconds
     config_lookback = 7200  # this is in seconds, even though in the config file the units are minutes
     config_file = 'wombat.yml'
-    last_run_zulu = create_time_file(config_file, 60)
+    last_run_zulu = create_time_file(config_file, minutes=60)
     #t = int(time.mktime(time.strptime(last_run_zulu, '%Y-%m-%d %H:%M:%S Z'))) - default_lookback
     t = int(time.mktime(time.strptime(last_run_zulu, '%Y-%m-%d %H:%M:%S Z')))  - config_lookback
     last_run_minus_lookback_zulu = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.localtime(t))
@@ -63,7 +73,7 @@ def test_bld_connector_runner():
 
 def test_reflect_builds():
     config_file = 'wombat.yml'
-    create_time_file(config_file, 2)
+    create_time_file(config_file, minutes=2)
     args = [config_file]
     runner = BuildConnectorRunner(args)
     assert runner.first_config == config_file
@@ -104,6 +114,48 @@ def test_reflect_builds():
     assert re.search(r'%s' % line1, match1)
 
 
+def test_dont_duplicate_builds():
+    job_name = 'truculent elk medallions'
+    assert util.delete_ac_builds(job_name) == []
+    config_file = 'truculent.yml'
+    ymlfile = open("config/{}".format(config_file), 'r')
+    conf = yaml.load(ymlfile)
+    project = conf['JenkinsBuildConnector']['Jenkins']['Jobs'][0]['AgileCentral_Project']
+    create_time_file(config_file, minutes=2)
+    args = [config_file]
+    runner = BuildConnectorRunner(args)
+    assert runner.first_config == config_file
+    last_run_zulu = '2016-12-01 00:00:00 Z'
+    time_file_name = "{}_time.file".format(config_file.replace('.yml', ''))
+    with open("config/{}".format(time_file_name), 'w') as tf:
+        tf.write(last_run_zulu)
+
+    runner.run()
+    build_defs = util.get_build_definition(job_name, project=project)
+    assert len(build_defs) == 1
+    assert build_defs[0].Project.Name == project
+
+    builds = util.get_ac_builds(build_defs[0], project=project)
+    assert len(builds) == 3
+    assert [build for build in builds if build.Number in ['8', '9', '10']]
+    assert [build for build in builds if build.Number == '8' and build.Status == 'SUCCESS']
+    assert [build for build in builds if build.Number == '9' and build.Status == 'FAILURE']
+
+    last_run_zulu = '2016-10-31 00:00:00 Z'
+    time_file_name = "{}_time.file".format(config_file.replace('.yml', ''))
+    with open("config/{}".format(time_file_name), 'w') as tf:
+        tf.write(last_run_zulu)
+
+    runner.run()
+    build_defs = util.get_build_definition(job_name, project=project)
+    assert len(build_defs) == 1
+
+    builds = util.get_ac_builds(build_defs[0], project=project)
+    assert len(builds) == 10
+    assert len([build for build in builds if build.Number == '1']) == 1
+    assert len([build for build in builds if build.Number in ['8', '9', '10']]) == 3
+    assert [build for build in builds if build.Number == '5' and build.Status == 'SUCCESS']
+    assert [build for build in builds if build.Number == '1' and build.Status == 'FAILURE']
 
 
 

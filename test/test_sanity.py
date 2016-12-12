@@ -65,6 +65,7 @@ def test_folder_config():
     jenk_conf = tkonf.topLevel('Jenkins')
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
+    jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
     assert (job_name in builds["%s::%s" % (folder, jenk_conf['AgileCentral_DefaultBuildProject'])]) == True
@@ -149,6 +150,7 @@ def test_find_build():
     time.sleep(10)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
+    jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
     for view_project, jobs in builds.items():
@@ -199,6 +201,7 @@ def test_find_two_builds():
     time.sleep(10)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
+    jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
     for view_project, jobs in builds.items():
@@ -257,6 +260,7 @@ def test_find_builds_of_two_jobs():
     time.sleep(10)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
+    jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
     # for view_project, jobs in builds.items():
@@ -347,6 +351,7 @@ def test_find_builds_in_different_containers():
     time.sleep(10)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
+    jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
     for job_name in three_jobs:
@@ -439,24 +444,24 @@ def test_same_name_jobs_in_diff_folders():
     target_job_builds = []
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
-    builds = jc.getRecentBuilds(ref_time.utctimetuple())
+    jc.validate()
+    jenkins_builds = jc.getRecentBuilds(ref_time.utctimetuple())
 
-    target_job_builds = [build_info[job_name] for view_project, build_info  in builds.items() if job_name in build_info.keys() ]
+    target_job_builds = [build_info[job_name] for view_project, build_info  in jenkins_builds.items() if job_name in build_info.keys() ]
     bc = bsh.BLDConnector(tkonf, logger)
 
     agicen = bc.agicen_conn.agicen
     query = ['CreationDate >= %s' % ref_time.isoformat()]
-    for view_proj, build_view in builds.items():
+    for view_proj, build_view in jenkins_builds.items():
         print(view_proj)
         for builds in build_view.values():
             for build in builds:
                 print("    %s" % build)
                 project = view_proj.split('::')[1]
                 print ("PROJECT %s" %project)
-                build_defn = bc.agicen_conn.ensureBuildDefinitionExistence(job_name, project, True, build.url)
-                build_data = build.as_tuple_data()
-                info = bsh.OrderedDict(build_data)
-                agicen_build = bc.postBuildsToAgileCentral(info, build_defn, build)
+                build_defn = bc.agicen_conn.ensureBuildDefinitionExists(job_name, project, build.url)
+                assert build_defn.Project.Name == project
+                agicen_build = bc.postBuildsToAgileCentral(build_defn, build, [], job_name)
                 assert agicen_build is not None
                 assert agicen_build.BuildDefinition.Project.Name == project
 
@@ -493,6 +498,7 @@ def test_depth():
 
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     assert (jc.connect()) == True
+    assert jc.validate()
 
     assert 'freddy-flintstone' not in jc.all_jobs
 
@@ -503,7 +509,9 @@ def test_existing_job():
     other_job = "Carver"
     jobs = [my_job, other_job ]
     jc = sh.build_immovable_wombats(folder, jobs)
+    jc.validate()
     time.sleep(10)
+
     builds = jc.getRecentBuilds(ref_time.utctimetuple())
     #target_job_builds = [build_info[my_job] for container_proj, build_info in builds.items() if my_job in build_info.keys()][0]
     #print (target_job_builds)
@@ -519,15 +527,15 @@ def test_existing_job():
     assert other_job not in jobs_snarfed
     assert my_job in jobs_snarfed
 
-    print ("FAMOUS WAMBATS-----------------")
-
     ref_time = datetime.now() - timedelta(minutes=10)
     folder = "immovable wombats"
     my_job = "Top"
     other_job = "Carver"
     jobs = [my_job, other_job]
     jc = sh.build_immovable_wombats(folder, jobs)
+    jc.validate()
     time.sleep(10)
+
     builds = jc.getRecentBuilds(ref_time.utctimetuple())
     # target_job_builds = [build_info[my_job] for container_proj, build_info in builds.items() if my_job in build_info.keys()][0]
     # print (target_job_builds)

@@ -13,7 +13,7 @@ from bldeif.utils.claslo          import ClassLoader
 
 ##############################################################################################
 
-__version__ = "0.7.0"
+__version__ = "0.8.2"
 
 PLUGIN_SPEC_PATTERN       = re.compile(r'^(?P<plugin_class>\w+)\s*\((?P<plugin_config>[^\)]*)\)\s*$')
 PLAIN_PLUGIN_SPEC_PATTERN = re.compile(r'(?P<plugin_class>\w+)\s*$')
@@ -140,6 +140,8 @@ class BLDConnector:
             self.log.info("%sConnection validation failed" % self.bld_name)
             return False
         self.log.info("%sConnection validation succeeded" % self.bld_name)
+        self.bld_conn.dumpTargets()
+        self.bld_conn.showQualifiedJobs()
 
         self.log.info("Connector validation completed")
 
@@ -197,11 +199,11 @@ class BLDConnector:
         agicen_ref_time, bld_ref_time = self.getRefTimes(last_run)
         recent_agicen_builds = agicen.getRecentBuilds(agicen_ref_time, self.target_projects)
         recent_bld_builds    =    bld.getRecentBuilds(bld_ref_time)
-        self._showBuildInformation(recent_agicen_builds, recent_bld_builds)
+        #self._showBuildInformation(recent_agicen_builds, recent_bld_builds)
         unrecorded_builds = self._identifyUnrecordedBuilds(recent_agicen_builds, recent_bld_builds)
         self.log.info("unrecorded Builds count: %d" % len(unrecorded_builds))
         self.log.info("no more than %d builds per job will be recorded on this run" % self.max_builds)
-        if self.svc_conf['VCSData']:
+        if self.svc_conf['ShowVCSData']:
             self.dumpChangesetInfo(unrecorded_builds)
 
         recorded_builds = OrderedDict()
@@ -220,25 +222,8 @@ class BLDConnector:
             if preview_mode:
                 continue
 
-            desc = '%s %s #%s | %s | %s  not yet reflected in Agile Central'
-            bts = time.strftime("%Y-%m-%d %H:%M:%S Z", time.gmtime(build.timestamp/1000.0))
-            #self.log.debug(desc % (pm_tag, job, build.number, build.result, bts))
-            build_data = build.as_tuple_data()
-            info = OrderedDict(build_data)
-
-            build_job_uri = "/".join(build.url.split('/')[:-2])
-            build_defn = agicen.ensureBuildDefinitionExistence(job, project, self.strict_project, build_job_uri)
-
-            if agicen.buildExists(build_defn, build.number):
-                self.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, job))
-                continue
-
-
-            # pull out any build.changeSets commit IDs and see if they match up with AgileCentral Changeset items Revision attribute
-            # if so, get all such commit IDs and their associated Changeset ObjectID, then
-            # add that "collection" as the Build's Changesets collection
-
-            agicen_build = self.postBuildsToAgileCentral(info, build_defn, build)
+            changesets, build_definition = agicen.prepAgileCentralBuildPrerequisites(build, project)
+            agicen_build = self.postBuildsToAgileCentral(build_definition, build, changesets, job)
             if agicen_build:
                 builds_posted[job] += 1
                 if job not in recorded_builds:
@@ -248,14 +233,31 @@ class BLDConnector:
 
         return status, recorded_builds
 
-    def postBuildsToAgileCentral(self, info, build_defn, build):
-        vcs_commits = self.detectCommitsForJenkinsBuild(build)
+    def postBuildsToAgileCentral(self, build_defn, build, changesets, job):
+        desc = '%s %s #%s | %s | %s  not yet reflected in Agile Central'
+        # add that "collection" as the Build's Changesets collection                                                                 bts = time.strftime("%Y-%m-%d %H:%M:%S Z", time.gmtime(build.timestamp / 1000.0))
+        # self.log.debug(desc % (pm_tag, job, build.number, build.result, bts))
+        build_data = build.as_tuple_data()
+        info = OrderedDict(build_data)
         info['BuildDefinition'] = build_defn
-        changesets = self.agicen_conn.matchToChangesets(vcs_commits)
         if changesets:
             info['Changesets'] = changesets
+        existing_agicen_build = self.agicen_conn.buildExists(build_defn, build.number)
+        if existing_agicen_build:
+            self.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, job))
+            return existing_agicen_build
         agicen_build = self.agicen_conn.createBuild(info)
         return agicen_build
+
+
+    # def postBuildsToAgileCentral(self, info, build_defn, build):
+    #     vcs_commits = self.detectCommitsForJenkinsBuild(build)
+    #     info['BuildDefinition'] = build_defn
+    #     changesets = self.agicen_conn.matchToChangesets(vcs_commits)
+    #     if changesets:
+    #         info['Changesets'] = changesets
+    #     agicen_build = self.agicen_conn.createBuild(info)
+    #     return agicen_build
 
 
     def getRefTimes(self, last_run):
@@ -323,9 +325,9 @@ class BLDConnector:
 
     def dumpChangesetInfo(self, builds):
         for job, build, project, view in builds:
-            self.log.yuge(build)
+            self.log.debug(build)
             for cs in build.changeSets:
-                self.log.yuge(str(cs))
+                self.log.debug(str(cs))
 
 
     def detectCommitsForJenkinsBuild(self, build):

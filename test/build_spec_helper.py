@@ -6,6 +6,7 @@ from collections import OrderedDict
 from bldeif.utils.konfabulus import Konfabulator
 from bldeif.utils.klog       import ActivityLogger
 from bldeif.jenkins_connection import JenkinsConnection
+from bldeif.jenkins_connection import JenkinsBuild
 from bldeif.agicen_bld_connection import AgileCentralConnection
 from bldeif.bld_connector import BLDConnector
 
