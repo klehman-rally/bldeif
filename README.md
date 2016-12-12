@@ -54,7 +54,7 @@ The log can help you pinpoint problem areas and in some scenarios (typically whe
 you can see values being used in the processing.
 
 ## Development
-You'll need a Python 2.7.x installed, a valid subscription and credentials to CA Agile Central and 
+You'll need a Python 3.5.x installed, a valid subscription and credentials to CA Agile Central and 
 a working Jenkins installation that supports the Jenkins REST API.
 
 ## Contributing
