@@ -76,4 +76,84 @@
       Put it in the hands of the 10 Foot Pole team and get some feedback.
         
 
+#-----------------------------------------------------------------------------------------
 
+   Running the connector on a periodic basis on Mac OSX
+   
+     Apple now recommends using launchctl / launchd  over crontab / cron
+
+     There's a useful article at http://alvinalexander.com/mac-os-x/mac-osx-startup-crontab-launchd-jobs
+
+     Basically you copy some XML boilerplate, edit to reflect your conditions and script, write a script that
+     goes in to your ~/bin directory and tell launchctl to load your scheduled job.
+     The specifics follow...
+
+     We need two files:
+        #1 a file in $HOME/bin directory that invokes our connector script, bldeif_connector
+        #2 an XML file in a $HOME/Library/LaunchAgents directory that references the file above
+        - launchctl load command that load file #2
+
+    For file #1 in $HOME/bin , we called it run_bldeif_connector.sh  and it has this content:
+-----------file starts after this line----------
+#!/bin/zsh
+
+BLDEIF_DIR=/Users/pairing/trump/bldeif-0.9.0
+PYTHON35="/Library/Frameworks/Python.framework/Versions/3.5/bin/python3.5"
+CONFIG_FILE="product_x.yml"
+SANITY_MSG="I got started from launchctl to run the bldeif_connector"
+
+(cd $BLDEIF_DIR; $PYTHON35 bldeif_connector $CONFIG_FILE; echo "$SANITY_MSG")
+-----------file has ended with the previous line----------
+
+    We made this file executable by the owner (pairing), and tested it by running it and saw that 
+    a log file was written with information relevant to the run (successful) and the msg was written to stdout.
+
+   For file #2, we put it in $HOME/Library/LaunchAgents   (we could have put it in $HOME/Library/LaunchDaemons for normal use)
+         we called it 'com.ca.bldeif.plist' , it doesn't seem to matter what the permissions are on this file
+
+         the content of this rancid XML file follows:
+-----------file starts after this line----------
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.ca.bldeif</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/pairing/bin/run_bldeif_connector.sh</string>
+  </array>
+
+  <key>Nice</key>
+  <integer>1</integer>
+
+  <key>StartInterval</key>
+  <integer>60</integer>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/pairing/trump/bldeif-0.9.0/bldeif.err</string>
+
+  <key>StandardOutPath</key>
+  <string>/Users/pairing/trump/bldeif-0.9.0/bldeif.out</string>
+</dict>
+</plist>
+-----------file has ended with the previous line----------
+
+   Now, run the launchctl load command from within the $HOME/Library/LaunchAgents directory thusly:
+       launchctl load com.ca.bldeif.plit
+ 
+   Now your job will run immediately and then every 60 seconds (according to the entry in the plist file) therafter.
+   If you want to run the job at a greater interval, use a value expressed in seconds, ie., 1 hour = 60 * 60 = 3600.
+   seconds are the default unit of measurement for this timing field.
+   you can override this by putting in a <key>Minute</key>  or <key>Hour</key><integer>3</integer><keyMinute</key><integer>55</integer>
+   says run it every day at 3:55
+
+#-----------------------------------------------------------------------------------------
+
+   Running the connector on a periodic basis on Linux
+  
+     

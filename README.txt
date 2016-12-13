@@ -23,19 +23,21 @@
 
    Installation
 
-      pip install pyral
-      pip install PyYAML
+      pip3.5 install requests==2.8.1
+      pip3.5 install pyral==1.2.3
+      pip3.5 install PyYAML==3.12
       unpack bldeif-0.9.0.zip
          cd to a directory where you want to install the connector
          unzip bldeif-0.9.0.zip   (or use a suitable program that can unzip a .zip file)
          cd bldeif-0.9.0
          ls -laR   # observe the unpacked contents
 
-         README
+         README.txt          # this file
          bldeif_connector    # connector initiation script
          bldeif              # bldeif module root directory
 
-         config
+         config              # holds any config files used with this connector
+             sample.yml      # a sample config to use as a base reference
 
    Setup
 
@@ -55,6 +57,15 @@
 
       Scheduled
          use either cron or Windows Task Scheduler
+            make sure the environment in effect when running this software has an appropriate environment set
+            so that you can run:
+               python3.5 $BLDEIF/build_connector  your_config_file_name.yml
+   
+            where $BLDEIF is the reference to an environment variable containing the
+            fully qualified path to the directory where the software is installed.  Here's an example:
+            If you unzipped the package in /opt/local/sw, then your BLDEIF would be set like this:
+               export BLDEIF=/opt/local/sw/bldief-0.9.0
+
 
   Time File
       In normal operation, the connector writes a "time file" whose name is based on the
@@ -186,6 +197,8 @@
          MaxBuilds    : 100    # Use a non-negative integer value. This "limit" pertains to builds for a particular job.
 
  ------  end of the file ---------------------------------------
+
+
 
 Duplicate Job Names
 -------------------

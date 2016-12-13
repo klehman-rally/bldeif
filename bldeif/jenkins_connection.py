@@ -14,7 +14,7 @@ quote = urllib.parse.quote
 
 ############################################################################################
 
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 
 ACTION_WORD_PATTERN = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
@@ -93,6 +93,9 @@ class JenkinsConnection(BLDConnection):
         """
         """
         self.log.info("Connecting to Jenkins")
+        https_proxy = os.environ.get('https_proxy', None) or os.environ.get('HTTPS_PROXY', None)
+        if https_proxy not in ["", None]:
+            self.log.info("Proxy for Jenkins connection:  %s" % https_proxy)
         self.backend_version = self._getJenkinsVersion()
         self.log.info("Connected to Jenkins server: %s running at version %s" % (self.server, self.backend_version))
         self.log.info("Url: %s" % self.base_url)

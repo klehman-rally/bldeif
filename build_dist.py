@@ -13,7 +13,7 @@ import shutil
 import re
 
 PACKAGE_NAME = "bldeif"
-VERSION = "0.9.0"
+VERSION = "0.9.1"
 
 BASE_FILES = ['LICENSE',
              'README.txt',

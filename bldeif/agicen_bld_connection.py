@@ -1,5 +1,5 @@
 
-import sys
+import sys,os
 import re
 import time
 from datetime import datetime
@@ -12,7 +12,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -32,7 +32,7 @@ class MockBuild(object):
 class AgileCentralConnection(BLDConnection):
 
     def __init__(self, config, logger):
-        super(AgileCentralConnection, self).__init__(logger)
+        super().__init__(logger)
         self.internalizeConfig(config) 
         self.log.info("Rally WSAPI Version %s" % self.rallyWSAPIVersion())
         self.integration_other_version = ""
@@ -158,11 +158,9 @@ class AgileCentralConnection(BLDConnection):
 
 
     def connect(self):
-####
-       #https_proxy = os.environ.get('https_proxy', None) or os.environ.get('HTTPS_PROXY', None)
-       #if https_proxy not in ["", None]:
-       #    self.log.info("Proxy for HTTPS targets: %s" % https_proxy)
-####
+        https_proxy = os.environ.get('https_proxy', None) or os.environ.get('HTTPS_PROXY', None)
+        if https_proxy not in ["", None]:
+            self.log.info("Proxy for AgileCentral connection:  %s" % https_proxy)
     
         self.log.info("Connecting to AgileCentral")
         custom_headers = self.get_custom_headers()
@@ -175,6 +173,7 @@ class AgileCentralConnection(BLDConnection):
             self.agicen = Rally(self.server, username=self.username, password=self.password, apikey=self.apikey,
                                 workspace=self.workspace_name, project=self.project_name,
                                 version=self.rallyWSAPIVersion(), http_headers=custom_headers,
+                                server_ping=False, isolated_workspace=True,
                                 logger=self.restapi_logger, warn=False, debug=True)
             after = time.time()
 ##            print("after  call to pyral.Rally(): %s" % after)
@@ -459,7 +458,7 @@ class AgileCentralConnection(BLDConnection):
         return ac_changesets
 
     def parseForArtifacts(self, commit_message):
-        prefixes = [prefix for item in utils.get_all_prefixes() for prefix in item.values()]
+        prefixes = [prefix for item in utils.get_all_prefixes(self.agicen) for prefix in item.values()]
         fid_pattern = r'((%s)\d+)' % '|'.join(prefixes)
         result = re.findall(fid_pattern, commit_message, re.IGNORECASE)
         return [item[0].upper() for item in result]
