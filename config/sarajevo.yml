@@ -12,9 +12,10 @@ JenkinsBuildConnector:
         Protocol  :  http
         Server    :  localhost
         Port      :  8080
-        API_Token :  bogus
-        Username  :  bogus
-        Password  :  bogus
+#        Auth      :  False
+#        API_Token :  bogus
+#        Username  :  bogus
+#        Password  :  bogus
         AgileCentral_DefaultBuildProject :  Jenkins
         Lookback  :  30000
 

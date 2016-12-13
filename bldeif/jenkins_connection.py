@@ -66,7 +66,6 @@ class JenkinsConnection(BLDConnection):
         self.server     = config.get('Server', socket.gethostname())
         self.port       = config.get('Port', 8080)
         self.prefix     = config.get("Prefix", '')
-        self.auth       = config.get("Auth", False)
         self.user       = config.get("Username", '')
         self.password   = config.get("Password", '')
         self.api_token  = config.get("API_Token", '')
@@ -108,7 +107,15 @@ class JenkinsConnection(BLDConnection):
         version = None
         jenkins_url = "%s/manage" % self.base_url
         self.log.debug(jenkins_url)
-        response = requests.get(jenkins_url, auth=self.creds)
+        try:
+            response = requests.get(jenkins_url, auth=self.creds)
+        except Exception as msg:
+            self.log.error(msg)
+        if response.status_code >= 300:
+            mo = re.search(r'<title>.*?</title>', response.text)
+            msg = mo.group(0) if mo else 'Connection error to Jenkins'
+            raise ConfigurationError('%s  status_code: %s' % (msg, response.status_code))
+
         # self.log.debug(response.headers)
         extract = [value for key, value in response.headers.items() if key.lower() == 'x-jenkins']
         if extract:

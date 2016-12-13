@@ -13,10 +13,9 @@ JenkinsBuildConnector:
         Server   : jenkado.mydomain.com
         Port     : 8080
         Prefix   :
-        Auth     : false
-        #User     : 
-        #Password : 
-        #API_Token: 320ca9ae9408d099183aa052ff3199c2  
+        Username : yourname
+        Password : somepassword
+        API_Token: 320ca9ae9408d099183aa052ff3199c2
         # to get an API_Token, nav browser to  http://server:port/user/<username>/configure
         AgileCentral_DefaultBuildProject: Connector Devving
         
