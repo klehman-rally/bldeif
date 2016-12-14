@@ -6,7 +6,6 @@ import re
 import socket
 import time
 import datetime
-import pwd
 
 ########################################################################################
 
@@ -138,6 +137,7 @@ class ProcessInfo(object):
             self.uid = int(user_field)
         except:
             try:
+                import pwd
                 info = pwd.getpwnam(user_field)
                 self.uid = info.pw_uid
             except:

@@ -14,7 +14,7 @@ quote = urllib.parse.quote
 
 ############################################################################################
 
-__version__ = "0.9.1"
+__version__ = "0.9.2"
 
 ACTION_WORD_PATTERN = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')

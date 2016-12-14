@@ -19,7 +19,14 @@
    Requirements
 
       Jenkins 2.2 or higher
-      Python 3.5
+      Python 3.5   (if the platform you are using is Windows, we recommend using the 64-bit version)
+
+      - Windows only
+          win32com module available from: 
+             https://sourceforge.net/projects/pywin32/files/pywin32/Build%20220/pywin32-220.win-amd64-py3.5.exe/download
+          (If you are using the 64-bit version Python3.5.x, other pick the appropriate file from 
+             https://sourceforge.net/projects/pywin32/files/pywin32/Build%20220/)
+
 
    Installation
 
@@ -27,17 +34,17 @@
       pip3.5 install pyral==1.2.3
       pip3.5 install PyYAML==3.12
       unpack bldeif-0.9.0.zip
-         cd to a directory where you want to install the connector
+         change your working directory (cd) to a directory where you want to install the connector
          unzip bldeif-0.9.0.zip   (or use a suitable program that can unzip a .zip file)
          cd bldeif-0.9.0
-         ls -laR   # observe the unpacked contents
+         ls -laR   # observe the unpacked contents, or use dir on Windows
 
-         README.txt          # this file
-         bldeif_connector    # connector initiation script
-         bldeif              # bldeif module root directory
+            bldeif              # bldeif module root directory
+            bldeif_connector    # connector initiation script, this is what you will run
+            config              # holds any config files used with this connector
+                sample.yml      # a sample config to use as a base reference
+            README.txt          # this file
 
-         config              # holds any config files used with this connector
-             sample.yml      # a sample config to use as a base reference
 
    Setup
 
@@ -46,7 +53,8 @@
          eg,  cp sample.yml to product_x.yml
 
       edit your product_x.yml file
-        *see appendix on config file syntax
+        *see Appendix A on config file syntax
+
 
    Operation
 
@@ -55,22 +63,26 @@
             cd to the installation root directory  eg.  /opt/local/sw/bldeif-0.9.0
             python3.5 build_connector product_x.yml
 
+         This software requires that the configuration file reside in the config subdirectory.  You specify the name
+         of the file on the command line (don't specify the subdirectory in the command line argument).
+
       Scheduled
-         use either cron or Windows Task Scheduler
+         use either cron or launchctl or Windows Task Scheduler
             make sure the environment in effect when running this software has an appropriate environment set
             so that you can run:
-               python3.5 $BLDEIF/build_connector  your_config_file_name.yml
+               python3.5 $BLDEIF/build_connector your_config_file_name.yml
    
             where $BLDEIF is the reference to an environment variable containing the
             fully qualified path to the directory where the software is installed.  Here's an example:
             If you unzipped the package in /opt/local/sw, then your BLDEIF would be set like this:
-               export BLDEIF=/opt/local/sw/bldief-0.9.0
+               export BLDEIF=/opt/local/sw/bldeif-0.9.0
 
 
   Time File
-      In normal operation, the connector writes a "time file" whose name is based on the
-      configuration file name.  Example: If the configuration file name is 'product_x.yml'
-      then the associated "time file" name would be 'product_xtime.file'.  The content
+      In normal operation, the connector writes a "time file" (in the "base" installation directory)
+      whose name is based on the configuration file name.  
+      Example: If the configuration file name is 'product_x.yml'
+      then the associated "time file" name would be 'product_x_time.file'.  The content
       of the "time file" is a single line containing a human readable date/time stamp value
       in the format 'YYYY-MM-DD hh:mm:ss Z'.  The value represents the timestamp of the last
       Jenkins jobs considered (after some negative value adjustment to insure no Jenkins jobs
@@ -112,7 +124,7 @@
        3) Save the file in UTF-8 format
        4) Use a monospace font
        5) Be consistent with the number of spaces you use to ident
-       6) On a line, the first occurence of a non-quoted # character indicates a comment,
+       6) On a line, the first occurrence of a non-quoted # character indicates a comment,
           the # char and all chars to the right are ignored in processing
        7) Keep the sections in the same order as is present in the sample.yml file
        8) Be aware that the colon char ':' is significant, it separates a key from the value.

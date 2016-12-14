@@ -155,5 +155,20 @@ SANITY_MSG="I got started from launchctl to run the bldeif_connector"
 #-----------------------------------------------------------------------------------------
 
    Running the connector on a periodic basis on Linux
-  
+
+   use cron
+   run crontab -e and put in an  entry like:
+
+
+#--------------------------------------------------------------------------------------------
+
+  Installing and running the connector on a Windows platform
+
+     Get the Python 3.5 Windows install from www.python.org
+       We recommend using the 64 bit version
+
+     You will need to install a Windows specific module called win32com which you can obtain at:
+
+         https://sourceforge.net/projects/pywin32/files/pywin32/Build%20220/pywin32-220.win-amd64-py3.5.exe/download
+
      

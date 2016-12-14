@@ -26,7 +26,7 @@ from bldeif.utils.eif_exception import OperationalError, logAllExceptions
 ############################################################################################################
 
 ARCHITECTURE_ACRONYM = 'eif'
-__version__ = "0.9.1"
+__version__ = "0.9.2"
 
 EXISTENCE_PROCLAMATION = """
 ************************************************************************************************************************
@@ -179,20 +179,21 @@ class BuildConnectorRunner(object):
         # else:
         #     return None
 
-    def _operateService(self, config_file):
+    def _operateService(self, config_file_path):
+        config_name = config_file_path.replace('config/', '')
         started = finished = elapsed = None
         self.connector = None
-        self.log.info("processing to commence using content from %s" % config_file)
+        self.log.info("processing to commence using content from %s" % config_file_path)
 
-        last_conf_mod = time.strftime(STD_TS_FMT, time.gmtime(os.path.getmtime(config_file)))
-        conf_file_size = os.path.getsize(config_file)
-        self.log.info("%s last modified %s,  size: %d chars" % (config_file, last_conf_mod, conf_file_size))
-        config = self.getConfiguration(config_file)
+        last_conf_mod = time.strftime(STD_TS_FMT, time.gmtime(os.path.getmtime(config_file_path)))
+        conf_file_size = os.path.getsize(config_file_path)
+        self.log.info("%s last modified %s,  size: %d chars" % (config_file_path, last_conf_mod, conf_file_size))
+        config = self.getConfiguration(config_file_path)
 
         this_run = time.time()     # be optimistic that the reflectBuildsInAgileCentral service will succeed
         now_zulu = time.strftime(STD_TS_FMT, time.gmtime(this_run)) # zulu <-- universal coordinated time <-- UTC
 
-        self.time_file = TimeFile(self.buildTimeFileName(config_file), self.log)
+        self.time_file = TimeFile(self.buildTimeFileName(config_name), self.log)
         if self.time_file.exists():
             last_run = self.time_file.read() # the last_run is in Zulu time (UTC) as an epoch seconds value
         else:
@@ -207,7 +208,7 @@ class BuildConnectorRunner(object):
 
         finished = time.time()
         elapsed = int(round(finished - this_run))
-        self.logServiceStatistics(config_file, builds, elapsed)
+        self.logServiceStatistics(config_name, builds, elapsed)
 
         if self.preview:
             self.log.info("Preview mode in effect, time.file File not written/updated")
