@@ -26,7 +26,7 @@ from bldeif.utils.eif_exception import OperationalError, logAllExceptions
 ############################################################################################################
 
 ARCHITECTURE_ACRONYM = 'eif'
-__version__ = "0.9.2"
+__version__ = "0.9.4"
 
 EXISTENCE_PROCLAMATION = """
 ************************************************************************************************************************
@@ -77,8 +77,14 @@ class BuildConnectorRunner(object):
         self.config_file_names = args
         if self.default_log_file_name:  # set it to first config file minus any '_config.yml' portion
             self.first_config = self.config_file_names[0]
-            self.logfile_name = "%s.log" % self.first_config.replace('.yml', '').replace('_config', '')
-        
+            self.logfile_name = "log/%s.log" % self.first_config.replace('.yml', '').replace('_config', '')
+            try:
+                if not os.path.exists('log'):
+                    os.makedirs('log')
+            except Exception as msg:
+                sys.stderr.write("Unable to locate or create the log sub-directory, %s\n" % msg)
+                raise Exception
+
         self.log = ActivityLogger(self.logfile_name)
         logAllExceptions(True, self.log)
         self.preview   = False
@@ -129,7 +135,7 @@ class BuildConnectorRunner(object):
                 config_file_path = self.find_config_file(config_file)
                 if not config_file_path:
                     raise ConfigurationError("No config file for '%s' found in the config subdir" % config_file)
-                lf_name = "%s.log" % config_file.replace('.yml', '').replace('_config', '')
+                lf_name = "log/%s.log" % config_file.replace('.yml', '').replace('_config', '')
                 self.log = ActivityLogger(lf_name)
                 logAllExceptions(True, self.log)
                 self._operateService(config_file_path)
@@ -237,11 +243,13 @@ class BuildConnectorRunner(object):
     def buildTimeFileName(self, config_file):
         if config_file:
             if config_file.endswith('.yml') or  config_file.endswith('.cfg'):
-                return config_file[0:-4] + '_time.file'
+                time_file_name = config_file[0:-4] + '_time.file'
             else:
-                return "%s_time.file" % config_file 
+                time_file_name =  "%s_time.file" % config_file
         else:
-            return 'time.file'
+            time_file_name = 'time.file'
+        time_file_path = 'log/%s' % time_file_name
+        return time_file_path
 
 
     def logServiceStatistics(self, config_name, builds, elapsed):

@@ -12,7 +12,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.9.2"
+__version__ = "0.9.4"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 

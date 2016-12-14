@@ -13,7 +13,7 @@ import shutil
 import re
 
 PACKAGE_NAME = "bldeif"
-VERSION = "0.9.1"
+VERSION = "0.9.4"
 
 BASE_FILES = ['LICENSE',
              'README.txt',
@@ -29,8 +29,7 @@ TEST_FILES = ['test/test_*.py']
 def main(args):
 
     zipped = make_zipfile(PACKAGE_NAME, VERSION, BASE_FILES)
-    print
-    zipped
+    print('Building your zip file: %s' % zipped)
 
     zf = zipfile.ZipFile(zipped, 'r')
     for info in zf.infolist():
