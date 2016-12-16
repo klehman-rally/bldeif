@@ -230,7 +230,7 @@ class FileOutput(StreamOutput):
 #########################################################################################
 
 class ActivityLogger(object):
-    valid_levels = ['DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'CRITICAL', 'FATAL', 'YUGE']
+    valid_levels = ['DEBUG', 'INFO', 'WARN', 'WARNING', 'ERROR', 'CRITICAL', 'FATAL']
     level_value  = {'DEBUG'    : 1,
                     'INFO'     : 2,
                     'WARN'     : 3,
@@ -238,7 +238,6 @@ class ActivityLogger(object):
                     'ERROR'    : 4,
                     'CRITICAL' : 5,
                     'FATAL'    : 6,
-                    'YUGE'     : 7,
                    }
     exception_level = 5
 

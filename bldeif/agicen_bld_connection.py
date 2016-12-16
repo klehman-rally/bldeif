@@ -12,7 +12,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.9.4"
+__version__ = "0.9.5"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -70,12 +70,18 @@ class AgileCentralConnection(BLDConnection):
         self.server = server
 
         self.url = "https://%s/slm" % server
-
+        self.port = config.get('Port', '443')
         self.apikey          = config.get("APIKey", config.get("API_Key", None))
         self.workspace_name  = config.get("Workspace", None)
         self.project_name    = config.get("Project",   None)  # This gets bled in by the BLDConnector
         self.restapi_debug   = config.get("Debug", False)
         self.restapi_logger  = self.log
+
+        self.proxy = None
+        if self.proxy_server:
+            self.proxy  = "%s://%s:%s" % (self.proxy_protocol, self.proxy_server, self.proxy_port)
+            if self.proxy_username and self.proxy_password:
+                self.proxy  = "%s://%s:%s@%s:%s" % (self.proxy_protocol, self.proxy_username, self.proxy_password, self.proxy_server, self.proxy_port)
 
 
     def validate(self):
@@ -158,10 +164,10 @@ class AgileCentralConnection(BLDConnection):
 
 
     def connect(self):
-        https_proxy = os.environ.get('https_proxy', None) or os.environ.get('HTTPS_PROXY', None)
-        if https_proxy not in ["", None]:
-            self.log.info("Proxy for AgileCentral connection:  %s" % https_proxy)
-    
+        if self.proxy:
+            self.log.info("Proxy for AgileCentral connection:  %s" % self.proxy)
+            os.environ['HTTPS_PROXY'] = self.proxy
+
         self.log.info("Connecting to AgileCentral")
         custom_headers = self.get_custom_headers()
 
@@ -170,7 +176,7 @@ class AgileCentralConnection(BLDConnection):
 ##            print("")
 ##            print("before call to pyral.Rally(): %s    using workspace name: %s" % (before, self.workspace_name))
 ##            print("   credentials:  username |%s|  password |%s|  apikey |%s|" % (self.username, self.password, self.apikey))
-            self.agicen = Rally(self.server, username=self.username, password=self.password, apikey=self.apikey,
+            self.agicen = Rally(self.server, user=self.username, password=self.password, apikey=self.apikey,
                                 workspace=self.workspace_name, project=self.project_name,
                                 version=self.rallyWSAPIVersion(), http_headers=custom_headers,
                                 server_ping=False, isolated_workspace=True,
@@ -183,7 +189,6 @@ class AgileCentralConnection(BLDConnection):
             if self.restapi_debug:
                 self.agicen.enableLogging('agicen_builds.log')
         except Exception as msg:
-            self.log.debug(msg)
             raise ConfigurationError("Unable to connect to Agile Central at %s: %s" % \
                                          (self.server, msg))
         self.log.info("Connected to Agile Central server: %s" % self.server)    

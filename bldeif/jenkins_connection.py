@@ -14,7 +14,7 @@ quote = urllib.parse.quote
 
 ############################################################################################
 
-__version__ = "0.9.4"
+__version__ = "0.9.5"
 
 ACTION_WORD_PATTERN = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
@@ -66,8 +66,8 @@ class JenkinsConnection(BLDConnection):
         self.server     = config.get('Server', socket.gethostname())
         self.port       = config.get('Port', 8080)
         self.prefix     = config.get("Prefix", '')
-        self.user       = config.get("Username", '')
-        self.password   = config.get("Password", '')
+        #self.user       = config.get("Username", '')
+        #self.password   = config.get("Password", '')
         self.api_token  = config.get("API_Token", '')
         self.debug      = config.get("Debug", False)
         self.max_items  = config.get("MaxItems", 1000)
@@ -80,22 +80,32 @@ class JenkinsConnection(BLDConnection):
         self.all_jobs   = []
         self.view_folders = {}
         self.maxDepth   = config.get('MaxDepth', 1) + 2
-        if self.user:
+        if self.username:
             if self.api_token:
                 cred = self.api_token
             else:
                 cred = self.password
-            self.creds = (self.user, cred)
+            self.creds = (self.username, cred)
         else:
             self.creds = None
+
+        #https_proxy = os.environ.get('https_proxy', None) or os.environ.get('HTTPS_PROXY', None)
+        #if https_proxy not in ["", None]:
+        #    self.log.info("Proxy for Jenkins connection:  %s" % https_proxy)
+
+        self.http_proxy = {}
+        if self.proxy_server:
+            proxy  = "%s://%s:%s" % (self.proxy_protocol, self.proxy_server, self.proxy_port)
+            if self.proxy_username and self.proxy_password:
+                proxy  = "%s://%s:%s@%s:%s" % (self.proxy_protocol, self.proxy_username, self.proxy_password, self.proxy_server, self.proxy_port)
+            self.http_proxy = {self.protocol : proxy}
+            self.log.info("Proxy for Jenkins connection:  %s" % proxy)
 
     def connect(self):
         """
         """
         self.log.info("Connecting to Jenkins")
-        https_proxy = os.environ.get('https_proxy', None) or os.environ.get('HTTPS_PROXY', None)
-        if https_proxy not in ["", None]:
-            self.log.info("Proxy for Jenkins connection:  %s" % https_proxy)
+
         self.backend_version = self._getJenkinsVersion()
         self.log.info("Connected to Jenkins server: %s running at version %s" % (self.server, self.backend_version))
         self.log.info("Url: %s" % self.base_url)
@@ -111,7 +121,7 @@ class JenkinsConnection(BLDConnection):
         jenkins_url = "%s/manage" % self.base_url
         self.log.debug(jenkins_url)
         try:
-            response = requests.get(jenkins_url, auth=self.creds)
+            response = requests.get(jenkins_url, auth=self.creds, proxies=self.http_proxy)
         except Exception as msg:
             self.log.error(msg)
         if response.status_code >= 300:
@@ -129,7 +139,7 @@ class JenkinsConnection(BLDConnection):
         class_exists = False
         jenkins_url = "%s/api/json" %self.base_url
         self.log.debug(jenkins_url)
-        response = requests.get(jenkins_url, auth=self.creds)
+        response = requests.get(jenkins_url, auth=self.creds, proxies=self.http_proxy)
         extract = [key for key in response.json() if key == '_class']
         if extract:
             class_exists = True
@@ -162,7 +172,7 @@ class JenkinsConnection(BLDConnection):
 
         fields = self.makeFieldsString(self.maxDepth)
         jenkins_url = "%s?depth=%d&tree=%s" % (JENKINS_URL.format(**urlovals), self.maxDepth, fields)
-        response = requests.get(jenkins_url, auth=self.creds)
+        response = requests.get(jenkins_url, auth=self.creds, proxies=self.http_proxy)
         status = response.status_code
         jenkins_info = response.json()
 
@@ -499,14 +509,14 @@ class JenkinsConnection(BLDConnection):
         urlovals = {'prefix': self.base_url, 'view': quote(view), 'job': quote(job.name)}
         job_builds_url = job.url + (JOB_BUILDS_ENDPOINT.format(**urlovals))
         self.log.debug("view: %s  job: %s  req_url: %s" % (view, job, job_builds_url))
-        raw_builds = requests.get(job_builds_url, auth=self.creds).json()['builds']
+        raw_builds = requests.get(job_builds_url, auth=self.creds, proxies=self.http_proxy).json()['builds']
         qualifying_builds = self.extractQualifyingBuilds(job.name, None, ref_time, raw_builds)
         return qualifying_builds
 
     def getFolderJobBuildHistory(self, folder_name, job, ref_time):
         folder_job_builds_url = job.url + ('/api/json?tree=builds[%s]' % FOLDER_JOB_BUILD_ATTRS)
         self.log.debug("folder: %s  job: %s  req_url: %s" % (folder_name, job.name, folder_job_builds_url))
-        raw_builds = requests.get(folder_job_builds_url, auth=self.creds).json()['builds']
+        raw_builds = requests.get(folder_job_builds_url, auth=self.creds, proxies=self.http_proxy).json()['builds']
         qualifying_builds = self.extractQualifyingBuilds(job.name, folder_name, ref_time, raw_builds)
         return qualifying_builds
 

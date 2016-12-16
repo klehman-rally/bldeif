@@ -11,6 +11,7 @@ JenkinsBuildConnector:
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
         Password  :  None
+        AgileCentral_DefaultBuildProject :  Jenkins
         MaxDepth  :  5
         Folders:
             - Folder : immovable wombats

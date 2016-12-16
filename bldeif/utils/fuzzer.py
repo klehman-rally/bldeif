@@ -41,7 +41,7 @@ class Fuzzer(object):
     def decode(target):
         if not Fuzzer.isEncoded(target):
             return target
-        return base64.b64decode(Fuzzer.encoding(target))
+        return base64.b64decode(Fuzzer.encoding(target)).decode('UTF-8')
 
     defuzz = decode
         
