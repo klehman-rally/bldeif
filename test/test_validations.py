@@ -4,8 +4,11 @@ import datetime
 from collections import OrderedDict
 import spec_helper as sh
 import build_spec_helper as bsh
-from bldeif.utils.eif_exception import ConfigurationError, OperationalError
-#from bldeif.agicen_bld_connection import AgileCentralConnection
+from bldeif.utils.eif_exception import ConfigurationError, OperationalError, logAllExceptions
+from bldeif.utils.klog       import ActivityLogger
+from bldeif.utils.konfabulus import Konfabulator
+from bldeif.agicen_bld_connection import AgileCentralConnection
+import build_spec_helper   as bsh
 import re
 
 PLATYPUS_JENKINS_STRUCTURE="""
@@ -234,7 +237,23 @@ def test_namesake_projects():
     # build_defn = agiconn.agicen.ensureBuildDefinitionExistence(job, 'Jenkins', True, build_job_uri)
     # #assert build_defn is not None
 
-
+def test_without_project():
+    config_file = ('missing-project.yml')
+    ymlfile = open("config/{}".format(config_file), 'r')
+    y = yaml.load(ymlfile)
+    logger = ActivityLogger('log/missing-project.log')
+    logger.setLevel('DEBUG')
+    logAllExceptions(True, logger)
+    konf = Konfabulator('config/missing-project.yml', logger)
+    jenk_conf = konf.topLevel('Jenkins')
+    ac_conf = konf.topLevel('AgileCentral')
+    #expectedErrPattern = 'The Jenkins section of the config is missing AgileCentral_DefaultBuildProject property'
+    expectedErrPattern = 'The Jenkins section of the config is missing a value for AgileCentral_DefaultBuildProject property'
+    with pytest.raises(Exception) as excinfo:
+        bc = bsh.BLDConnector(konf, logger)
+    actualErrVerbiage = excinfo.value.args[0]
+    assert re.search(expectedErrPattern, actualErrVerbiage) is not None
+    assert excinfo.typename == 'ConfigurationError'
 
 
 

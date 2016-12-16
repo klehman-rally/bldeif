@@ -26,7 +26,7 @@ def create_time_file(config_file, **kwargs):
     now_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.time()))
     last_run_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.mktime(t.timetuple())))
     time_file_name = "{}_time.file".format(config_file.replace('.yml', ''))
-    with open("config/{}".format(time_file_name), 'w') as tf:
+    with open("log/{}".format(time_file_name), 'w') as tf:
         tf.write(last_run_zulu)
 
     return last_run_zulu
@@ -48,7 +48,7 @@ def test_bld_connector_runner():
     assert config_file in runner.config_file_names
     assert 'AgileCentral' in runner.connector.config.topLevels()
     assert 'Static' in runner.connector.target_projects
-    log = "{}.log".format(config_file.replace('.yml', ''))
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
     assert runner.logfile_name == log
 
     with open(log, 'r') as f:
@@ -83,7 +83,7 @@ def test_reflect_builds():
     assert config_file in runner.config_file_names
     assert 'AgileCentral' in runner.connector.config.topLevels()
     assert 'Static' in runner.connector.target_projects
-    log = "{}.log".format(config_file.replace('.yml', ''))
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
     assert runner.logfile_name == log
 
     config_path = "config/{}".format(config_file)
@@ -127,7 +127,7 @@ def test_dont_duplicate_builds():
     assert runner.first_config == config_file
     last_run_zulu = '2016-12-01 00:00:00 Z'
     time_file_name = "{}_time.file".format(config_file.replace('.yml', ''))
-    with open("config/{}".format(time_file_name), 'w') as tf:
+    with open("log/{}".format(time_file_name), 'w') as tf:
         tf.write(last_run_zulu)
 
     runner.run()
@@ -143,7 +143,7 @@ def test_dont_duplicate_builds():
 
     last_run_zulu = '2016-10-31 00:00:00 Z'
     time_file_name = "{}_time.file".format(config_file.replace('.yml', ''))
-    with open("config/{}".format(time_file_name), 'w') as tf:
+    with open("log/{}".format(time_file_name), 'w') as tf:
         tf.write(last_run_zulu)
 
     runner.run()

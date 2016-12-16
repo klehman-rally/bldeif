@@ -6,6 +6,11 @@ JenkinsBuildConnector:
         Server    :  rally1.rallydev.com
         APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
         Workspace :  Alligators BLD Unigrations
+        ProxyProtocol : http
+        ProxyServer   : supp-proxy-01.f4tech.com
+        ProxyPort     : 3128
+        ProxyUsername : root
+        ProxyPassword : squid
 
     Jenkins:
         Protocol  :  http
@@ -13,7 +18,13 @@ JenkinsBuildConnector:
         Port      :  8080
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
-        Password  : encoded-c-m-F-s-b-H-l-k-Z-X-Y-=
+        Password  :  None
+        ProxyProtocol : http
+        ProxyServer   : supp-proxy-01.f4tech.com
+        ProxyPort     : 3128
+        ProxyUsername : root
+        ProxyPassword : squid
+        MaxDepth  :  5
         AgileCentral_DefaultBuildProject :  Jenkins
 
         Views:
@@ -22,17 +33,10 @@ JenkinsBuildConnector:
               exclude: ^stem,fumar,launch
               AgileCentral_Project: Salamandra
 
-            - View: Shoreline
-              include: Bra*wogs
-              exclude: ^feature-*,burnin
-              AgileCentral_Project: Brazen Milliwogs
-
         Jobs:
             - Job: troglodyte
               AgileCentral_Project: Salamandra
 
-            - Job: truculent elk medallions
-              AgileCentral_Project: Refusnik
 
         Folders:
             - Folder : Parkour

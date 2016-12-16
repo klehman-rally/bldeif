@@ -171,4 +171,49 @@ SANITY_MSG="I got started from launchctl to run the bldeif_connector"
 
          https://sourceforge.net/projects/pywin32/files/pywin32/Build%20220/pywin32-220.win-amd64-py3.5.exe/download
 
-     
+#----------------------------------------------------------------------------------------------
+
+  Running a connector as post-build action:
+    (3) no post-build plugin, add/configure a Jenkins job whose only task is to run the connector
+
+    In Build>Excecute Shell of a job's configuration add something like this:
+       WORK_DIR=/home/integrations/sw/bldeif-0.9.4
+       PYTHON=/usr/local/bin/python3.5
+       cd $WORK_DIR; export PYTHONPATH="$WORK_DIR"; $PYTHON bldeif_connector product_x.yml
+
+    (In case we want to pick up a new build add another job under Build Triggers > Build after other projects are built
+       e.g. in Projects to Watch we added "Cowardly Weasels, black-swan"
+       A limitation of Projects to Watch input box is that it only accepts first level jobs, and not jobs in folders or non-All views
+       This job, e.g. Cowardly Weasels or black-swan has to be triggered or manually run separately so that in turn it triggers the connector job.
+
+    (2) with post-build plugin, you must instal the PostBuild Script plugin.
+       for each Jenkins job you want to trigger a connector run. You must add/configure a Jenkins job with Post-build Actions section that provides
+       a path to a script that invokes the connector's executable,
+       e.g. File Script Path: /home/jenkins/postbuild/jenk_da_connecteur
+       content of jenk_da_connecteur file-------------------------------
+           #!/bin/sh
+           (cd /home/integrations/sw/bldeif-0.9.4; /usr/local/bin/python3.5 bldeif_connector product_x.yml)
+       end of file------------------------------------------------------
+
+       When a jenkins job is built, as long as this job has a post build script action set that mentions the target script that in turn invokes the
+       connector's executable, the connector is run after the build is complete, hence the new build is considered by the connector.
+          Two notable drawbacks:
+             1) the connector is run as the jenkins user (or whatever user owns the Jenkins process)
+             2) each Job has to have this post build script action that mentions the target script
+    For both (2) and (3) the directory where the connector is located has to be opened with chmod to allow users other than the owner of the directory,
+    in our case, intergrations user, to write to it (the lock file, time file, log file have to be written)
+
+    (1) is a variation of (2), but with the added benefit of switching the user from jenkins to integrations. We tried to achive this by following
+        these SO posts:
+            http://stackoverflow.com/questions/1988249/how-do-i-use-su-to-execute-the-rest-of-the-bash-script-as-that-user
+            http://stackoverflow.com/questions/1401002/trick-an-application-into-thinking-its-stdin-is-interactive-not-a-pipe
+        It did not work. Here is an example of a post-build action script. We notice that user switch did not happen
+        content of jenk_da_connecteur file-------------------------------
+        #!/bin/sh
+            da_connecteur="cd ~/sw/bldeif-0.9.4; /usr/local/bin/python3.5 bldeif_connector product_x.yml"
+            function faketty { script -qfc "$(printf "%q " "$@")"; }
+            #faketty sudo -u integrations -H sh -c $da_connecteur
+            #faketty sudo -u integrations -H sh -c "(cd /home/integrations/sw/bldeif-0.9.4; /usr/local/bin/python3.5 bldeif_connector product_x.yml)"
+            faketty sudo -u integrations -H sh -c "pwd; ls -la > your_files_are;"
+        end of file------------------------------------------------------
+        Parhaps commenting out this bogon in sudoers file "#Defaults    requiretty"...but we still get "no tty present and no askpass program specified"

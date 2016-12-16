@@ -26,7 +26,7 @@ from bldeif.utils.eif_exception import OperationalError, logAllExceptions
 ############################################################################################################
 
 ARCHITECTURE_ACRONYM = 'eif'
-__version__ = "0.9.4"
+__version__ = "0.9.5"
 
 EXISTENCE_PROCLAMATION = """
 ************************************************************************************************************************

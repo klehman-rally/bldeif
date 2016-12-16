@@ -79,6 +79,11 @@ class BLDConnection(object):
         self.config = config
         self.username = config.get('Username', config.get('User', False))
         self.password = config.get('Password', False)
+        self.proxy_protocol = config.get('ProxyProtocol', 'http')
+        self.proxy_server   = config.get('ProxyServer',   False)
+        self.proxy_port     = config.get('ProxyPort',     False)
+        self.proxy_username = config.get('ProxyUsername', config.get('ProxyUser', False))
+        self.proxy_password = config.get('ProxyPassword', False)
         self.build_selectors  = config.get('BuildSelectors', []) 
         self.lookback = int(config.get('Lookback', 60)) * 60 # if not provided default this to 1 hour in secs
         self.debug    = config.get('Debug', False)

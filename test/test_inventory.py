@@ -4,7 +4,6 @@ import yaml
 import json
 import time
 from datetime import datetime, timedelta
-from bldeif.bld_connector    import BLDConnector
 from bldeif.utils.time_file  import TimeFile
 import build_spec_helper   as bsh
 import spec_helper as sh
@@ -30,7 +29,7 @@ def connect_to_jenkins(config_file):
         all_conf = yaml.load(content)
         jenk_conf = all_conf['JenkinsBuildConnector']['Jenkins']
 
-    jc = bsh.JenkinsConnection(jenk_conf, ActivityLogger('inventory.log'))
+    jc = bsh.JenkinsConnection(jenk_conf, ActivityLogger('log/inventory.log'))
     return jc
 
 def test_jobs_bucket():
@@ -129,7 +128,7 @@ def test_log_for_config_vetting():
     runner = BuildConnectorRunner(args)
     assert runner.first_config == config_file
     runner.run()
-    log = "{}.log".format(config_file.replace('.yml', ''))
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
     assert runner.logfile_name == log
 
     with open(log, 'r') as f:
@@ -143,7 +142,7 @@ def test_log_for_config_vetting():
     assert re.search(r'%s' % error, match)
 
 def test_shallow_depth_config():
-    of = sh.OutputFile('inventory.log')
+    of = sh.OutputFile('log/inventory.log')
     t = datetime.now() - timedelta(days=365)
     ref_time = t.utctimetuple()
     jc = connect_to_jenkins(SHALLOW_CONFIG)
@@ -156,7 +155,7 @@ def test_shallow_depth_config():
     assert re.search(error, error_lines) is not None
 
 def test_deepy_depth_config():
-    of = sh.OutputFile('inventory.log')
+    of = sh.OutputFile('log/inventory.log')
     t = datetime.now() - timedelta(days=365)
     ref_time = t.utctimetuple()
     jc = connect_to_jenkins(DEEP_CONFIG)

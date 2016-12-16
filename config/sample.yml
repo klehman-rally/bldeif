@@ -4,8 +4,8 @@ JenkinsBuildConnector:
     AgileCentral:
         Server    : rally1.rallydev.com
         Username  : henry5@hauslancaster.uk
-        #Password  : 2MuchAngst1415
-        #API_Key   : _zzzyyyy234twqwtqwet89y4t38g38y0
+        Password  : 2MuchAngst1415
+        #API_Key   : _zzzyyyy234twqwtqwet89y4t38g38y0  # if you enable this, you don't need the Username and Password entries
         Workspace : My Onliest Workspace
  
     Jenkins:
@@ -17,25 +17,25 @@ JenkinsBuildConnector:
         Password : somepassword
         API_Token: 320ca9ae9408d099183aa052ff3199c2
         # to get an API_Token, nav browser to  http://server:port/user/<username>/configure
-        AgileCentral_DefaultBuildProject: Connector Devving
+        AgileCentral_DefaultBuildProject: Your Project 0
         
         Views:
             - View: Project Omega
               include: ^master-*
               exclude: ^feature-*,fumar,launch
-              AgileCentral_Project: Funicular
+              AgileCentral_Project: Your Project 1
  
             - View: Smoke Tests
               include: smoke-test
               exclude: ^feature-*,burnin
-              AgileCentral_Project: Brazen Milliwogs
+              AgileCentral_Project: Your Project 2
  
         Jobs:
             - Job: Wambots-precalcolo
-              AgileCentral_Project: TPFKA Wombats
+              AgileCentral_Project: Your Project 3
  
             - Job: fustulum-linter-metrics
-              AgileCentral_Project: Analytics World
+              AgileCentral_Project: Your Project 4
 
         Folders:
             - Folder: Abracadabra

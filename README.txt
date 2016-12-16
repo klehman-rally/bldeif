@@ -18,14 +18,16 @@
 
    Requirements
 
-      Jenkins 2.2 or higher
-      Python 3.5   (if the platform you are using is Windows, we recommend using the 64-bit version)
+      Jenkins 2.2 or higher  (For CloudBees, the version identifier is different, but most recent versions (>= May 2016) will work)
 
-      - Windows only
-          win32com module available from: 
-             https://sourceforge.net/projects/pywin32/files/pywin32/Build%20220/pywin32-220.win-amd64-py3.5.exe/download
-          (If you are using the 64-bit version Python3.5.x, other pick the appropriate file from 
-             https://sourceforge.net/projects/pywin32/files/pywin32/Build%20220/)
+      Python 3.5   (if the platform you are using is Windows, we recommend using the 64-bit version)
+         You can retrieve the package/installer from www.python.org
+
+         - Windows only
+              win32com module available from:
+                 https://sourceforge.net/projects/pywin32/files/pywin32/Build%20220/pywin32-220.win-amd64-py3.5.exe/download
+              (If you are using the 64-bit version Python3.5.x, other pick the appropriate file from
+                 https://sourceforge.net/projects/pywin32/files/pywin32/Build%20220/)
 
 
    Installation
@@ -48,11 +50,14 @@
 
    Setup
 
-      locate the config subdirectory
-      copy the sample.yml file to a file named suitably for your environment
-         eg,  cp sample.yml to product_x.yml
+      Locate the config subdirectory
+      Copy the sample.yml file to a file named suitably for your environment
+         eg,  cp sample.yml to product_x.yml   (or some other suitably named file that has a .yml suffix)
 
-      edit your product_x.yml file
+      Edit your product_x.yml file
+        Change the sample values for credentials, Workspace, Project, Job, View, Folder to values that are
+        relevant and valid for your environment.
+
         *see Appendix A on config file syntax
 
 
@@ -61,7 +66,7 @@
       Manual
          Using a terminal window or console:
             cd to the installation root directory  eg.  /opt/local/sw/bldeif-0.9.0
-            python3.5 build_connector product_x.yml
+            python3.5 bldeif_connector product_x.yml
 
          This software requires that the configuration file reside in the config subdirectory.  You specify the name
          of the file on the command line (don't specify the subdirectory in the command line argument).
@@ -70,7 +75,7 @@
          use either cron or launchctl or Windows Task Scheduler
             make sure the environment in effect when running this software has an appropriate environment set
             so that you can run:
-               python3.5 $BLDEIF/build_connector your_config_file_name.yml
+               python3.5 $BLDEIF/bldeif_connector your_config_file_name.yml
    
             where $BLDEIF is the reference to an environment variable containing the
             fully qualified path to the directory where the software is installed.  Here's an example:
@@ -79,7 +84,7 @@
 
 
   Time File
-      In normal operation, the connector writes a "time file" (in the "base" installation directory)
+      In normal operation, the connector writes a "time file" (in the log directory)
       whose name is based on the configuration file name.  
       Example: If the configuration file name is 'product_x.yml'
       then the associated "time file" name would be 'product_x_time.file'.  The content
@@ -98,6 +103,7 @@
   Troubleshooting
 
       The connector always writes a log file named based on the configuration file name.
+      The log file is written into the log subdirectory under the "base" installation directory.
       Within the configuration file, you can set the LogLevel which determines the amount
       of logging information written to the log file.  When you set the LogLevel to DEBUG,
       you'll get the full range of logging messages that can be very helpful in pinpointing
@@ -203,8 +209,10 @@
              - Job   : another job name     # this job with a unique name could live in some view or folder not at the top level
 
      Service:
-         Preview      : False  # When set to True, the connector shows the items that would be processed
+         Preview      : True   # When set to True, the connector shows the items that would be processed
                                #  but doesn't actually post any build information to Agile Central
+                               # When you have completed the setup and the connections with AgileCentral and Jenkins
+                               # are made successfully, you can change this value to True
          LogLevel     : INFO   # This is the default value, can also be DEBUG, WARN, ERROR. DEBUG is very verbose
          MaxBuilds    : 100    # Use a non-negative integer value. This "limit" pertains to builds for a particular job.
 

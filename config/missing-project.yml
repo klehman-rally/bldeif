@@ -13,31 +13,24 @@ JenkinsBuildConnector:
         Port      :  8080
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
-        Password  :  None
+        Password  :  encoded-T-m-9-u-Z-Q-=-=
         MaxDepth  :  5
-        AgileCentral_DefaultBuildProject :  Jenkins
+        AgileCentral_DefaultBuildProject :  #Jenkins
 
         Views:
             - View: Prairie
               include: ^blue*
               exclude: ^stem,fumar,launch
-              AgileCentral_Project: Salamandra
-
-            - View: Shoreline
-              include: Bra*wogs
-              exclude: ^feature-*,burnin
-              AgileCentral_Project: Brazen Milliwogs
+              #AgileCentral_Project: Salamandra
 
         Jobs:
             - Job: troglodyte
-              AgileCentral_Project: Salamandra
+              #AgileCentral_Project: Salamandra
 
-            - Job: truculent elk medallions
-              AgileCentral_Project: Refusnik
 
         Folders:
             - Folder : Parkour
-              AgileCentral_Project: Salamandra
+              #AgileCentral_Project: Salamandra
               exclude: angela merkel,
 
 
@@ -48,4 +41,3 @@ JenkinsBuildConnector:
         ShowVCSData   : True
 
 ...
-

@@ -13,7 +13,7 @@ from bldeif.utils.claslo          import ClassLoader
 
 ##############################################################################################
 
-__version__ = "0.9.4"
+__version__ = "0.9.5"
 
 PLUGIN_SPEC_PATTERN       = re.compile(r'^(?P<plugin_class>\w+)\s*\((?P<plugin_config>[^\)]*)\)\s*$')
 PLAIN_PLUGIN_SPEC_PATTERN = re.compile(r'(?P<plugin_class>\w+)\s*$')
@@ -71,6 +71,12 @@ class BLDConnector:
     def internalizeConfig(self, config):
         self.agicen_conf = config.topLevel('AgileCentral')
         self.bld_conf    = config.topLevel(self.bld_name)
+        if not 'AgileCentral_DefaultBuildProject' in self.bld_conf:
+            msg = "The Jenkins section of the config is missing AgileCentral_DefaultBuildProject property"
+            raise ConfigurationError(msg)
+        if not self.bld_conf['AgileCentral_DefaultBuildProject']:  # but no value exists for this...
+            msg = "The Jenkins section of the config is missing a value for AgileCentral_DefaultBuildProject property"
+            raise ConfigurationError(msg)
         self.agicen_conf['Project'] = self.bld_conf['AgileCentral_DefaultBuildProject']
         self.svc_conf    = config.topLevel('Service')
         self.max_builds  = self.svc_conf.get('MaxBuilds', 20)
