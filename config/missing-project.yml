@@ -1,0 +1,43 @@
+
+---
+JenkinsBuildConnector:
+
+    AgileCentral:
+        Server    :  rally1.rallydev.com
+        APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
+        Workspace :  Alligators BLD Unigrations
+
+    Jenkins:
+        Protocol  :  http
+        Server    :  tiema03-u183073.ca.com
+        Port      :  8080
+        API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
+        Username  :  jenkins
+        Password  :  encoded-T-m-9-u-Z-Q-=-=
+        MaxDepth  :  5
+        AgileCentral_DefaultBuildProject :  #Jenkins
+
+        Views:
+            - View: Prairie
+              include: ^blue*
+              exclude: ^stem,fumar,launch
+              #AgileCentral_Project: Salamandra
+
+        Jobs:
+            - Job: troglodyte
+              #AgileCentral_Project: Salamandra
+
+
+        Folders:
+            - Folder : Parkour
+              #AgileCentral_Project: Salamandra
+              exclude: angela merkel,
+
+
+    Service:
+        Preview       : True
+        LogLevel      : DEBUG
+        MaxBuilds     : 50
+        ShowVCSData   : True
+
+...
