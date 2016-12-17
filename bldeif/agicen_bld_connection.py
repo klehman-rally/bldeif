@@ -495,7 +495,7 @@ class AgileCentralConnection(BLDConnection):
         try:
             fids = list(set([fid for fids in commit_fid.values() for fid in fids]))
         except Exception as msg:
-            self.log.error("Cannot get a list of formatted ids of artifacts in the commit messages, in validatedArtfacts line 494")
+            self.log.error("Cannot get a list of formatted ids of artifacts in the commit messages, in validatedArtfacts")
             raise OperationalError(msg)
         query = self.makeOrQuery("FormattedID", fids)
         response = self.agicen.get('Artifact', fetch="FormattedID,ObjectID", query=query, project=None, pagesize=200, start=1)
