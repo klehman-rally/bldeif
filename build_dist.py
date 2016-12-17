@@ -2,18 +2,16 @@
 
 #############################################################################
 #
-# build_dist.py -- Build the pyral distribution package for shipment
+# build_dist.py -- Build the bldeif distribution package for shipment
 #
 #############################################################################
 
 import sys, os
-import tarfile
 import zipfile
 import shutil
-import re
 
 PACKAGE_NAME = "bldeif"
-VERSION = "0.9.5"
+VERSION = "0.9.6"
 
 BASE_FILES = ['LICENSE',
              'README.txt',

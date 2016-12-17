@@ -12,7 +12,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.9.5"
+__version__ = "0.9.6"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -110,8 +110,14 @@ class AgileCentralConnection(BLDConnection):
             If any project name in target_projects does NOT have a corresponding project in AgileCentral
             raise and Exception naming the offending project.
         """
-        mep_projects     = list(set([project for project in target_projects if ' // '     in project]))
-        non_mep_projects = list(set([project for project in target_projects if ' // ' not in project]))
+        try:
+            mep_projects     = list(set([project for project in target_projects if ' // '     in project]))
+        except Exception as msg:
+            raise OperationalError("%s %s" % ("error in agicen_bld_connection.py for getting mep_projects", msg))
+        try:
+            non_mep_projects = list(set([project for project in target_projects if ' // ' not in project]))
+        except Exception as msg:
+            raise OperationalError("%s %s" % ("error in agicen_bld_connection.py for getting non_mep_projects", msg))
         query = self._construct_ored_Name_query(non_mep_projects)
         response = self.agicen.get('Project', fetch='Name,ObjectID', query=query, workspace=self.workspace_name,
                                    project=None, projectScopeDown=True, pagesize=200)
@@ -120,9 +126,15 @@ class AgileCentralConnection(BLDConnection):
                 'Unable to locate a Project with the name: %s in the target Workspace: %s' % (self.project_name, self.workspace_name))
 
         found_projects = [project for project in response]
-        found_project_names = list(set([p.Name for p in found_projects]))
+        try:
+            found_project_names = list(set([p.Name for p in found_projects]))
+        except Exception as msg:
+            raise OperationalError("%s %s" % ("error in agicen_bld_connection.py for getting found_project_names", msg))
         bogus = [name for name in target_projects if name not in found_project_names]
-        real_bogus = set(bogus) - set(mep_projects)
+        try:
+            real_bogus = set(bogus) - set(mep_projects)
+        except Exception as msg:
+            raise OperationalError("%s %s" % ("error in agicen_bld_connection.py for getting real_bogus", msg))
         if real_bogus:
             problem = "These projects mentioned in the config were not located in AgileCentral Workspace %s: %s" % (self.workspace_name, ",".join(real_bogus))
             self.log.error(problem)
@@ -370,14 +382,15 @@ class AgileCentralConnection(BLDConnection):
             ac_changesets, missing_changesets = self.getCorrespondingChangesets(target_build)
             # check for ac_changesets, if present take the SCMRepository of the first in the list (very arbitrary!)
             if ac_changesets:
-                criteria = 'Name = "%s"' % ac_changesets[0].SCMRepository.Name
+                first_changeset = list(ac_changesets)[0]
+                criteria = 'Name = "%s"' % first_changeset.SCMRepository.Name
                 scm_repo = self.agicen.get('SCMRepository', fetch="Name", query=criteria, instance=True)
             else:
-                scm_repo = self.ensureSCMRepositoryExists(target_build.repository, missing_changesets[0].vcs)
+                scm_repo = self.ensureSCMRepositoryExists(target_build.repository, target_build.vcs)
 
             changesets = self.ensureChangesetsExist(scm_repo, project, ac_changesets, missing_changesets)
 
-        build_defn = self.ensureBuildDefinitionExists(target_build.name, project, target_build.url)
+        build_defn = self.ensureBuildDefinitionExists(target_build.name, project, target_build.vcs)
         return changesets, build_defn
 
 
@@ -396,17 +409,24 @@ class AgileCentralConnection(BLDConnection):
                 break
 
         if scm_repository_name:
-            fields = "ObjectID,Revision"
+            fields = "ObjectID,Revision,SCMRepository,Name"
             query = "(SCMRepository.Name = {})".format(scm_repository_name)
 
-            response = self.agicen.get('Changeset', fetch=fields, query=query, order="Name", pagesize=20, limit=20)
+            response = self.agicen.get('Changeset', fetch=fields, query=query, order="CreationDate", pagesize=200)
             if response.resultCount:
                 changesets = [item for item in response]
 
-            changeset_revisions        = [cs.Revision for cs in changesets]
             build_changesets_revisions = [bc.commitId for bc in build_changesets]
-            missing = set(build_changesets_revisions) - set(changeset_revisions)
-            present = set(build_changesets_revisions) - set(missing)
+            ac_changesets_revisions    = [cs.Revision for cs in changesets]
+
+            try:
+                missing = [bc for bc in build_changesets if bc.commitId not in ac_changesets_revisions]
+            except Exception as msg:
+                raise OperationalError("%s %s" % ("error in agicen_bld_connection.py for getting missing", msg))
+            try:
+                present = [cs for cs in changesets if cs.Revision in build_changesets_revisions]
+            except Exception as msg:
+                raise OperationalError("%s %s" % ("error in agicen_bld_connection.py for getting present", msg))
             return present, missing
         else:
             vcs_type = build_changesets[0].vcs
@@ -472,7 +492,11 @@ class AgileCentralConnection(BLDConnection):
     def validatedArtifacts(self, commit_fid):
         # commit_fid is a dict
         # commit_fid = {commitID: [S123,DE123], ...}
-        fids = list(set([fid for fids in commit_fid.values() for fid in fids]))
+        try:
+            fids = list(set([fid for fids in commit_fid.values() for fid in fids]))
+        except Exception as msg:
+            self.log.error("Cannot get a list of formatted ids of artifacts in the commit messages, in validatedArtfacts line 494")
+            raise OperationalError(msg)
         query = self.makeOrQuery("FormattedID", fids)
         response = self.agicen.get('Artifact', fetch="FormattedID,ObjectID", query=query, project=None, pagesize=200, start=1)
         found_arts = [art for art in response]
