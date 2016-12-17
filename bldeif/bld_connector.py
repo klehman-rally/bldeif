@@ -13,7 +13,7 @@ from bldeif.utils.claslo          import ClassLoader
 
 ##############################################################################################
 
-__version__ = "0.9.5"
+__version__ = "0.9.6"
 
 PLUGIN_SPEC_PATTERN       = re.compile(r'^(?P<plugin_class>\w+)\s*\((?P<plugin_config>[^\)]*)\)\s*$')
 PLAIN_PLUGIN_SPEC_PATTERN = re.compile(r'(?P<plugin_class>\w+)\s*$')
@@ -213,6 +213,7 @@ class BLDConnector:
         builds_posted = {}
         # sort the unrecorded_builds into build chrono order, oldest to most recent, then project and job
         unrecorded_builds.sort(key=lambda build_info: (build_info[1].timestamp, build_info[2], build_info[1]))
+        self.log.debug("About to process %d unrecorded builds" % len(unrecorded_builds))
         for job, build, project, view in unrecorded_builds:
             if build.result == 'None':
                 self.log.warn("%s #%s job/build was not processed because is still running" %(job, build.number))

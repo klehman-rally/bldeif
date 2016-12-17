@@ -118,13 +118,26 @@ def test_changeset_creation_with_artifacts_collection():
     artifacts = [art for art in response]
     scm_repo = agicen_conn.ensureSCMRepositoryExists('wombat', 'git')
     scm_repo = agicen_conn.agicen.get('SCMRepository', fetch="Name,ObjectID", query = '(Name = wombat)', project=None, instance = True)
+    dt = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + 'Z'
     bogus_changeset_payload = {
         'SCMRepository': scm_repo.ref,
         'Revision': 'aa1123',
-        'CommitTimestamp': '2016-12-04',
+        'CommitTimestamp': dt, #'2016-12-04',
         'Artifacts': artifacts
     }
     assert bogus_changeset_payload['Artifacts'] is not None
+    changeset = agicen_conn.agicen.create('Changeset', bogus_changeset_payload)
+    assert changeset is not None
+    assert len(changeset.Artifacts) == 2
+    print(changeset.oid)
+
+    dt = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + 'Z'
+    bogus_changeset_payload = {
+        'SCMRepository': scm_repo.ref,
+        'Revision': 'aa1124',
+        'CommitTimestamp': dt,  # '2016-12-04',
+        'Artifacts': artifacts
+    }
     changeset = agicen_conn.agicen.create('Changeset', bogus_changeset_payload)
     assert changeset is not None
     assert len(changeset.Artifacts) == 2
