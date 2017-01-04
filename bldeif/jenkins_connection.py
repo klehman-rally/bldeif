@@ -592,7 +592,9 @@ class JenkinsView:
         self.name      = info['name']  # .get('name', 'UNKNOWN-ITEM')
         self._type     = info['_class'].split('.')[-1]
         self.url       = "%s/view/%s" % (base_url, self.name)
-        self.jobs      = [JenkinsJob(job, self.url, base_url=self.url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
+        self.jobs = []
+        if info['jobs']:
+            self.jobs      = [JenkinsJob(job, self.url, base_url=self.url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
 
     def __str__(self):
         vj = "%s::%s" % (self.container, self.name)
