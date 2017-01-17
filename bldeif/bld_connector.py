@@ -227,8 +227,8 @@ class BLDConnector:
                 continue
 
             changesets, build_definition = agicen.prepAgileCentralBuildPrerequisites(build, project)
-            agicen_build = self.postBuildsToAgileCentral(build_definition, build, changesets, job)
-            if agicen_build:
+            agicen_build, status = self.postBuildToAgileCentral(build_definition, build, changesets, job)
+            if agicen_build and status == 'posted':
                 builds_posted[job] += 1
                 if job not in recorded_builds:
                     recorded_builds[job] = []
@@ -237,7 +237,7 @@ class BLDConnector:
 
         return status, recorded_builds
 
-    def postBuildsToAgileCentral(self, build_defn, build, changesets, job):
+    def postBuildToAgileCentral(self, build_defn, build, changesets, job):
         desc = '%s %s #%s | %s | %s  not yet reflected in Agile Central'
         # add that "collection" as the Build's Changesets collection                                                                 bts = time.strftime("%Y-%m-%d %H:%M:%S Z", time.gmtime(build.timestamp / 1000.0))
         # self.log.debug(desc % (pm_tag, job, build.number, build.result, bts))
@@ -249,9 +249,9 @@ class BLDConnector:
         existing_agicen_build = self.agicen_conn.buildExists(build_defn, build.number)
         if existing_agicen_build:
             self.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, job))
-            return existing_agicen_build
+            return existing_agicen_build, 'skipped'
         agicen_build = self.agicen_conn.createBuild(info)
-        return agicen_build
+        return agicen_build, 'posted'
 
     def getRefTimes(self, last_run):
         """

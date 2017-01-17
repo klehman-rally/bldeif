@@ -1,0 +1,184 @@
+
+************************************************************************************************************************
+
+     CA Agile Central BuildConnector for Jenkins  version 0.9.6  starting at: 2017-01-08 23:36:32 Z  with pid: 70832 
+           curdir: /Users/klehman/dev/github/bldeif
+          command: python /Applications/PyCharm CE.app/Contents/helpers/pydev/pydevd.py --multiproc --qt-support --client 127.0.0.1 --port 60836 --file jenaco almci.yml
+
+************************************************************************************************************************
+
+[2017-01-08 23:36:32 Z]  INFO: BuildConnectorRunner._operateService - processing to commence using content from config/almci.yml
+[2017-01-08 23:36:32 Z]  INFO: BuildConnectorRunner._operateService - config/almci.yml last modified 2017-01-08 23:33:27 Z,  size: 1240 chars
+[2017-01-08 23:36:33 Z]  INFO: BuildConnectorRunner._operateService - Time File value 2017-01-05 23:36:33 Z --- Now 2017-01-08 23:36:33 Z
+[2017-01-08 23:36:33 Z]  INFO: BLDConnector - Agile Central BLD Connector for Jenkins, version 0.9.6
+[2017-01-08 23:36:33 Z]  INFO: BLDConnector - Python platform: Darwin 14.5.0
+[2017-01-08 23:36:33 Z]  INFO: BLDConnector - Python  version: 3.5.1
+[2017-01-08 23:36:34 Z]  INFO: AgileCentralConnection - Initializing AgileCentral connection version 0.9.6
+[2017-01-08 23:36:34 Z]  INFO: AgileCentralConnection - Rally WSAPI Version v2.0
+[2017-01-08 23:36:34 Z]  INFO: JenkinsConnection - Initializing Jenkins connection version 0.9.6
+[2017-01-08 23:36:34 Z]  INFO: JenkinsConnection.connect - Connecting to Jenkins
+[2017-01-08 23:36:34 Z] DEBUG: JenkinsConnection._getJenkinsVersion - http://almci:80/manage
+[2017-01-08 23:36:35 Z] FATAL: JenkinsConnection._getJenkinsVersion(130) - <ConfigurationError> <title>Jenkins [Jenkins]</title>  status_code: 500
+[2017-01-08 23:36:35 Z] ERROR: BuildConnectorRunner.run - <title>Jenkins [Jenkins]</title>  status_code: 500
+
+************************************************************************************************************************
+
+     CA Agile Central BuildConnector for Jenkins  version 0.9.6  starting at: 2017-01-08 23:37:48 Z  with pid: 70845 
+           curdir: /Users/klehman/dev/github/bldeif
+          command: python /Applications/PyCharm CE.app/Contents/helpers/pydev/pydevd.py --multiproc --qt-support --client 127.0.0.1 --port 60856 --file jenaco almci.yml
+
+************************************************************************************************************************
+
+[2017-01-08 23:37:48 Z]  INFO: BuildConnectorRunner._operateService - processing to commence using content from config/almci.yml
+[2017-01-08 23:37:48 Z]  INFO: BuildConnectorRunner._operateService - config/almci.yml last modified 2017-01-08 23:36:33 Z,  size: 1264 chars
+[2017-01-08 23:37:48 Z]  INFO: BuildConnectorRunner._operateService - Time File value 2017-01-05 23:37:48 Z --- Now 2017-01-08 23:37:48 Z
+[2017-01-08 23:37:48 Z]  INFO: BLDConnector - Agile Central BLD Connector for Jenkins, version 0.9.6
+[2017-01-08 23:37:48 Z]  INFO: BLDConnector - Python platform: Darwin 14.5.0
+[2017-01-08 23:37:48 Z]  INFO: BLDConnector - Python  version: 3.5.1
+[2017-01-08 23:37:49 Z]  INFO: AgileCentralConnection - Initializing AgileCentral connection version 0.9.6
+[2017-01-08 23:37:49 Z]  INFO: AgileCentralConnection - Rally WSAPI Version v2.0
+[2017-01-08 23:37:49 Z]  INFO: JenkinsConnection - Initializing Jenkins connection version 0.9.6
+[2017-01-08 23:37:49 Z]  INFO: JenkinsConnection.connect - Connecting to Jenkins
+
+************************************************************************************************************************
+
+     CA Agile Central BuildConnector for Jenkins  version 0.9.6  starting at: 2017-01-08 23:38:25 Z  with pid: 70880 
+           curdir: /Users/klehman/dev/github/bldeif
+          command: python /Applications/PyCharm CE.app/Contents/helpers/pydev/pydevd.py --multiproc --qt-support --client 127.0.0.1 --port 60903 --file jenaco almci.yml
+
+************************************************************************************************************************
+
+[2017-01-08 23:38:25 Z]  INFO: BuildConnectorRunner._operateService - processing to commence using content from config/almci.yml
+[2017-01-08 23:38:25 Z]  INFO: BuildConnectorRunner._operateService - config/almci.yml last modified 2017-01-08 23:38:18 Z,  size: 1248 chars
+[2017-01-08 23:38:25 Z]  INFO: BuildConnectorRunner._operateService - Time File value 2017-01-05 23:38:25 Z --- Now 2017-01-08 23:38:25 Z
+[2017-01-08 23:38:25 Z]  INFO: BLDConnector - Agile Central BLD Connector for Jenkins, version 0.9.6
+[2017-01-08 23:38:25 Z]  INFO: BLDConnector - Python platform: Darwin 14.5.0
+[2017-01-08 23:38:25 Z]  INFO: BLDConnector - Python  version: 3.5.1
+[2017-01-08 23:38:26 Z]  INFO: AgileCentralConnection - Initializing AgileCentral connection version 0.9.6
+[2017-01-08 23:38:26 Z]  INFO: AgileCentralConnection - Rally WSAPI Version v2.0
+[2017-01-08 23:38:26 Z]  INFO: JenkinsConnection - Initializing Jenkins connection version 0.9.6
+[2017-01-08 23:38:26 Z]  INFO: JenkinsConnection.connect - Connecting to Jenkins
+[2017-01-08 23:38:29 Z] DEBUG: JenkinsConnection._getJenkinsVersion - http://almci.f4tech.com:80/manage
+
+************************************************************************************************************************
+
+     CA Agile Central BuildConnector for Jenkins  version 0.9.6  starting at: 2017-01-08 23:40:57 Z  with pid: 71041 
+           curdir: /Users/klehman/dev/github/bldeif
+          command: python /Applications/PyCharm CE.app/Contents/helpers/pydev/pydevd.py --multiproc --qt-support --client 127.0.0.1 --port 61085 --file jenaco almci.yml
+
+************************************************************************************************************************
+
+[2017-01-08 23:40:57 Z]  INFO: BuildConnectorRunner._operateService - processing to commence using content from config/almci.yml
+[2017-01-08 23:40:57 Z]  INFO: BuildConnectorRunner._operateService - config/almci.yml last modified 2017-01-08 23:40:48 Z,  size: 1269 chars
+[2017-01-08 23:40:57 Z]  INFO: BuildConnectorRunner._operateService - Time File value 2017-01-05 23:40:57 Z --- Now 2017-01-08 23:40:57 Z
+[2017-01-08 23:40:57 Z]  INFO: BLDConnector - Agile Central BLD Connector for Jenkins, version 0.9.6
+[2017-01-08 23:40:57 Z]  INFO: BLDConnector - Python platform: Darwin 14.5.0
+[2017-01-08 23:40:57 Z]  INFO: BLDConnector - Python  version: 3.5.1
+[2017-01-08 23:40:59 Z]  INFO: AgileCentralConnection - Initializing AgileCentral connection version 0.9.6
+[2017-01-08 23:40:59 Z]  INFO: AgileCentralConnection - Rally WSAPI Version v2.0
+[2017-01-08 23:40:59 Z]  INFO: JenkinsConnection - Initializing Jenkins connection version 0.9.6
+[2017-01-08 23:40:59 Z]  INFO: JenkinsConnection.connect - Connecting to Jenkins
+[2017-01-08 23:41:03 Z] DEBUG: JenkinsConnection._getJenkinsVersion - http://almci.f4tech.com:8080/manage
+[2017-01-08 23:41:21 Z]  INFO: JenkinsConnection.connect - Connected to Jenkins server: almci.f4tech.com running at version 2.39
+[2017-01-08 23:41:22 Z]  INFO: JenkinsConnection.connect - Url: http://almci.f4tech.com:8080
+[2017-01-08 23:41:22 Z] DEBUG: JenkinsConnection._checkJenkinsJobClassProp - http://almci.f4tech.com:8080/api/json
+[2017-01-08 23:41:34 Z]  INFO: JenkinsConnection.obtainJenkinsInventory - Jenkins initial query url: http://almci.f4tech.com:8080/api/json
+[2017-01-17 15:24:08 Z]  INFO: AgileCentralConnection.connect - Connecting to AgileCentral
+[2017-01-17 15:24:11 Z]  INFO: AgileCentralConnection.connect - Connected to Agile Central server: rally1.rallydev.com
+[2017-01-17 15:24:11 Z]  INFO: AgileCentralConnection.connect -     Workspace: Alligators BLD Unigrations
+[2017-01-17 15:24:11 Z]  INFO: AgileCentralConnection.connect -     Project  : Jenkins
+[2017-01-17 15:24:12 Z]  INFO: AgileCentralConnection.connect -     0 sub-projects
+[2017-01-17 15:24:14 Z]  INFO: BLDConnector.validate - Connector validation starting
+[2017-01-17 15:24:14 Z]  INFO: BLDConnector.validate - AgileCentralConnection validation succeeded
+[2017-01-17 15:24:14 Z] DEBUG: JenkinsConnection.validate - JenkinsConnection - user entry "jenkins" detected in config file
+[2017-01-17 15:24:14 Z] DEBUG: JenkinsConnection.validate - JenkinsConnection - password entry detected in config file
+[2017-01-17 15:24:14 Z] ERROR: JenkinsConnection.configItemsVetted - these views: 'All'  were not present in the Jenkins inventory of Views
+[2017-01-17 15:24:14 Z] ERROR: JenkinsConnection.validate - Some Jobs, Views, or Job Folders were invalid in your configuration
+[2017-01-17 15:24:14 Z]  INFO: BLDConnector.validate - JenkinsConnection validation failed
+[2017-01-17 15:24:15 Z] FATAL: BLDConnector.__init__(67) - <ConfigurationError> Validation failed
+[2017-01-17 15:24:27 Z] ERROR: BuildConnectorRunner.run - Validation failed
+
+************************************************************************************************************************
+
+     CA Agile Central BuildConnector for Jenkins  version 0.9.6  starting at: 2017-01-17 15:57:22 Z  with pid: 94932 
+           curdir: /Users/klehman/dev/github/bldeif
+          command: python /Applications/PyCharm CE.app/Contents/helpers/pydev/pydevd.py --multiproc --qt-support --client 127.0.0.1 --port 56570 --file jenaco almci.yml
+
+************************************************************************************************************************
+
+[2017-01-17 15:57:22 Z]  INFO: BuildConnectorRunner._operateService - processing to commence using content from config/almci.yml
+[2017-01-17 15:57:22 Z]  INFO: BuildConnectorRunner._operateService - config/almci.yml last modified 2017-01-17 15:56:57 Z,  size: 1315 chars
+[2017-01-17 15:57:22 Z]  INFO: BuildConnectorRunner._operateService - Time File value 2017-01-14 15:57:22 Z --- Now 2017-01-17 15:57:22 Z
+[2017-01-17 15:57:22 Z]  INFO: BLDConnector - Agile Central BLD Connector for Jenkins, version 0.9.6
+[2017-01-17 15:57:23 Z]  INFO: BLDConnector - Python platform: Darwin 14.5.0
+[2017-01-17 15:57:23 Z]  INFO: BLDConnector - Python  version: 3.5.1
+[2017-01-17 15:57:23 Z]  INFO: AgileCentralConnection - Initializing AgileCentral connection version 0.9.6
+[2017-01-17 15:57:23 Z]  INFO: AgileCentralConnection - Rally WSAPI Version v2.0
+[2017-01-17 15:57:23 Z]  INFO: JenkinsConnection - Initializing Jenkins connection version 0.9.6
+[2017-01-17 15:57:23 Z]  INFO: JenkinsConnection.connect - Connecting to Jenkins
+[2017-01-17 15:57:23 Z] DEBUG: JenkinsConnection._getJenkinsVersion - http://almci.f4tech.com:80/manage
+[2017-01-17 15:57:24 Z] FATAL: JenkinsConnection._getJenkinsVersion(130) - <ConfigurationError> <title>Jenkins [Jenkins]</title>  status_code: 500
+[2017-01-17 15:57:24 Z] ERROR: BuildConnectorRunner.run - <title>Jenkins [Jenkins]</title>  status_code: 500
+
+************************************************************************************************************************
+
+     CA Agile Central BuildConnector for Jenkins  version 0.9.6  starting at: 2017-01-17 15:58:42 Z  with pid: 94964 
+           curdir: /Users/klehman/dev/github/bldeif
+          command: python /Applications/PyCharm CE.app/Contents/helpers/pydev/pydevd.py --multiproc --qt-support --client 127.0.0.1 --port 56588 --file jenaco almci.yml
+
+************************************************************************************************************************
+
+[2017-01-17 15:58:42 Z]  INFO: BuildConnectorRunner._operateService - processing to commence using content from config/almci.yml
+[2017-01-17 15:58:42 Z]  INFO: BuildConnectorRunner._operateService - config/almci.yml last modified 2017-01-17 15:57:22 Z,  size: 1334 chars
+[2017-01-17 15:58:42 Z]  INFO: BuildConnectorRunner._operateService - Time File value 2017-01-14 15:58:42 Z --- Now 2017-01-17 15:58:42 Z
+[2017-01-17 15:58:42 Z]  INFO: BLDConnector - Agile Central BLD Connector for Jenkins, version 0.9.6
+[2017-01-17 15:58:42 Z]  INFO: BLDConnector - Python platform: Darwin 14.5.0
+[2017-01-17 15:58:42 Z]  INFO: BLDConnector - Python  version: 3.5.1
+[2017-01-17 15:58:42 Z]  INFO: AgileCentralConnection - Initializing AgileCentral connection version 0.9.6
+[2017-01-17 15:58:42 Z]  INFO: AgileCentralConnection - Rally WSAPI Version v2.0
+[2017-01-17 15:58:42 Z]  INFO: JenkinsConnection - Initializing Jenkins connection version 0.9.6
+[2017-01-17 15:58:42 Z]  INFO: JenkinsConnection.connect - Connecting to Jenkins
+[2017-01-17 15:58:43 Z] DEBUG: JenkinsConnection._getJenkinsVersion - http://almci.f4tech.com:80/manage
+[2017-01-17 15:58:43 Z] FATAL: JenkinsConnection._getJenkinsVersion(130) - <ConfigurationError> <title>Jenkins [Jenkins]</title>  status_code: 500
+[2017-01-17 15:58:43 Z] ERROR: BuildConnectorRunner.run - <title>Jenkins [Jenkins]</title>  status_code: 500
+
+************************************************************************************************************************
+
+     CA Agile Central BuildConnector for Jenkins  version 0.9.6  starting at: 2017-01-17 15:59:30 Z  with pid: 94977 
+           curdir: /Users/klehman/dev/github/bldeif
+          command: python /Applications/PyCharm CE.app/Contents/helpers/pydev/pydevd.py --multiproc --qt-support --client 127.0.0.1 --port 56603 --file jenaco almci.yml
+
+************************************************************************************************************************
+
+[2017-01-17 15:59:31 Z]  INFO: BuildConnectorRunner._operateService - processing to commence using content from config/almci.yml
+[2017-01-17 15:59:31 Z]  INFO: BuildConnectorRunner._operateService - config/almci.yml last modified 2017-01-17 15:58:42 Z,  size: 1315 chars
+[2017-01-17 15:59:31 Z]  INFO: BuildConnectorRunner._operateService - Time File value 2017-01-14 15:59:31 Z --- Now 2017-01-17 15:59:31 Z
+[2017-01-17 15:59:31 Z]  INFO: BLDConnector - Agile Central BLD Connector for Jenkins, version 0.9.6
+[2017-01-17 15:59:31 Z]  INFO: BLDConnector - Python platform: Darwin 14.5.0
+[2017-01-17 15:59:31 Z]  INFO: BLDConnector - Python  version: 3.5.1
+[2017-01-17 15:59:31 Z]  INFO: AgileCentralConnection - Initializing AgileCentral connection version 0.9.6
+[2017-01-17 15:59:31 Z]  INFO: AgileCentralConnection - Rally WSAPI Version v2.0
+[2017-01-17 15:59:31 Z]  INFO: JenkinsConnection - Initializing Jenkins connection version 0.9.6
+[2017-01-17 15:59:31 Z]  INFO: JenkinsConnection.connect - Connecting to Jenkins
+[2017-01-17 15:59:31 Z] DEBUG: JenkinsConnection._getJenkinsVersion - http://almci.f4tech.com:80/manage
+[2017-01-17 15:59:31 Z] FATAL: JenkinsConnection._getJenkinsVersion(130) - <ConfigurationError> <title>Jenkins [Jenkins]</title>  status_code: 500
+[2017-01-17 15:59:31 Z] ERROR: BuildConnectorRunner.run - <title>Jenkins [Jenkins]</title>  status_code: 500
+
+************************************************************************************************************************
+
+     CA Agile Central BuildConnector for Jenkins  version 0.9.6  starting at: 2017-01-17 15:59:51 Z  with pid: 94991 
+           curdir: /Users/klehman/dev/github/bldeif
+          command: python /Applications/PyCharm CE.app/Contents/helpers/pydev/pydevd.py --multiproc --qt-support --client 127.0.0.1 --port 56612 --file jenaco almci.yml
+
+************************************************************************************************************************
+
+[2017-01-17 15:59:51 Z]  INFO: BuildConnectorRunner._operateService - processing to commence using content from config/almci.yml
+[2017-01-17 15:59:51 Z]  INFO: BuildConnectorRunner._operateService - config/almci.yml last modified 2017-01-17 15:59:31 Z,  size: 1334 chars
+[2017-01-17 15:59:51 Z]  INFO: BuildConnectorRunner._operateService - Time File value 2017-01-14 15:59:51 Z --- Now 2017-01-17 15:59:51 Z
+[2017-01-17 15:59:51 Z]  INFO: BLDConnector - Agile Central BLD Connector for Jenkins, version 0.9.6
+[2017-01-17 15:59:51 Z]  INFO: BLDConnector - Python platform: Darwin 14.5.0
+[2017-01-17 15:59:51 Z]  INFO: BLDConnector - Python  version: 3.5.1
+[2017-01-17 15:59:52 Z]  INFO: AgileCentralConnection - Initializing AgileCentral connection version 0.9.6
+[2017-01-17 15:59:52 Z]  INFO: AgileCentralConnection - Rally WSAPI Version v2.0
+[2017-01-17 15:59:52 Z]  INFO: JenkinsConnection - Initializing Jenkins connection version 0.9.6
+[2017-01-17 15:59:52 Z]  INFO: JenkinsConnection.connect - Connecting to Jenkins
