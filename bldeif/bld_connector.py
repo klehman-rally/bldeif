@@ -216,7 +216,7 @@ class BLDConnector:
         self.log.debug("About to process %d unrecorded builds" % len(unrecorded_builds))
         for job, build, project, view in unrecorded_builds:
             if build.result == 'None':
-                self.log.warn("%s #%s job/build was not processed because is still running" %(job, build.number))
+                self.log.warn("%s #%s job/build was not processed because is still running" % (job, build.number))
                 continue
             #self.log.debug("current job: %s  build: %s" % (job, build))
             if not job in builds_posted:
@@ -226,7 +226,7 @@ class BLDConnector:
             if preview_mode:
                 continue
 
-            changesets, build_definition = agicen.prepAgileCentralBuildPrerequisites(build, project)
+            changesets, build_definition = agicen.prepAgileCentralBuildPrerequisites(job, build, project)
             agicen_build, status = self.postBuildToAgileCentral(build_definition, build, changesets, job)
             if agicen_build and status == 'posted':
                 builds_posted[job] += 1

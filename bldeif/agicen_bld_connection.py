@@ -365,7 +365,7 @@ class AgileCentralConnection(BLDConnection):
             self.build_def[project][job_name] = build_defn
 
 
-    def prepAgileCentralBuildPrerequisites(self, target_build, project):
+    def prepAgileCentralBuildPrerequisites(self, job, target_build, project):
         """
             Given a target_build which has information about a build that has been completed on
              some target build system, accommodate/create the following:
@@ -390,7 +390,7 @@ class AgileCentralConnection(BLDConnection):
 
             changesets = self.ensureChangesetsExist(scm_repo, project, ac_changesets, missing_changesets)
 
-        build_defn = self.ensureBuildDefinitionExists(target_build.name, project, target_build.vcs)
+        build_defn = self.ensureBuildDefinitionExists(job.fully_qualified_path(), project, target_build.vcs)
         return changesets, build_defn
 
 
@@ -522,46 +522,46 @@ class AgileCentralConnection(BLDConnection):
                 query = '(%s OR (%s = "%s"))' % (query, field, v)
             return query
 
-    def ensureBuildDefinitionExists(self, job, project, job_uri):
+    def ensureBuildDefinitionExists(self, job_path, project, job_uri):
         """
-            use the self.build_def dict keyed by project at first level, job name at second level
-            to determine if the job has a BuildDefinition for it.
+            use the self.build_def dict keyed by project at first level, job_path at second level
+            to determine if the job_path has a BuildDefinition for it.
 
             Returns a pyral BuildDefinition instance corresponding to the job (and project)
         """
-        if project in self.build_def and job in self.build_def[project]:
-            return self.build_def[project][job]
+        if project in self.build_def and job_path in self.build_def[project]:
+            return self.build_def[project][job_path]
 
         # do we have the BuildDefinition cache populated?  If not, do it now...
         if project not in self.build_def:  # to avoid build definition duplication
             self.log.debug("Detected build definition cache for the project: {} is empty, populating ...".format(project))
             self._fillBuildDefinitionCache(project)
 
-        # OK, the job is not in the BuildDefinition cache
-        # so look in the BuildDefinition cache to see if the job exists for the given project
+        # OK, the job_path is not in the BuildDefinition cache
+        # so look in the BuildDefinition cache to see if the job_path exists for the given project
         if project in self.build_def:
-            if job in self.build_def[project]:
-                return self.build_def[project][job]
+            if job_path in self.build_def[project]:
+                return self.build_def[project][job_path]
 
         target_project_ref = self._project_cache[project]
 
         bdf_info = {'Workspace' : self.workspace_ref,
                     'Project'   : target_project_ref,
-                    'Name'      : job,
+                    'Name'      : job_path,
                     'Uri'       : job_uri #something like {base_url}/job/{job} where base_url comes from other spoke conn
                    }
         try:
-            self.log.debug("Creating a BuildDefinition for job '%s' in Project '%s' ..." % (job, project))
+            self.log.debug("Creating a BuildDefinition for job '%s' in Project '%s' ..." % (job_path, project))
             build_defn = self.agicen.create('BuildDefinition', bdf_info, workspace=self.workspace_name, project=project)
         except Exception as msg:
-            self.log.error("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
-            raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
+            self.log.error("Unable to create a BuildDefinition for job: '%s';  %s" % (job_path, msg))
+            raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job_path, msg))
 
         # Put the freshly minted BuildDefinition in the BuildDefinition cache and return it
         if project not in self.build_def:
             self.build_def[project] = {}
 
-        self.build_def[project][job] = build_defn
+        self.build_def[project][job_path] = build_defn
         return build_defn
 
 

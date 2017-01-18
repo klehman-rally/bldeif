@@ -471,8 +471,9 @@ class JenkinsConnection(BLDConnection):
             key = '%s::%s' % (folder_name, ac_project)
             builds[key] = {}
             for job in self.vetted_folder_jobs[key]:
-                builds[key][job.name] = self.getFolderJobBuildHistory(folder_name, job, zulu_ref_time)
-                recent_builds_count += len(builds[key][job.name])
+                builds[key][job] = self.getFolderJobBuildHistory(folder_name, job, zulu_ref_time)
+                self.log.debug("retrieved %d builds for Job %s that occured after %s" % (len(builds[key][job]), job.fully_qualified_path(), ref_time_readable))
+                recent_builds_count += len(builds[key][job])
 
         for view_conf in self.views:
             view_name  = view_conf['View']
@@ -480,19 +481,19 @@ class JenkinsConnection(BLDConnection):
             key = '%s::%s' % (view_name, ac_project)
             builds[key] = {}
             for job in self.vetted_view_jobs[key]:
-                builds[key][job.name] = self.getBuildHistory(view_name, job, zulu_ref_time)
-                recent_builds_count += len(builds[key][job.name])
+                builds[key][job] = self.getBuildHistory(view_name, job, zulu_ref_time)
+                self.log.debug("retrieved %d builds for View Job %s that occured after %s" % (len(builds[key][job]), job.fully_qualified_path(), ref_time_readable))
+                recent_builds_count += len(builds[key][job])
 
         for job in self.jobs:
-            job_name = job['Job']
-            jenkins_job = self.inventory.getJob(job_name)
-            #jenkins_job = [job for job in self.inventory.jobs if job.name == job_name][0]
+            jenkins_job = self.inventory.getJob(job['Job'])
             ac_project = job.get('AgileCentral_Project', self.ac_project)
             key = 'All::%s' % ac_project
             if key not in builds:
                 builds[key] = {}
-            builds[key][job_name] = self.getBuildHistory('All', jenkins_job, zulu_ref_time)
-            recent_builds_count += len(builds[key][job_name])
+            builds[key][jenkins_job] = self.getBuildHistory('All', jenkins_job, zulu_ref_time)
+            self.log.debug("retrieved %d builds for Folder Job %s that occured after %s" % (len(builds[key][jenkins_job]), jenkins_job.fully_qualified_path(), ref_time_readable))
+            recent_builds_count += len(builds[key][jenkins_job])
 
         log_msg = "recently added Jenkins Builds detected: %s"
         self.log.info(log_msg % recent_builds_count)
@@ -573,9 +574,12 @@ class JenkinsJob:
         self.name      = info.get('name', 'UNKNOWN-ITEM')
         self._type     = info['_class'].split('.')[-1]
         self.url       = "%s/job/%s" % (container, self.name)
-
+        # job_path is really only for dev purposes of displaying a short, readable job path, e.g. "/frozique::australopithicus"
         self.job_path  = "%s::%s" % (re.sub(r'%s/?' % base_url, '', container), self.name)
         self.job_path  = '/'.join(re.split('/?job/?', self.job_path))
+
+    def fully_qualified_path(self):
+        return re.sub('https?://', '', self.url)
 
     def __str__(self):
         vj = "%s::%s" % (self.container, self.name)
