@@ -162,7 +162,7 @@ def test_identify_unrecorded_builds():
     config_path = 'config/dupes.yml'
     config_name = config_path.replace('config/', '')
     config_lookback = 0 # in minutes
-    last_run_zulu = create_time_file(config_name, minutes=60)
+    last_run_zulu = create_time_file(config_name, minutes=1)
     t = int(time.mktime(time.strptime(last_run_zulu, '%Y-%m-%d %H:%M:%S Z'))) - config_lookback
     last_run_minus_lookback_zulu = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.localtime(t))
     args = [config_name]
@@ -175,22 +175,19 @@ def test_identify_unrecorded_builds():
     jenk_conf = config.topLevel('Jenkins')
     jenkins_url = jsh.construct_jenkins_url(jenk_conf)
 
-    # r1 = jsh.build(jenk_conf, jenkins_url, job_name)
-    # assert r1.status_code in [200, 201]
-    # time.sleep(10)
-    # r2 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder1)
-    # assert r2.status_code in [200, 201]
-    # time.sleep(10)
-    # r3 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder2)
-    # assert r3.status_code in [200, 201]
-    # time.sleep(10)
+    r1 = jsh.build(jenk_conf, jenkins_url, job_name)
+    assert r1.status_code in [200, 201]
+    r2 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder1)
+    assert r2.status_code in [200, 201]
+    r3 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder2)
+    assert r3.status_code in [200, 201]
+    time.sleep(45)
 
     connector = BLDConnector(config, runner.log)
     connector.validate()
 
     print("our ref time: %s" % last_run_minus_lookback_zulu)
     agicen_ref_time = bld_ref_time = time.localtime(t)
-    #agicen_ref_time, bld_ref_time = connector.getRefTimes(t)
     recent_agicen_builds = connector.agicen_conn.getRecentBuilds(agicen_ref_time, connector.target_projects)
     recent_bld_builds = connector.bld_conn.getRecentBuilds(bld_ref_time)
     unrecorded_builds = connector._identifyUnrecordedBuilds(recent_agicen_builds, recent_bld_builds)
@@ -198,6 +195,14 @@ def test_identify_unrecorded_builds():
 
     # sort the unrecorded_builds into build chrono order, oldest to most recent, then project and job
     unrecorded_builds.sort(key=lambda build_info: (build_info[1].timestamp, build_info[2], build_info[1]))
+    paths = []
     for job, build, project, view in unrecorded_builds:
-        print ("build %s  Job full path: %s" % (build, job.fully_qualified_path()))
+        print ("build %s" % build)
+        paths.append(job.fully_qualified_path())
+
+    assert 'tiema03-u183073.ca.com:8080/job/abacab/job/bontamy/view/dark flock/job/black-swan-2' in paths
+    assert 'tiema03-u183073.ca.com:8080/job/black-swan-2' in paths
+    assert 'tiema03-u183073.ca.com:8080/job/Parkour/job/black-swan-2' in paths
+
+
 

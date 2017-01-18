@@ -12,7 +12,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.9.6"
+__version__ = "0.9.7"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -529,6 +529,9 @@ class AgileCentralConnection(BLDConnection):
 
             Returns a pyral BuildDefinition instance corresponding to the job (and project)
         """
+        # front-truncate the job_path if the string length of that is > 256 chars
+        if (len(job_path) > 256):
+            job_path = job_path[-256:]
         if project in self.build_def and job_path in self.build_def[project]:
             return self.build_def[project][job_path]
 

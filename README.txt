@@ -115,6 +115,25 @@
       can show you what Jenkins jobs would actually be considered without actually posting
       any build information to Agile Central.
 
+  Known Limitations
+
+      Within AgileCentral there is an entity called a BuildDefinition which for the purposes
+      of the Build Connector for Jenkins contains the name of the Jenkins job.  The Jenkins job
+      as recorded in a BuildDefinition item is the full URL of the Jenkins job, including any folder
+      and view elements.  A BuildDefinition Name is limited to 256 characters.  In the
+      event that a Jenkins job has a URL whose length exceeds 256 characters, the behavior of the
+      connector is to delete off leading chars on the the job URL such that the result is no longer
+      than 256 characters and this resulting string value is used as the BuildDefinition name.  Be aware that
+      in some edge cases you might have a Jenkins installation in which this type of modification of the full Job
+      URL for various Jenkins Job URLs could end up with the same abbreviated value.  We do not anticipate
+      that this will be a common occurence.  If you are in the situation where your Jenkins installation
+      contains folder and view names that are fairly long (> 40 chars per folder/view name) with a high
+      degree of nesting (> 6 levels) then you may need to alter your connnector config file(s) such that
+      jobs whose URL results in a string of > 256 chars are not specified in your config file.
+
+         Example Jenkins Job URL:  http://bigjenkins.stegasaurus.ancient:8080/job/ReallyLongScientificFolderName/.../job/FernCoveredLowlands/job/MickyDinosaur
+         Result   .../job/FernCoveredLowlands/job/MickDinosaur
+
 
   Appendix A  - Configuration file editing
                 --------------------------
