@@ -14,7 +14,7 @@ quote = urllib.parse.quote
 
 ############################################################################################
 
-__version__ = "0.9.7"
+__version__ = "0.9.8"
 
 ACTION_WORD_PATTERN = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
@@ -673,24 +673,63 @@ class JenkinsBuild(object):
         total = (self.timestamp + self.duration) / 1000
         self.finished = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(total))
 
-        self.vcs        = ''
+        self.vcs        = 'unknown'
         self.revisions  = ''
         self.repository = ''
         self.changeSets = []
-        if not raw[cs_label]['items']:
-            return
+        self.changeSets = self.extractChangeSetInformation(raw, cs_label)
 
-        self.vcs   = str(raw[cs_label]['kind'])
-        self.revisions = raw[cs_label]['revisions'] if cs_label in raw and 'revisions' in raw[cs_label] else None
 
-        getRepoName = {'git'  : self.ripActionsForRepositoryName,
-                       'svn'  : self.ripRevisionsForRepositoryName,
-                       None   : self.ripNothing
-                      }
-        self.repository = getRepoName[self.vcs]()
-        if self.vcs:
-            self.changeSets = self.ripChangeSets(self.vcs, raw[cs_label]['items'])
 
+    def extractChangeSetInformation(self, json, cs_label):
+        changesets = []
+
+        try:
+            if cs_label == 'changeSet':
+                if not json[cs_label]['items']:
+                    return
+                # raw['changeSets'] = [raw['changeSet']]
+                try:
+                    self.vcs = str(json[cs_label]['kind'])
+                except Exception as msg:
+                    self.log.warning('JenkinsBuild constructor unable to determine VCS kind, %s, marking vcs type as unknown' % (msg))
+                self.revisions = json[cs_label]['revisions'] if cs_label in json and 'revisions' in json[cs_label] else None
+
+                getRepoName = {'git': self.ripActionsForRepositoryName,
+                               'svn': self.ripRevisionsForRepositoryName,
+                               None: self.ripNothing
+                               }
+                self.repository = getRepoName[self.vcs]()
+                if self.vcs != 'unknown':
+                    self.changeSets = self.ripChangeSets(self.vcs, json[cs_label]['items'])
+
+            elif cs_label == 'changeSets':
+                if len(json[cs_label]) == 0:
+                    return
+
+                try:
+                    self.vcs = json[cs_label][0]['kind']
+                except Exception as msg:
+                    self.log.warning('JenkinsBuild constructor unable to determine VCS kind, %s, marking vcs type as unknown' % (msg))
+                    self.log.warning("We accessed your job's build JSON with this param %s and did not see 'kind' value" % BUILD_ATTRS)
+                self.revisions = json[cs_label][0]['revisions'] if cs_label in json and 'revisions' in json[cs_label][0] else None
+
+                getRepoName = {'git': self.ripActionsForRepositoryName,
+                               'svn': self.ripRevisionsForRepositoryName,
+                               None: self.ripNothing
+                               }
+                self.repository = getRepoName[self.vcs]()
+
+                if self.vcs != 'unknown':
+                    for ch in json[cs_label]:
+                        self.changeSets.extend(self.ripChangeSets(self.vcs, ch['items']))
+
+            csd = {changeset.commitId: changeset for changeset in self.changeSets}
+            self.changeSets = [chgs for chgs in csd.values()]
+        except Exception as msg:
+            self.log.warning('JenkinsBuild constructor unable to process %s information, %s' % (cs_label, msg))
+
+        return changesets
 
     def ripActionsForRepositoryName(self):
         repo = ''
