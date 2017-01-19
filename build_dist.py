@@ -10,8 +10,11 @@ import sys, os
 import zipfile
 import shutil
 
+sys.path.insert(0, './bldeif')
+import version
+
 PACKAGE_NAME = "bldeif"
-VERSION = "0.9.6"
+VERSION = version.__version__
 
 BASE_FILES = ['LICENSE',
              'README.txt',

@@ -131,12 +131,16 @@ def test_dont_duplicate_builds():
         tf.write(last_run_zulu)
 
     runner.run()
-    build_defs = util.get_build_definition(job_name, project=project)
+    jenk_conn = runner.connector.bld_conn
+    all_naked_jobs = jenk_conn.inventory.jobs
+    targeted = [job for job in all_naked_jobs if job.name == job_name]
+    target_job = targeted[0]
+    build_defs = util.get_build_definition(target_job.fully_qualified_path(), project=project)
     assert len(build_defs) == 1
     assert build_defs[0].Project.Name == project
 
     builds = util.get_ac_builds(build_defs[0], project=project)
-    assert len(builds) == 3
+    assert len(builds) == 10
     assert [build for build in builds if build.Number in ['8', '9', '10']]
     assert [build for build in builds if build.Number == '8' and build.Status == 'SUCCESS']
     assert [build for build in builds if build.Number == '9' and build.Status == 'FAILURE']
@@ -147,7 +151,7 @@ def test_dont_duplicate_builds():
         tf.write(last_run_zulu)
 
     runner.run()
-    build_defs = util.get_build_definition(job_name, project=project)
+    build_defs = util.get_build_definition(target_job.fully_qualified_path(), project=project)
     assert len(build_defs) == 1
 
     builds = util.get_ac_builds(build_defs[0], project=project)

@@ -160,6 +160,7 @@ def test_ensureSCMRepositoryExists():
         "paths": [{"editType": "edit","file": "foobar"}]
     }
     bogus_raw = {'id':'666','number':'42', 'result':'SUCCESS',
+                 '_class'    : 'hudson.model.FreeStyleBuild',
                  'timestamp' : int(time.time()),
                  'duration'  : 1000, 'url': 'http://xyz:8080',
                  'actions'   : [{'remoteUrls': [name]}],
@@ -173,6 +174,7 @@ def test_ensureSCMRepositoryExists():
     name = 'beta/wombat/.git'
     scm_type = 'git'
     bogus_raw = {'id': '123', 'number': '1', 'result': 'SUCCESS',
+                 '_class': 'hudson.model.FreeStyleBuild',
                  'timestamp': int(time.time()),
                  'duration': 1000, 'url': 'http://xyz:8080',
                  'actions': [{'remoteUrls': [name]}],
@@ -208,7 +210,8 @@ def test_build_with_GIT_commit():
     assert jc.connect()
     folder_job_builds_url = "http://tiema03-u183073.ca.com:8080/job/immovable%20wombats/job/Top/api/json?tree=builds[number,id,description,timestamp,duration,result,url,actions[remoteUrls],changeSet[*[*[*]]]]"
     raw_builds = requests.get(folder_job_builds_url, auth=jc.creds).json()['builds']
-    some_build_num = 71
+
+    some_build_num = raw_builds[-1]['number']
     build = [build for build in raw_builds if build['number'] == some_build_num][0]
     assert build['changeSet']['kind'] == 'git'
     assert 'revisions' not in build['changeSet']

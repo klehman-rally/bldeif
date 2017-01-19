@@ -42,6 +42,20 @@ def test_jobs_bucket():
     assert next((job for job in jobs if job.job_path == "/frozique::australopithicus"))
     assert next((job for job in jobs if job.name == "troglodyte"))
 
+    pipeline_jobs = [job for job in jc.inventory.jobs if job._type == 'WorkflowJob']
+    assert len(pipeline_jobs) == 2
+    plj = pipeline_jobs[0]
+    assert plj.name == 'pipe dream'
+    multijob_jobs = [job for job in jc.inventory.jobs if job._type == 'MultiJobProject']
+    assert len(multijob_jobs) == 1
+
+    folder_jobs = jc.inventory.folders['/frozique'].jobs
+    pipeline_jobs = [job for job in folder_jobs if job._type == 'WorkflowJob']
+    assert len(pipeline_jobs) == 1
+    assert pipeline_jobs[0].name == 'peace on earth'
+
+
+
 def test_views_bucket():
     jc = connect_to_jenkins(STANDARD_CONFIG)
     assert jc.connect()

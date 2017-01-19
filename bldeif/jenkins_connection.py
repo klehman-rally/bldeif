@@ -509,6 +509,8 @@ class JenkinsConnection(BLDConnection):
         JOB_BUILDS_ENDPOINT = "/api/json?tree=builds[%s]" % BUILD_ATTRS
         urlovals = {'prefix': self.base_url, 'view': quote(view), 'job': quote(job.name)}
         job_builds_url = job.url + (JOB_BUILDS_ENDPOINT.format(**urlovals))
+        if job._type == 'WorkflowJob':
+            job_builds_url = job_builds_url.replace('changeSet', 'changeSets')
         self.log.debug("view: %s  job: %s  req_url: %s" % (view, job, job_builds_url))
         raw_builds = requests.get(job_builds_url, auth=self.creds, proxies=self.http_proxy).json()['builds']
         qualifying_builds = self.extractQualifyingBuilds(job.name, None, ref_time, raw_builds)
@@ -516,6 +518,8 @@ class JenkinsConnection(BLDConnection):
 
     def getFolderJobBuildHistory(self, folder_name, job, ref_time):
         folder_job_builds_url = job.url + ('/api/json?tree=builds[%s]' % FOLDER_JOB_BUILD_ATTRS)
+        if job._type == 'WorkflowJob':
+            folder_job_builds_url = folder_job_builds_url.replace('changeSet', 'changeSets')
         self.log.debug("folder: %s  job: %s  req_url: %s" % (folder_name, job.name, folder_job_builds_url))
         raw_builds = requests.get(folder_job_builds_url, auth=self.creds, proxies=self.http_proxy).json()['builds']
         qualifying_builds = self.extractQualifyingBuilds(job.name, folder_name, ref_time, raw_builds)
@@ -635,6 +639,9 @@ class JenkinsBuild(object):
         self.result = str(raw['result'])
         self.actions = raw['actions']
         self.result = 'INCOMPLETE' if self.result == 'ABORTED' else self.result
+        cs_label = 'changeSet'
+        if str(raw['_class']).endswith('.WorkflowRun'):
+            cs_label = 'changeSets'
 
         self.id_str = str(raw['id'])
         self.Id     = self.id_str
@@ -670,11 +677,11 @@ class JenkinsBuild(object):
         self.revisions  = ''
         self.repository = ''
         self.changeSets = []
-        if not raw['changeSet']['items']:
+        if not raw[cs_label]['items']:
             return
 
-        self.vcs   = str(raw['changeSet']['kind'])
-        self.revisions = raw['changeSet']['revisions'] if 'changeSet' in raw and 'revisions' in raw['changeSet'] else None
+        self.vcs   = str(raw[cs_label]['kind'])
+        self.revisions = raw[cs_label]['revisions'] if cs_label in raw and 'revisions' in raw[cs_label] else None
 
         getRepoName = {'git'  : self.ripActionsForRepositoryName,
                        'svn'  : self.ripRevisionsForRepositoryName,
@@ -682,7 +689,7 @@ class JenkinsBuild(object):
                       }
         self.repository = getRepoName[self.vcs]()
         if self.vcs:
-            self.changeSets = self.ripChangeSets(self.vcs, raw['changeSet']['items'])
+            self.changeSets = self.ripChangeSets(self.vcs, raw[cs_label]['items'])
 
 
     def ripActionsForRepositoryName(self):

@@ -621,7 +621,7 @@ class AgileCentralConnection(BLDConnection):
         """
         criteria = ['BuildDefinition.ObjectID = %s' % build_defn.ObjectID, 'Number = %s' % number]
         response = self.agicen.get('Build', fetch="CreationDate,Number,Name,BuildDefinition,Project", query=criteria,
-                                            workspace=self.workspace_name, project=self.project_name, projectScopeDown=True)
+                                            workspace=self.workspace_name, project=None)
 
         if response.resultCount:
             return response.next()

@@ -231,7 +231,7 @@ def test_namesake_projects():
     # if so, get all such commit IDs and their associated Changeset ObjectID, then
     # add that "collection" as the Build's Changesets collection
 
-    agicen_build = bc.postBuildsToAgileCentral(build_defn, build, [], job_name)
+    agicen_build, status = bc.postBuildToAgileCentral(build_defn, build, [], job_name)
     assert agicen_build.BuildDefinition.ref == build_defn.ref
 
     # build_defn = agiconn.agicen.ensureBuildDefinitionExistence(job, 'Jenkins', True, build_job_uri)
