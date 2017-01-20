@@ -677,58 +677,16 @@ class JenkinsBuild(object):
         self.revisions  = ''
         self.repository = ''
         self.changeSets = []
-        #self.changeSets = self.extractChangeSetInformation(raw, cs_label)
         self.extractChangeSetInformation(raw, cs_label)
 
 
     def extractChangeSetInformation(self, json, cs_label):
-        #changesets = []
-
-        # try:
-        #     if cs_label == 'changeSet':
-        #         if not json[cs_label]['items']:
-        #             return
-        #         # raw['changeSets'] = [raw['changeSet']]
-        #         try:
-        #             self.vcs = str(json[cs_label]['kind'])
-        #         except Exception as msg:
-        #             self.log.warning('JenkinsBuild constructor unable to determine VCS kind, %s, marking vcs type as unknown' % (msg))
-        #         self.revisions = json[cs_label]['revisions'] if cs_label in json and 'revisions' in json[cs_label] else None
-        #
-        #         getRepoName = {'git': self.ripActionsForRepositoryName,
-        #                        'svn': self.ripRevisionsForRepositoryName,
-        #                        None: self.ripNothing
-        #                        }
-        #         self.repository = getRepoName[self.vcs]()
-        #         if self.vcs != 'unknown':
-        #             self.changeSets = self.ripChangeSets(self.vcs, json[cs_label]['items'])
-        #
-        #     elif cs_label == 'changeSets':
-        #         if len(json[cs_label]) == 0:
-        #             return
-        #
-        #         try:
-        #             self.vcs = json[cs_label][0]['kind']
-        #         except Exception as msg:
-        #             self.log.warning('JenkinsBuild constructor unable to determine VCS kind, %s, marking vcs type as unknown' % (msg))
-        #             self.log.warning("We accessed your job's build JSON with this param %s and did not see 'kind' value" % BUILD_ATTRS)
-        #         self.revisions = json[cs_label][0]['revisions'] if cs_label in json and 'revisions' in json[cs_label][0] else None
-        #
-        #         getRepoName = {'git': self.ripActionsForRepositoryName,
-        #                        'svn': self.ripRevisionsForRepositoryName,
-        #                        None: self.ripNothing
-        #                        }
-        #         self.repository = getRepoName[self.vcs]()
-        #
-        #         if self.vcs != 'unknown':
-        #             for ch in json[cs_label]:
-        #                 self.changeSets.extend(self.ripChangeSets(self.vcs, ch['items']))
-        #
-        #     csd = {changeset.commitId: changeset for changeset in self.changeSets}
-        #     self.changeSets = [chgs for chgs in csd.values()]
-        # except Exception as msg:
-        #     self.log.warning('JenkinsBuild constructor unable to process %s information, %s' % (cs_label, msg))
-
+        """
+             A FreestyleJob build has changeset info in the json under the 'changeSet' element, but
+             WorkflowRun build has the equivalent changeset info under the 'changeSets' element as a list.
+             Here we transform the FreestyleJob changeset info into the one element 'changeSets' list so
+             that the processing is conistent.
+        """
         try:
             if cs_label == 'changeSet':
                 json['changeSets'] = [json['changeSet']]
@@ -754,7 +712,7 @@ class JenkinsBuild(object):
             self.changeSets = [chgs for chgs in csd.values()]
         except Exception as msg:
             self.log.warning('JenkinsBuild constructor unable to process %s information, %s' % (cs_label, msg))
-        #return changesets
+
 
     def ripActionsForRepositoryName(self):
         repo = ''
