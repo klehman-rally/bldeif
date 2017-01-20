@@ -365,7 +365,9 @@ class JenkinsConnection(BLDConnection):
             diff = [name for name in config_folder_names if name not in folder_names]
             if diff:
                 villains = ', '.join(["'%s'" % d for d in diff])
+                max_depth_comment = "Check if MaxDepth value %s in config is sufficient to reach these folders" % self.config['MaxDepth']
                 self.log.error("these folders: %s  were not present in the Jenkins inventory of Folders" % villains)
+                self.log.error(max_depth_comment)
                 return False
 
             for folder in self.folders:

@@ -83,6 +83,9 @@ class BLDConnector:
 
         default_project = self.agicen_conf['Project']
 
+        if not self.svc_conf.get('FullFolderPath', None):
+            self.svc_conf['FullFolderPath'] = False
+
         # create a list of AgileCentral_Project values, start with the default project value
         # and then add add as you see overrides in the config.
         # eventually, we'll strip out any duplicates
