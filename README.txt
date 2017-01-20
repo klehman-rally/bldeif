@@ -132,7 +132,39 @@
       jobs whose URL results in a string of > 256 chars are not specified in your config file.
 
          Example Jenkins Job URL:  http://bigjenkins.stegasaurus.ancient:8080/job/ReallyLongScientificFolderName/.../job/FernCoveredLowlands/job/MickyDinosaur
-         Result   .../job/FernCoveredLowlands/job/MickDinosaur
+         Result   .../job/FernCoveredLowlands/job/MickyDinosaur
+
+
+      The connector will process jobs under named folders, there is not currently the facility to specify an upper level
+      folder and process all jobs directly in that folder and in any contained folders in any level of nesting.
+      To get jobs in folders to be processed you must specify the folder name in the config file.
+
+      You may have a nested folder structure as illustrated below:
+       - upper folder
+         -- job 1
+         -- lower folder
+            -- job 2
+
+       To insure that both job 1 and job 2 are picked up by the connector the Folders section of the config file must look as follows:
+          Folders:
+            - Folder : upper folder
+            - Folder : lower folder
+
+       **** Provisional
+       ****  If you have multiple folders in various locations in your Jenkins Job organization that have the same name,
+       ****  you must specify each folder using a fully qualified path with ' // ' as a separator between each folder/view level.
+         Example:
+             Folders:
+                 - Folder: Area 51 // Intermediate Stuff // Good Stuff
+                 - Folder: Level1 //  Level 2 // Level 3 // Good Stuff
+
+
+       VCS support: currently connector will process changesets related to builds as long as related job is using a Git repository.
+       Some configurations with Subversion have been successful, but there are combinations of Jenkins version, Subversion version and
+         Jenkins Subversion plugin version that do not work with our connector due to variances in the json data returned for the
+         build information.
+         We recommend using a designated VCS connector for Subversion along with Jenkins connector to capture commit/changeSet and build information.
+         In those cases set ShowVCSData property in the Jenkins config file to False.
 
 
   Appendix A  - Configuration file editing
@@ -239,8 +271,4 @@
 
 
 
-Duplicate Job Names
--------------------
-   At the current time, if you have Job names in your Jenkins installation that are duplicated but in different views/folders
-the connector configuration has no way to disambiguate those names.  One way to handle that situation is to specify the job 
-implicitly (without naming it) using a View or a Folder in the connector's configuration file.
+
