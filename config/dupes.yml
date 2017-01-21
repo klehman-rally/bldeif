@@ -1,4 +1,3 @@
-
 ---
 JenkinsBuildConnector:
 
@@ -6,7 +5,7 @@ JenkinsBuildConnector:
         Server    :  rally1.rallydev.com
         APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
         Workspace :  Alligators BLD Unigrations
-        Lookback  :  120
+        Lookback  :  0
 
     Jenkins:
         Protocol  :  http
@@ -15,29 +14,24 @@ JenkinsBuildConnector:
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
         Password  :  encoded-T-m-9-u-Z-Q-=-=
-        FullFolderPath: True
+        MaxDepth  :  4
         AgileCentral_DefaultBuildProject :  Jenkins
-        Lookback  :  30000
-
-        Views:
-            - View: Prairie
-              include: ^blue*
-              exclude: ^stem,fumar,launch
-              AgileCentral_Project: Salamandra
 
         Jobs:
-            - Job: troglodyte
-              AgileCentral_Project: Salamandra
+            - Job: black-swan-2
 
         Folders:
-            - Folder : immovable wombats
-              AgileCentral_Project: Static
+            - Folder : Parkour
+              AgileCentral_Project: Salamandra
+
+
+        Views:
+            - View: dark flock
 
     Service:
         Preview       : False
         LogLevel      : DEBUG
         MaxBuilds     : 50
         ShowVCSData   : True
-
 
 ...

@@ -71,6 +71,7 @@ class JenkinsConnection(BLDConnection):
         self.api_token  = config.get("API_Token", '')
         self.debug      = config.get("Debug", False)
         self.max_items  = config.get("MaxItems", 1000)
+        self.full_folder_path = config.get("FullFolderPath", False)
         self.ac_project = config.get("AgileCentral_DefaultBuildProject", None)
         self.views      = config.get("Views", [])
         self.jobs       = config.get("Jobs", [])
@@ -314,13 +315,94 @@ class JenkinsConnection(BLDConnection):
             self.log.error("No Jobs, Views, or job Folders were provided in your configuration")
             satisfactory = False
 
-        if not self.configItemsVetted():
+
+        if self.full_folder_path:
+            vetted = self.fullyPathedConfigItemsVetted()
+        else:
+            vetted =  self.nonFullyPathedConfigItemsVetted()
+
+        if not vetted:
             self.log.error("Some Jobs, Views, or Job Folders were invalid in your configuration")
             satisfactory = False
 
         return satisfactory
 
-    def configItemsVetted(self):
+    def fullyPathedConfigItemsVetted(self):
+        """
+            Mash the self.jobs, self.views and self.folders
+            against what is in our self.inventory.  If there are items/sub-items in
+            the config structure that aren't in the self.inventory, call a foul and get out.
+            Otherwise declare a Trump-like victory!
+
+            The config items for folder and view have to be fully qualified.
+        """
+        self.vetted_jobs        = []
+        self.vetted_view_jobs   = {}
+        self.vetted_folder_jobs = {}
+
+        if self.jobs:
+            job_names = [job.name.replace('::','') for job in self.inventory.jobs]
+            config_job_names = [job['Job'] for job in self.jobs]
+            diff = set(config_job_names) - set(job_names)
+            if diff:
+                villains = ', '.join(["'%s'" % d for d in diff])
+                self.log.error("these jobs: %s  were not present in the Jenkins inventory of Jobs" % villains)
+                return False
+
+            self.vetted_jobs = [job for job in self.inventory.jobs if job.name in config_job_names]
+
+        if self.views:
+            pass
+            # placeholder until we get folders dealt with successfully
+
+        if self.folders:
+            folder_names = [folder_name.rsplit('/', 1)[-1] for folder_name in self.inventory.folders.keys()]
+            folder_map = self.inventory.getFullyQualifiedFolderMapping()
+
+            config_folder_names = [folder['Folder'] for folder in self.folders]
+            # other means of detecting things in config_folder_names that are not in folder_names
+            diff = [name for name in config_folder_names if name not in folder_map.keys()]
+            if diff:
+                villains = ', '.join(["'%s'" % d for d in diff])
+                max_depth_comment = "Check if MaxDepth value %s in config is sufficient to reach these folders" % self.config['MaxDepth']
+                self.log.error("these folders: %s  were not present in the Jenkins inventory of Folders" % villains)
+                self.log.error(max_depth_comment)
+                return False
+
+            for folder in self.folders:
+                folder_name = folder['Folder']
+                ac_project  = folder.get('AgileCentral_Project', self.ac_project)
+                key = '%s::%s' % (folder_name, ac_project)
+                #folder_jobs = self.getQualifyingFolderJobs(folder)
+                folder_jobs = self.getMatchingFullyQualifiedFolderPathJobs(folder)
+                self.vetted_folder_jobs[key] = folder_jobs
+
+        return True
+
+
+    def getMatchingFullyQualifiedFolderPathJobs(self, folder):
+        folder_path = folder['Folder']
+        jenkins_folder = self.inventory.getFolderByPath(folder_path)
+        all_folder_jobs = jenkins_folder.jobs
+
+        included_jobs = all_folder_jobs[:]
+        if 'include' in folder:
+            inclusions = folder.get('include', '*')
+            inclusions = inclusions.replace('*', '\.*')
+            include_patt = "(%s)" % '|'.join(re.split(', ?', inclusions))
+            included_jobs = [job for job in all_folder_jobs if re.search(include_patt, job.name) != None]
+
+        excluded_jobs = []
+        if 'exclude' in folder and folder['exclude']:
+            exclusions = folder.get('exclude')
+            exclusions = exclusions.replace('*', '\.*')
+            exclude_patt = "(%s)" % '|'.join(re.split(', ?', exclusions))
+            excluded_jobs = [job for job in all_folder_jobs if re.search(exclude_patt, job.name) != None]
+
+        qualifying_jobs = list(set(included_jobs) - set(excluded_jobs))
+        return qualifying_jobs
+
+    def nonFullyPathedConfigItemsVetted(self):
         """
             Mash the self.jobs, self.views and self.folders
             against what is in our self.inventory.  If there are items/sub-items in
@@ -572,6 +654,27 @@ class JenkinsInventory:
 
         return jobs[0]
 
+    def getFullyQualifiedFolderMapping(self):
+        # maps folder's path representation from the config file to the folder's path
+        #fm = {" // ".join(re.split(r'\/', key)[1:]) : key for key in self.folders.keys()}
+        fm = {}
+        for fk in sorted(self.folders.keys()):
+            #tfk = fk.replace(self.base_url,'')
+            path_components = re.split(r'\/', fk)[1:]
+            fqpath = " // ".join(path_components)
+            print(fqpath)
+            fm[fqpath] = fk
+
+        return fm
+
+    def getFolderByPath(self, folder_path):
+        folder_map = self.getFullyQualifiedFolderMapping()
+        if folder_path in folder_map:
+            folder = self.folders[folder_map[folder_path]]
+            return folder
+        return None
+
+
 ##############################################################################################
 
 class JenkinsJob:
@@ -619,7 +722,8 @@ class JenkinsJobsFolder:
     def __init__(self, info, container='/',  folder_url=''):
         self.name      = '/%s' % info['name']
         job_container  = "%s/job%s" % (container, self.name)
-        self.url       = "%s/job/%s" % (folder_url, self.name)
+        #self.url       = "%s/job/%s" % (folder_url, self.name)
+        self.url       = job_container
         self.jobs      = [JenkinsJob(job, job_container, base_url=folder_url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
 
     def __str__(self):

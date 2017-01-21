@@ -80,11 +80,7 @@ class BLDConnector:
         self.agicen_conf['Project'] = self.bld_conf['AgileCentral_DefaultBuildProject']
         self.svc_conf    = config.topLevel('Service')
         self.max_builds  = self.svc_conf.get('MaxBuilds', 20)
-
         default_project = self.agicen_conf['Project']
-
-        if not self.svc_conf.get('FullFolderPath', None):
-            self.svc_conf['FullFolderPath'] = False
 
         # create a list of AgileCentral_Project values, start with the default project value
         # and then add add as you see overrides in the config.
