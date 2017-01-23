@@ -19,6 +19,10 @@ OTHER_CONFIG   = 'nebuchadnezzar.yml'
 SHALLOW_CONFIG = 'shallow.yml'
 DSF_CONFIG     = 'deepstatefolders.yml'
 DSFN_CONFIG    = 'dsfn.yml'
+DOS_WOMBATS_CONFIG = 'two_wombats.yml'
+BANG_CONFIG    = 'bangladesh.yml'
+POLPOT_CONFIG  = 'polpot.yml'
+LONG_JOHN_CONFIG = 'long-john-silver.yml'
 
 def connect_to_jenkins(config_file):
     #config_file = 'config/honey-badger.yml'
@@ -108,31 +112,81 @@ def test_getFullyQualifiedFolderKeys():
     assert 'Junkpile // westhalf // lights' in fookey.keys()
     assert fookey['Junkpile // westhalf // lights'] == '/Junkpile/westhalf/lights'
 
-# def test_vetting():
-#     base_url = 'http://foobar.com'
-#     folders_keys = ['http://foobar.com/job/Doofus', 'http://foobar.com/job/Junkpile/job/westhalf/job/lights']
-#     folders_from_config = ['Doofus', 'Junkpile // westhalf // lights', 'Junkpile // wrong // lights']
-#
-#     fqks = [" // ".join(re.split(r'\/job\/', key.replace(base_url, ''))[1:]) for key in folders_keys]
+def test_folder_name_referenced_multiple_times_with_no_full_folder_path_config():
+    log_file = 'log/%s.log' % DOS_WOMBATS_CONFIG.replace('.yml', '')
+    os.path.exists(log_file) and os.remove(log_file)
+    open(log_file, 'a').close()
+    of = sh.OutputFile(log_file)
+    expectedErrPattern = 'Validation failed'
+    with pytest.raises(Exception) as excinfo:
+        get_bld_connector(DOS_WOMBATS_CONFIG)
+    actualErrVerbiage = excinfo.value.args[0]
+    assert expectedErrPattern in actualErrVerbiage
 
-# 5) FullFolderPath False/missing and Jenkins section has Folder name that appears more than once in the config
+    log_output = of.readlines()
+    error_lines = [line for line in log_output if 'ERROR' in line]
+    dupe_folder_line = [line for line in error_lines if 'Duplicated folder names: immovable wombats' in line][0]
+    full_path_line = [line for line in error_lines if 'You should use the FullFolderPath' in line][0]
+    assert dupe_folder_line
+    assert full_path_line
 
+def test_config_uses_full_folder_path_with_second_level_folder_specified():
+    connector = get_bld_connector(DSF_CONFIG)
+    jenk_conf = connector.config.topLevel('Jenkins')
+    assert jenk_conf.get('FullFolderPath', None)
+    jenk = connector.bld_conn
+    assert jenk.vetted_folder_jobs
+    bontamies = [k for k in jenk.vetted_folder_jobs.keys() if 'bontamy' in k]
+    assert bontamies
+    assert len(bontamies) == 2
 
+def test_improperly_specified_folder_name_in_full_folder_path_env():
+    log_file = 'log/%s.log' % BANG_CONFIG.replace('.yml', '')
+    os.path.exists(log_file) and os.remove(log_file)
+    open(log_file, 'a').close()
+    of = sh.OutputFile(log_file)
+    expectedErrPattern = 'Validation failed'
+    with pytest.raises(Exception) as excinfo:
+        get_bld_connector(BANG_CONFIG)
+    actualErrVerbiage = excinfo.value.args[0]
+    assert expectedErrPattern in actualErrVerbiage
 
-#
-# 2) FullFolderPath True and Jenkins section has valid second level folder expressed as FullFolderPath
-#
-# 3) FullFolderPath True and Jenkins section has name of existing folder at second level but not expressed as FullFolderPath
-#
-# 4) FullFolderPath False/missing and Jenkins section has Folder name that appears more than once in the inventory
-#
+    log_output = of.readlines()
+    error_lines = [line for line in log_output if 'ERROR' in line][2]
+    error = "Check if your Folder entries use the fully qualified path syntax"
+    mo = re.search(error, error_lines)
+    assert mo is not None
 
-#
-# 6) FullFolderPath True and Jenkins section has two different paths ending with same leaf name (valid folder names)
-#
-# 9) FullFolderPath True and Jenkins section has Folder entry as fully qualified that doesn't exist
-#
-# 7) FullFolderPath True and Jenkins section has two different folder paths ending with same leaf name but only one path actually exists
-#
-# 10) FullFolderPath True and Jenkins section has Folder with n path components where n = (jc.maxDepth)
+def test_invalid_folder_path():
+    log_file = 'log/%s.log' % POLPOT_CONFIG.replace('.yml', '')
+    os.path.exists(log_file) and os.remove(log_file)
+    open(log_file, 'a').close()
+    of = sh.OutputFile(log_file)
+    expectedErrPattern = 'Validation failed'
+    with pytest.raises(Exception) as excinfo:
+        get_bld_connector(POLPOT_CONFIG)
+    actualErrVerbiage = excinfo.value.args[0]
+    assert expectedErrPattern in actualErrVerbiage
 
+    log_output = of.readlines()
+    error_lines = [line for line in log_output if 'ERROR' in line][0]
+    error = "were not present in the Jenkins inventory of Folders"
+    mo = re.search(error, error_lines)
+    assert mo is not None
+
+def test_too_long_folder_path_for_small_maxDepth():
+    log_file = 'log/%s.log' % LONG_JOHN_CONFIG.replace('.yml', '')
+    os.path.exists(log_file) and os.remove(log_file)
+    open(log_file, 'a').close()
+    of = sh.OutputFile(log_file)
+    expectedErrPattern = 'Validation failed'
+    with pytest.raises(Exception) as excinfo:
+        get_bld_connector(LONG_JOHN_CONFIG)
+    actualErrVerbiage = excinfo.value.args[0]
+    assert expectedErrPattern in actualErrVerbiage
+
+    log_output = of.readlines()
+    error_lines = [line for line in log_output if 'ERROR' in line][1]
+    error = "Check if MaxDepth value .* in config is sufficient to reach these folders"
+    mo = re.search(error, error_lines)
+    assert mo is not None

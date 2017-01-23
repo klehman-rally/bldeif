@@ -18,22 +18,8 @@ JenkinsBuildConnector:
         FullFolderPath: True
         AgileCentral_DefaultBuildProject :  Jenkins
 
-
-#        Jobs:
-#            - Job: troglodyte
-#            - Job: australopithicus
-#
-#        Views:
-#            - View: Prairie
-#              include: ^blue*
-#              exclude: ^stem,fumar,launch
-#
-#            - View: Cliffside
-
         Folders:
-            - Folder : bontamy
-            - Folder : abacab // bontamy
-            #- Folder : bontamy // bontamy
+            - Folder : bang-ladesh
 
     Service:
         Preview       : False

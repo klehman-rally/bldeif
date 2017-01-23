@@ -6,6 +6,7 @@ import re
 import time
 
 import requests
+from collections import Counter
 
 from bldeif.connection import BLDConnection
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError
@@ -313,8 +314,10 @@ class JenkinsConnection(BLDConnection):
 
         if not (self.views or self.folders or self.jobs):
             self.log.error("No Jobs, Views, or job Folders were provided in your configuration")
-            satisfactory = False
+            return False
 
+        if self.duplicate_items_found():
+            return False
 
         if self.full_folder_path:
             vetted = self.fullyPathedConfigItemsVetted()
@@ -326,6 +329,36 @@ class JenkinsConnection(BLDConnection):
             satisfactory = False
 
         return satisfactory
+
+    def duplicate_items_found(self):
+        job_names    = [j['Job'] for j in self.jobs]
+        dupe_jobs    = [name for name, count in Counter(job_names).items() if count > 1]
+
+        folder_names = [f['Folder'] for f in self.folders]
+        dupe_folders = [name for name, count in Counter(folder_names).items() if count > 1]
+
+        view_names   = [v['Views'] for v in self.views]
+        dupe_views   = [name for name, count in Counter(view_names).items() if count > 1]
+
+        has_dupes = False
+
+        if dupe_jobs:
+            self.log.error("Duplicated job names: %s" % ", ".join(dupe_jobs))
+            has_dupes = True
+
+        if dupe_folders:
+            self.log.error("Duplicated folder names: %s" % ", ".join(dupe_folders))
+            has_dupes = True
+
+        if dupe_views:
+            self.log.error("Duplicated view names: %s" % ", ".join(dupe_views))
+            has_dupes = True
+
+        if has_dupes:
+            self.log.error('You should use the FullFolderPath : True config specification to be able to process duplicately named elements.')
+
+        return has_dupes
+
 
     def fullyPathedConfigItemsVetted(self):
         """
@@ -364,9 +397,12 @@ class JenkinsConnection(BLDConnection):
             diff = [name for name in config_folder_names if name not in folder_map.keys()]
             if diff:
                 villains = ', '.join(["'%s'" % d for d in diff])
-                max_depth_comment = "Check if MaxDepth value %s in config is sufficient to reach these folders" % self.config['MaxDepth']
                 self.log.error("these folders: %s  were not present in the Jenkins inventory of Folders" % villains)
+                max_depth_comment = "Check if MaxDepth value %s in config is sufficient to reach these folders" % self.config['MaxDepth']
                 self.log.error(max_depth_comment)
+                if self.config['FullFolderPath']:
+                    fqp_comment = "Check if your Folder entries use the fully qualified path syntax"
+                    self.log.error(fqp_comment)
                 return False
 
             for folder in self.folders:
@@ -692,7 +728,7 @@ class JenkinsJob:
 
     def __str__(self):
         vj = "%s::%s" % (self.container, self.name)
-        return "%-80.80s  %s" % (vj, self._type)
+        return "%s  %s" % (vj, self._type)
 
     def __repr__(self):
         return str(self)

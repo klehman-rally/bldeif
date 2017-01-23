@@ -441,7 +441,8 @@ class AgileCentralConnection(BLDConnection):
         """
         repo_name = repo_name.replace('\\','/')
         name = repo_name.split('/')[-1]
-        response = self.agicen.get('SCMRepository', fetch="Name,ObjectID", query = '(Name contains "{0}")'.format(name))
+        criteria = '(Name contains "{0}")'.format(name)
+        response = self.agicen.get('SCMRepository', fetch="Name,ObjectID", query = criteria, project=None)
         if response.resultCount:
             scm_repos = [item for item in response]
             exact_matches = [scm_repo for scm_repo in scm_repos if scm_repo.Name.lower() == repo_name.lower()]
@@ -601,7 +602,7 @@ class AgileCentralConnection(BLDConnection):
 
         try:
             build = self.agicen.create('Build', int_work_item)
-            self.log.debug("  Created Build: %-36.36s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
+            self.log.debug("  Created Build: %-56.56s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
         except Exception as msg:
             print("AgileCentralConnection._createInternal detected an Exception, {0}".format(sys.exc_info()[1]))
             excp_type, excp_value, tb = sys.exc_info()

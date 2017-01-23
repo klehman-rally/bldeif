@@ -141,29 +141,35 @@ def test_duplicate_job_names():
 def test_job_vetting():
     jc = connect_to_jenkins(MIN_CONFIG1)
     assert jc.connect()
-    assert jc.configItemsVetted()
+    #assert jc.configItemsVetted()
+    assert jc.nonFullyPathedConfigItemsVetted()
 
     jc = connect_to_jenkins(BAD_CONFIG1)
     assert jc.connect()
-    assert not jc.configItemsVetted()
+    #assert not jc.configItemsVetted()
+    assert not jc.nonFullyPathedConfigItemsVetted()
 
 def test_view_vetting():
     jc = connect_to_jenkins(MIN_CONFIG2)
     assert jc.connect()
-    assert jc.configItemsVetted()
+    #assert jc.configItemsVetted()
+    assert jc.nonFullyPathedConfigItemsVetted()
 
     jc = connect_to_jenkins(BAD_CONFIG2)
     assert jc.connect()
-    assert not jc.configItemsVetted()
+    #assert not jc.configItemsVetted()
+    assert not jc.nonFullyPathedConfigItemsVetted()
 
 def test_folder_vetting():
     jc = connect_to_jenkins(MIN_CONFIG3)
     assert jc.connect()
-    assert jc.configItemsVetted()
+    #assert jc.configItemsVetted()
+    assert jc.nonFullyPathedConfigItemsVetted()
 
     jc = connect_to_jenkins(BAD_CONFIG3)
     assert jc.connect()
-    assert not jc.configItemsVetted()
+    #assert not jc.configItemsVetted()
+    assert not jc.nonFullyPathedConfigItemsVetted()
 
 def test_log_for_config_vetting():
     config_file = BAD_CONFIG1
@@ -190,7 +196,8 @@ def test_shallow_depth_config():
     ref_time = t.utctimetuple()
     jc = connect_to_jenkins(SHALLOW_CONFIG)
     assert jc.connect()
-    assert not jc.configItemsVetted()
+    #assert not jc.configItemsVetted()
+    assert not jc.nonFullyPathedConfigItemsVetted()
 
     log_output = of.readlines()
     error_lines = [line for line in log_output if 'ERROR' in line][0]
@@ -203,7 +210,8 @@ def test_deepy_depth_config():
     ref_time = t.utctimetuple()
     jc = connect_to_jenkins(DEEP_CONFIG)
     assert jc.connect()
-    assert jc.configItemsVetted()
+    #assert jc.configItemsVetted()
+    assert jc.nonFullyPathedConfigItemsVetted()
 
     log_output = of.readlines()
     error_lines = [line for line in log_output if 'ERROR' in line]
@@ -215,7 +223,8 @@ def test_deepy_depth_config():
 def test_validate_jobs():
     jc = connect_to_jenkins(DUPES)
     assert jc.connect()
-    assert jc.configItemsVetted()
+    #assert jc.configItemsVetted()
+    assert jc.nonFullyPathedConfigItemsVetted()
 
     assert type(jc.vetted_jobs) == type(['a', 'b'])
     bs2 = [job for job in jc.vetted_jobs if job.job_path.split('::') == ['', 'black-swan-2']]
