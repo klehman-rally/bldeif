@@ -337,7 +337,7 @@ class JenkinsConnection(BLDConnection):
         folder_names = [f['Folder'] for f in self.folders]
         dupe_folders = [name for name, count in Counter(folder_names).items() if count > 1]
 
-        view_names   = [v['Views'] for v in self.views]
+        view_names   = [v['View'] for v in self.views]
         dupe_views   = [name for name, count in Counter(view_names).items() if count > 1]
 
         has_dupes = False
@@ -385,11 +385,31 @@ class JenkinsConnection(BLDConnection):
             self.vetted_jobs = [job for job in self.inventory.jobs if job.name in config_job_names]
 
         if self.views:
-            pass
-            # placeholder until we get folders dealt with successfully
+            #view_names = [view_name.rsplit('/', 1)[-1] for view_name in self.inventory.views.keys()]
+            view_map = self.inventory.getFullyQualifiedViewMapping()
+
+            config_view_names = [view['View'] for view in self.views]
+            # other means of detecting things in config_view_names that are not in view_names
+            diff = [name for name in config_view_names if name not in view_map.keys()]
+            if diff:
+                villains = ', '.join(["'%s'" % d for d in diff])
+                self.log.error("these views: %s  were not present in the Jenkins inventory of Views" % villains)
+                max_depth_comment = "Check if MaxDepth value %s in config is sufficient to reach these views" % self.config['MaxDepth']
+                self.log.error(max_depth_comment)
+                if self.config['FullFolderPath']:
+                    fqp_comment = "Check if your View entries use the fully qualified path syntax"
+                    self.log.error(fqp_comment)
+                return False
+
+            for view in self.views:
+                view_name = view['View']
+                ac_project  = view.get('AgileCentral_Project', self.ac_project)
+                key = '%s::%s' % (view_name, ac_project)
+                view_jobs = self.getMatchingFullyQualifiedViewPathJobs(view)
+                self.vetted_view_jobs[key] = view_jobs
 
         if self.folders:
-            folder_names = [folder_name.rsplit('/', 1)[-1] for folder_name in self.inventory.folders.keys()]
+            #folder_names = [folder_name.rsplit('/', 1)[-1] for folder_name in self.inventory.folders.keys()]
             folder_map = self.inventory.getFullyQualifiedFolderMapping()
 
             config_folder_names = [folder['Folder'] for folder in self.folders]
@@ -409,7 +429,6 @@ class JenkinsConnection(BLDConnection):
                 folder_name = folder['Folder']
                 ac_project  = folder.get('AgileCentral_Project', self.ac_project)
                 key = '%s::%s' % (folder_name, ac_project)
-                #folder_jobs = self.getQualifyingFolderJobs(folder)
                 folder_jobs = self.getMatchingFullyQualifiedFolderPathJobs(folder)
                 self.vetted_folder_jobs[key] = folder_jobs
 
@@ -437,6 +456,29 @@ class JenkinsConnection(BLDConnection):
 
         qualifying_jobs = list(set(included_jobs) - set(excluded_jobs))
         return qualifying_jobs
+
+    def getMatchingFullyQualifiedViewPathJobs(self, view):
+        view_path = view['View']
+        jenkins_view = self.inventory.getViewByPath(view_path)
+        all_view_jobs = jenkins_view.jobs
+
+        included_jobs = all_view_jobs[:]
+        if 'include' in view:
+            inclusions = view.get('include', '*')
+            inclusions = inclusions.replace('*', '\.*')
+            include_patt = "(%s)" % '|'.join(re.split(', ?', inclusions))
+            included_jobs = [job for job in all_view_jobs if re.search(include_patt, job.name) != None]
+
+        excluded_jobs = []
+        if 'exclude' in view and view['exclude']:
+            exclusions = view.get('exclude')
+            exclusions = exclusions.replace('*', '\.*')
+            exclude_patt = "(%s)" % '|'.join(re.split(', ?', exclusions))
+            excluded_jobs = [job for job in all_view_jobs if re.search(exclude_patt, job.name) != None]
+
+        qualifying_jobs = list(set(included_jobs) - set(excluded_jobs))
+        return qualifying_jobs
+
 
     def nonFullyPathedConfigItemsVetted(self):
         """
@@ -711,6 +753,26 @@ class JenkinsInventory:
         return None
 
 
+    def getFullyQualifiedViewMapping(self):
+        # maps view's path representation from the config file to the folder's path
+        #fm = {" // ".join(re.split(r'\/', key)[1:]) : key for key in self.folders.keys()}
+        vm = {}
+        for vk in sorted(self.views.keys()):
+            path_components = re.split(r'\/', vk)[1:]
+            fqpath = " // ".join(path_components)
+            print(fqpath)
+            vm[fqpath] = vk
+
+        return vm
+
+    def getViewByPath(self, view_path):
+        view_map = self.getFullyQualifiedViewMapping()
+        if view_path in view_map:
+            folder = self.views[view_map[view_path]]
+            return folder
+        return None
+
+
 ##############################################################################################
 
 class JenkinsJob:
@@ -736,14 +798,15 @@ class JenkinsJob:
 #############################################################################################
 
 class JenkinsView:
-    def __init__(self, info, container='/',  base_url=''):
-        self.container = container
-        self.name      = info['name']  # .get('name', 'UNKNOWN-ITEM')
-        self._type     = info['_class'].split('.')[-1]
-        self.url       = "%s/view/%s" % (base_url, self.name)
-        self.jobs = []
-        if info['jobs']:
-            self.jobs      = [JenkinsJob(job, self.url, base_url=self.url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
+    def __init__(self, info, container='/', base_url=''):
+        self.name = '/%s' % info['name']
+        if container == '/':
+            job_container  = "%s/view%s" % (base_url, self.name)
+        else:
+            job_container = "%s/view%s" % (container, self.name)
+
+        self.url  = job_container
+        self.jobs = [JenkinsJob(job, job_container, base_url=base_url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
 
     def __str__(self):
         vj = "%s::%s" % (self.container, self.name)
@@ -758,7 +821,6 @@ class JenkinsJobsFolder:
     def __init__(self, info, container='/',  folder_url=''):
         self.name      = '/%s' % info['name']
         job_container  = "%s/job%s" % (container, self.name)
-        #self.url       = "%s/job/%s" % (folder_url, self.name)
         self.url       = job_container
         self.jobs      = [JenkinsJob(job, job_container, base_url=folder_url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
 

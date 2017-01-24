@@ -418,7 +418,7 @@ def test_existing_job():
     jobs = [my_job, other_job ]
     jc = sh.build_immovable_wombats(folder, jobs)
     jc.validate()
-    time.sleep(10)
+    time.sleep(15)
 
     builds = jc.getRecentBuilds(ref_time.utctimetuple())
     #target_job_builds = [build_info[my_job] for container_proj, build_info in builds.items() if my_job in build_info.keys()][0]
