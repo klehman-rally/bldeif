@@ -208,7 +208,7 @@ class FileOutput(StreamOutput):
         self.using_stdout = False
 
         try:
-            self.stream = open(fname, mode)
+            self.stream = open(fname, mode, encoding='utf-8')
         except Exception as msg:
             problem = 'Error opening logfile: %s --> %s, using stdout instead\n' % (fname, msg)
             sys.stderr.write(problem)

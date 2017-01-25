@@ -158,7 +158,7 @@ class BuildConnectorRunner(object):
         bsn = 'UNKNOWN'
         limit = 5
         ix = 0
-        with open(file_name, 'r') as fcf:
+        with open(file_name, 'r', encoding="utf-8") as fcf:
             while ix < limit:
                 text_line = fcf.readline()
                 ix += 1

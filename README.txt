@@ -150,13 +150,17 @@
             - Folder : upper folder
             - Folder : lower folder
 
-       **** Provisional
-       ****  If you have multiple folders in various locations in your Jenkins Job organization that have the same name,
-       ****  you must specify each folder using a fully qualified path with ' // ' as a separator between each folder/view level.
-         Example:
-             Folders:
-                 - Folder: Area 51 // Intermediate Stuff // Good Stuff
-                 - Folder: Level1 //  Level 2 // Level 3 // Good Stuff
+       If you have multiple folders in various locations in your Jenkins Job organization that have the same name,
+       you must specify each folder using a fully qualified path with ' // ' as a separator between each folder/view level.
+         Example config file snippet...
+             Jenkins:
+                 ...
+                 MaxDepth : 5
+                 FullFolderPath : True
+                 ...
+                 Folders:
+                     - Folder: Area 51 // Intermediate Stuff // Good Stuff
+                     - Folder: Level1 //  Level 2 // Level 3 // Good Stuff
 
 
        VCS support: currently connector will process changesets related to builds as long as related job is using a Git repository.
@@ -270,6 +274,31 @@
                                # are made successfully, you can change this value to True
          LogLevel     : INFO   # This is the default value, can also be DEBUG, WARN, ERROR. DEBUG is very verbose
          MaxBuilds    : 100    # Use a non-negative integer value. This "limit" pertains to builds for a particular job.
+
+
+ Appendix C: AgileCentral Project specification
+     In AgileCentral, project names do not have to be unique. The connector provides a mechanism of distinguishing projects with the same name.
+     For example, if a fragment of a project tree looks like this:
+
+     |__ Jenkins
+         |__ Salamandra
+         |__ Corral
+             |__ Salamandra
+
+     we recommend that in order for the build definitions to be assigned to the intended projects in AC the following syntax should be used:
+
+
+      Example config file snippet...
+
+        Jenkins:
+            ...
+            AgileCentral_DefaultBuildProject :  Jenkins
+
+            Jobs:
+                - Job: monitor sub-tropical habitat
+                  AgileCentral_Project: Jenkins // Salamandra
+                - Job: fill the water bottles
+                  AgileCentral_Project: Jenkins // Corral // Salamandra
 
  ------  end of the file ---------------------------------------
 

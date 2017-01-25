@@ -307,9 +307,6 @@ class BLDConnector:
         reflected_builds   = []
         unrecorded_builds  = []
 
-        def schemeShave(url):
-            return re.sub('^https?://', '', url)
-
         for view_and_project, jobs in bld_builds.items():
             view, project = view_and_project.split('::', 1)
             for job, builds in jobs.items():
@@ -318,8 +315,9 @@ class BLDConnector:
                     if project in agicen_builds:
                         job_builds = agicen_builds[project]
                         # now look for a matching job in job_builds
-                        if schemeShave(job.url) in job_builds:
-                            ac_build_nums = [int(bld.Number) for bld in job_builds[schemeShave(job.url)]]
+                        job_fqp = job.fully_qualified_path()
+                        if job_fqp in job_builds:
+                            ac_build_nums = [int(bld.Number) for bld in job_builds[job_fqp]]
                             if build.number in ac_build_nums:
                                 reflected_builds.append((job, build, project, view))
                                 continue

@@ -47,7 +47,7 @@ class Konfabulator(object):
 
         content = []
         try:
-            cf = open(config_file_name, 'r')
+            cf = open(config_file_name, 'r', encoding='utf-8')
         except IOError as msg:
             raise ConfigurationError('Unable to open %s for reading, %s' % (config_file_name, msg))
         content = cf.read()
@@ -166,7 +166,7 @@ class Konfabulator(object):
             
         conf_lines = []
         try:
-            cf = open(self.config_file_name, 'r')
+            cf = open(self.config_file_name, 'r', encoding='utf-8')
         except IOError as msg:
             raise ConfigurationError('Unable to open %s for reading, %s' % (self.config_file_name, msg))
         conf_lines = cf.readlines()
@@ -191,7 +191,7 @@ class Konfabulator(object):
             conf_lines[pwent_ix] = '        Password  :  %s\n' % encoded_password
 
         enc_file_name = '%s.pwenc' % self.config_file_name
-        enf = open(enc_file_name, 'w')
+        enf = open(enc_file_name, 'w', encoding='utf-8')
         enf.write(''.join(conf_lines))
         enf.close()
        

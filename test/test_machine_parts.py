@@ -222,7 +222,6 @@ def test_builds_same_repo():
     config_file = 'same_scmrepo.yml'
     z = "2017-01-24 17:17:10 Z"
     last_run_zulu = create_time_file(config_file, zulu_time=z, minutes=60)
-    #t = int(time.mktime(time.strptime(last_run_zulu, '%Y-%m-%d %H:%M:%S Z')))  - config_lookback
     t = int(time.mktime(time.strptime(last_run_zulu, '%Y-%m-%d %H:%M:%S Z')))
     last_run_minus_lookback_zulu = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.localtime(t))
     args = [config_file]
@@ -233,15 +232,42 @@ def test_builds_same_repo():
     target_projects = runner.connector.target_projects
     assert 'Jenkins // Salamandra' in target_projects
     assert 'Jenkins // Corral // Salamandra' in target_projects
+
+
+def test_special_chars():
+    config_file = 'aouch.yml'
+    z = "2017-01-24 17:17:10 Z"
+    last_run_zulu = create_time_file(config_file, zulu_time=z, minutes=60)
+    t = int(time.mktime(time.strptime(last_run_zulu, '%Y-%m-%d %H:%M:%S Z')))
+    args = [config_file]
+    runner = BuildConnectorRunner(args)
+    assert runner.first_config == config_file
+
+    runner.run()
     log = "log/{}.log".format(config_file.replace('.yml', ''))
     assert runner.logfile_name == log
 
-    with open(log, 'r') as f:
+    with open(log, 'r', encoding='utf-8') as f:
         log_content = f.readlines()
 
-    line = "recent Builds query: CreationDate >= {}".format(last_run_minus_lookback_zulu)
+    target_line = "showQualifiedJobs -     áâèüSørençñ"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)
 
-    match = [line for line in log_content if "{}".format(line) in line][-1]
+    target_line = "東方青龍"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)
 
-#    assert re.search(r'%s' % line, match)
 
+def test_lock():
+    lock = 'LOCK.tmp'
+    config_path = 'config/wombat.yml'
+    config_name = config_path.replace('config/', '')
+    args = [config_name]
+    runner = BuildConnectorRunner(args)
+    assert runner.acquireLock()
+    assert os.path.isfile(lock)
+    assert os.path.abspath(lock) == "%s/%s" % (os.getcwd(), lock)
+    runner._operateService(config_path)
+    runner.releaseLock()
+    assert not os.path.isfile(lock)
