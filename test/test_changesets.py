@@ -15,17 +15,17 @@ from bldeif.utils.konfabulus import Konfabulator
 from bldeif.agicen_bld_connection import AgileCentralConnection
 import utility as util
 
-STANDARD_CONFIG = 'honey-badger.yml'
-MIN_CONFIG1     = 'bluestem.yml'
-MIN_CONFIG2     = 'cliffside.yml'
-MIN_CONFIG3     = 'crinkely.yml'
-BAD_CONFIG1     = 'attila.yml'
-BAD_CONFIG2     = 'genghis.yml'
-BAD_CONFIG3     = 'caligula.yml'
-SHALLOW_CONFIG  = 'shallow.yml'
-DEEP_CONFIG     = 'deepstate.yml'
-SVN_CONFIG      = 'sarajevo.yml'
-PIPE_CONFIG     = 'pipe.yml'
+STANDARD_CONFIG  = 'honey-badger.yml'
+MIN_CONFIG1      = 'bluestem.yml'
+MIN_CONFIG2      = 'cliffside.yml'
+MIN_CONFIG3      = 'crinkely.yml'
+BAD_CONFIG1      = 'attila.yml'
+BAD_CONFIG2      = 'genghis.yml'
+BAD_CONFIG3      = 'caligula.yml'
+SHALLOW_CONFIG   = 'shallow.yml'
+DEEP_CONFIG      = 'deepstate.yml'
+SVN_CONFIG       = 'sarajevo.yml'
+PIPE_CONFIG      = 'pipe.yml'
 
 def connect_to_jenkins(config_file):
     config_file = "config/{}".format(config_file)

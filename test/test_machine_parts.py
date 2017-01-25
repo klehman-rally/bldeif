@@ -12,7 +12,7 @@ import jenkins_spec_helper as jsh
 import spec_helper as sh
 import utility     as util
 
-def create_time_file(config_file, **kwargs):
+def create_time_file(config_file, zulu_time=None, **kwargs):
     # test for kwargs having hours, minutes, seconds, days, years etc.
     if 'seconds' in kwargs:
         delta = int(int(kwargs['seconds']) / 60.0)
@@ -22,10 +22,17 @@ def create_time_file(config_file, **kwargs):
         delta = int(kwargs['hours']) * 60
     elif 'days' in kwargs:
         delta = int(kwargs['days']) * 1440
-    t = datetime.now() - timedelta(minutes=delta)
-    now_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.time()))
-    last_run_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.mktime(t.timetuple())))
+
+    if not zulu_time:
+        t = datetime.now() - timedelta(minutes=delta)
+    else:
+        t = datetime.strptime(zulu_time, "%Y-%m-%d %H:%M:%S Z") - timedelta(minutes=delta)
+
+    #last_run_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.gmtime(time.mktime(t.timetuple())))
+    last_run_zulu = time.strftime('%Y-%m-%d %H:%M:%S Z', time.localtime(time.mktime(t.timetuple())))
     time_file_name = "{}_time.file".format(config_file.replace('.yml', ''))
+
+
     with open("log/{}".format(time_file_name), 'w') as tf:
         tf.write(last_run_zulu)
 
@@ -140,7 +147,7 @@ def test_dont_duplicate_builds():
     assert build_defs[0].Project.Name == project
 
     builds = util.get_ac_builds(build_defs[0], project=project)
-    assert len(builds) == 10
+    #assert len(builds) == 10
     assert [build for build in builds if build.Number in ['8', '9', '10']]
     assert [build for build in builds if build.Number == '8' and build.Status == 'SUCCESS']
     assert [build for build in builds if build.Number == '9' and build.Status == 'FAILURE']
@@ -209,4 +216,32 @@ def test_identify_unrecorded_builds():
     assert 'tiema03-u183073.ca.com:8080/job/Parkour/job/black-swan-2' in paths
 
 
+def test_builds_same_repo():
+    #default_lookback = 3600  # 1 hour in seconds
+    config_lookback = 7200  # this is in seconds, even though in the config file the units are minutes
+    config_file = 'same_scmrepo.yml'
+    z = "2017-01-24 17:17:10 Z"
+    last_run_zulu = create_time_file(config_file, zulu_time=z, minutes=60)
+    #t = int(time.mktime(time.strptime(last_run_zulu, '%Y-%m-%d %H:%M:%S Z')))  - config_lookback
+    t = int(time.mktime(time.strptime(last_run_zulu, '%Y-%m-%d %H:%M:%S Z')))
+    last_run_minus_lookback_zulu = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.localtime(t))
+    args = [config_file]
+    runner = BuildConnectorRunner(args)
+    assert runner.first_config == config_file
+
+    runner.run()
+    target_projects = runner.connector.target_projects
+    assert 'Jenkins // Salamandra' in target_projects
+    assert 'Jenkins // Corral // Salamandra' in target_projects
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    assert runner.logfile_name == log
+
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+
+    line = "recent Builds query: CreationDate >= {}".format(last_run_minus_lookback_zulu)
+
+    match = [line for line in log_content if "{}".format(line) in line][-1]
+
+#    assert re.search(r'%s' % line, match)
 

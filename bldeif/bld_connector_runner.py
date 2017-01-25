@@ -146,6 +146,7 @@ class BuildConnectorRunner(object):
                 if own_lock: self.releaseLock()
             except Exception as msg:
                 raise OperationalError("ERROR: unable to remove lock file '%s', %s" % (LOCK_FILE, msg))
+        self.log.info('run completed')
 
     def identifyBuildSystemName(self):
         file_name = self.find_config_file(self.first_config)

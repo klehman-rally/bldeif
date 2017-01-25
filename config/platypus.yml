@@ -17,13 +17,13 @@ JenkinsBuildConnector:
         MaxDepth  :  5
         AgileCentral_DefaultBuildProject :  Jenkins
 
-        Jobs:
-            - Job: centaur-mordant
-              AgileCentral_Project: Jenkins // Salamandra
-        
         Folders:
             - Folder: frozique
               AgileCentral_Project: Jenkins // Corral // Salamandra
+        
+        Jobs:
+            - Job: centaur-mordant
+              AgileCentral_Project: Jenkins // Salamandra
         
 
     Service:

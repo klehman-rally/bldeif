@@ -235,16 +235,20 @@
          API_Token   : 320ca9ae9408d099183aa052ff3199c2  # O can use in place of Password when credentials required
          MaxDepth    : 3                          # O  how many folder levels will be considered, default is three
                                                   #    this will accommodate a scenario like AlphaFolder // BetaFolder // CherryFolder and the jobs in that folder
+         FullFolderPath : False                   # O (default is False)  False value indicates Folder and View names only need the leaf name not the full path
+                                                  #   When set to True Folder and Value names must use the full path syntax, example:
+                                                  #       Some Top Level Folder // some second level folder // target folder name
+                                                  #   The path component separator is ' // '.
          AgileCentral_DefaultProject : an Agile Central Project name  # R
 
          Folders:
              - Folder: a folder name
-               include: toaster,microwave,stove  # O use adequate non-ambiguous patterns of job names to include 
-                                                 #   only those specified. this example would include the jobs
-                                                 #   stove-hot, stove-warm, stove-burning
+               include: toaster,microwave,stove   # O use adequate non-ambiguous patterns of job names to include
+                                                  #   only those specified. this example would include the jobs
+                                                  #   stove-hot, stove-warm, stove-burning
              - Folder: another folder name
-               exclude: beta-,post-prod      # O use adequate non-ambiguous patterns of job names to exclude, 
-                                             # you do not have to specify the full job name
+               exclude: beta-,post-prod           # O use adequate non-ambiguous patterns of job names to exclude,
+                                                  # you do not have to specify the full job name
                AgileCentral_Project: Divison X // National // Engineering
 
          Views:
@@ -255,7 +259,7 @@
                exclude: pre-prod
 
          Jobs:
-             - Job   : job name
+             - Job   : job name             # only top level jobs can be listed here. Jobs nested in Views or Folders must be listed in respective sections
                AgileCentral_Project: Beta Test for Northeast
              - Job   : another job name     # this job with a unique name could live in some view or folder not at the top level
 

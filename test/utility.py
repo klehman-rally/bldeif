@@ -254,4 +254,3 @@ def test_extract_fids():
     commit_message = "<b>US123:</b> done, <b>DE1:</b> fixed"
     assert extract_fids(commit_message) == ['US123', 'DE1']
 
-

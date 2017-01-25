@@ -291,14 +291,12 @@ class AgileCentralConnection(BLDConnection):
             self.log.info(log_msg % (response.resultCount, project))
 
             for build in response:
-                project_name = build.BuildDefinition.Project.Name
-                build_name   = build.BuildDefinition.Name
-                if project_name not in builds:
-                    builds[project_name] = {}
-                if build_name not in builds[project_name]:
-                    builds[project_name][build_name] = []
-                builds[project_name][build_name].append(build)
-
+                build_name = build.BuildDefinition.Name
+                if project not in builds:
+                    builds[project] = {}
+                if build_name not in builds[project]:
+                    builds[project][build_name] = []
+                builds[project][build_name].append(build)
         return builds
 
 
@@ -311,7 +309,8 @@ class AgileCentralConnection(BLDConnection):
                                        query=selectors,
                                        workspace=self.workspace_name,
                                        project=project,
-                                       projectScopeDown=True,
+                                       projectScopeDown=False,
+                                       projectScopeUp=False,
                                        order="CreationDate",
                                        pagesize=200, limit=2000
                                        )
@@ -341,13 +340,13 @@ class AgileCentralConnection(BLDConnection):
             return response.next()
         return None
 
-    def _fillBuildDefinitionCache(self,project):
+    def _fillBuildDefinitionCache(self, project):
         response = self.agicen.get('BuildDefinition',
                                   fetch='ObjectID,Name,Project,LastBuild,Uri', 
                                   query='Name != "Default Build Definition"',
                                   workspace=self.workspace_name,
                                   project=project,
-                                  projectScopeUp=False, projectScopeDown=True, 
+                                  projectScopeUp=False, projectScopeDown=False,
                                   order='Project.Name,Name')
 
         if response.errors:
@@ -358,7 +357,6 @@ class AgileCentralConnection(BLDConnection):
            #print("_fillBuildDefinitionCache:  BuildDefinition  Project: %s  JobName: %s" % \
            #        (build_defn.Project.Name, build_defn.Name))
 ##
-            project  = build_defn.Project.Name
             job_name = build_defn.Name
             if not project in self.build_def:
                 self.build_def[project] = {}

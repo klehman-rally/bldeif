@@ -225,8 +225,18 @@ class BLDConnector:
             if preview_mode:
                 continue
 
-            changesets, build_definition = agicen.prepAgileCentralBuildPrerequisites(job, build, project)
-            agicen_build, status = self.postBuildToAgileCentral(build_definition, build, changesets, job)
+            try:
+                changesets, build_definition = agicen.prepAgileCentralBuildPrerequisites(job, build, project)
+            except Exception as msg:
+                self.log.error('OperationalException prepACBuildPrerequisites - %s' % msg)
+                continue
+
+            try:
+                agicen_build, status = self.postBuildToAgileCentral(build_definition, build, changesets, job)
+            except Exception as msg:
+                self.log.error('OperationalException postingACBuild - %s' % msg)
+                continue
+
             if agicen_build and status == 'posted':
                 builds_posted[job] += 1
                 if job not in recorded_builds:
@@ -297,6 +307,9 @@ class BLDConnector:
         reflected_builds   = []
         unrecorded_builds  = []
 
+        def schemeShave(url):
+            return re.sub('^https?://', '', url)
+
         for view_and_project, jobs in bld_builds.items():
             view, project = view_and_project.split('::', 1)
             for job, builds in jobs.items():
@@ -305,8 +318,8 @@ class BLDConnector:
                     if project in agicen_builds:
                         job_builds = agicen_builds[project]
                         # now look for a matching job in job_builds
-                        if job in job_builds:
-                            ac_build_nums = [int(bld.Number) for bld in job_builds[job]]
+                        if schemeShave(job.url) in job_builds:
+                            ac_build_nums = [int(bld.Number) for bld in job_builds[schemeShave(job.url)]]
                             if build.number in ac_build_nums:
                                 reflected_builds.append((job, build, project, view))
                                 continue
@@ -317,6 +330,8 @@ class BLDConnector:
 
     def dumpChangesetInfo(self, builds):
         for job, build, project, view in builds:
+            if not build.changeSets:
+                continue
             self.log.debug(build)
             for cs in build.changeSets:
                 self.log.debug(str(cs))
