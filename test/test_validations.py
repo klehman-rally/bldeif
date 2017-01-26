@@ -9,6 +9,7 @@ from bldeif.utils.klog       import ActivityLogger
 from bldeif.utils.konfabulus import Konfabulator
 from bldeif.agicen_bld_connection import AgileCentralConnection
 import build_spec_helper   as bsh
+from bldeif.bld_connector_runner import BuildConnectorRunner
 import re
 
 PLATYPUS_JENKINS_STRUCTURE="""
@@ -255,6 +256,79 @@ def test_without_project():
     assert re.search(expectedErrPattern, actualErrVerbiage) is not None
     assert excinfo.typename == 'ConfigurationError'
 
+def test_ac_for_invalid_items():
+    config_file = ('bad_ac_items.yml')
+    runner = BuildConnectorRunner([config_file])
+    runner.run()
 
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    with open(log, 'r') as f:
+        log_content = f.readlines()
 
+    target_line = "AgileCentral section of the config contained these invalid entries"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)
 
+def test_jenkins_for_invalid_items():
+    config_file = ('bad_jenk_items.yml')
+    runner = BuildConnectorRunner([config_file])
+    runner.run()
+
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+    target_line = "Jenkins section of the config contained these invalid entries"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)
+
+def test_service_for_invalid_items():
+    config_file = ('bad_service_items.yml')
+    runner = BuildConnectorRunner([config_file])
+    runner.run()
+
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+
+    target_line = "Service section of the config contained these invalid entries"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)
+
+def test_jenkins_for_empty_jobs():
+    config_file = ('bad_jenk_empty_jobs.yml')
+    runner = BuildConnectorRunner([config_file])
+    runner.run()
+
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+
+    target_line = "Jobs section of the config is empty"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)
+
+def test_jenkins_for_empty_views():
+    config_file = ('bad_jenk_empty_views.yml')
+    runner = BuildConnectorRunner([config_file])
+    runner.run()
+
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+
+    target_line = "Views section of the config is empty"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)
+
+def test_jenkins_for_empty_folders():
+    config_file = ('bad_jenk_empty_folders.yml')
+    runner = BuildConnectorRunner([config_file])
+    runner.run()
+
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+
+    target_line = "Folders section of the config is empty"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)

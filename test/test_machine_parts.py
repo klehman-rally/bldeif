@@ -11,6 +11,7 @@ from bldeif.utils.time_file  import TimeFile
 import jenkins_spec_helper as jsh
 import spec_helper as sh
 import utility     as util
+import pytest
 
 def create_time_file(config_file, zulu_time=None, **kwargs):
     # test for kwargs having hours, minutes, seconds, days, years etc.
@@ -268,6 +269,23 @@ def test_lock():
     assert runner.acquireLock()
     assert os.path.isfile(lock)
     assert os.path.abspath(lock) == "%s/%s" % (os.getcwd(), lock)
-    runner._operateService(config_path)
     runner.releaseLock()
+    assert not os.path.isfile(lock)
+
+def test_two_runners():
+    lock = 'LOCK.tmp'
+    config_path = 'config/wombat.yml'
+    config_name = config_path.replace('config/', '')
+    args = [config_name]
+    runner1 = BuildConnectorRunner(args)
+    assert runner1.acquireLock()
+    assert os.path.isfile(lock)
+    assert os.path.abspath(lock) == "%s/%s" % (os.getcwd(), lock)
+    runner2 = BuildConnectorRunner(args)
+    expectedErrPattern = "Simultaneous processes for this connector are prohibited"
+    with pytest.raises(Exception) as excinfo:
+        runner2.acquireLock()
+    actualErrVerbiage = excinfo.value.args[0]
+    assert re.search(expectedErrPattern, actualErrVerbiage) is not None
+    runner1.releaseLock()
     assert not os.path.isfile(lock)

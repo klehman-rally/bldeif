@@ -103,6 +103,22 @@ class JenkinsConnection(BLDConnection):
             self.http_proxy = {self.protocol : proxy}
             self.log.info("Proxy for Jenkins connection:  %s" % proxy)
 
+        valid_config_items = ['Server', 'Protocol', 'Prefix', 'Port', 'API_Token', 'MaxItems',
+                              'Username', 'User', 'Password',
+                              'ProxyProtocol', 'ProxyServer', 'ProxyPort', 'ProxyUser', 'ProxyUsername',
+                              'ProxyPassword',
+                              'Debug', 'Lookback',
+                              'AgileCentral_DefaultBuildProject',
+                              'MaxDepth', 'FullFolderPath',
+                              'Views', 'Jobs', 'Folders',
+                             ]
+
+        invalid_config_items = [item for item in config.keys() if item not in valid_config_items]
+        if invalid_config_items:
+            problem = "Jenkins section of the config contained these invalid entries: %s" % ", ".join(
+                invalid_config_items)
+            raise ConfigurationError(problem)
+
     def connect(self):
         """
         """

@@ -83,6 +83,11 @@ class AgileCentralConnection(BLDConnection):
             if self.proxy_username and self.proxy_password:
                 self.proxy  = "%s://%s:%s@%s:%s" % (self.proxy_protocol, self.proxy_username, self.proxy_password, self.proxy_server, self.proxy_port)
 
+        valid_config_items = ['Server', 'Port', 'APIKey','Workspace','Project','Username','Password','ProxyProtocol', 'ProxyServer','ProxyPort','ProxyUser','ProxyUsername', 'ProxyPassword','Debug', 'Lookback']
+        invalid_config_items = [item for item in config.keys() if item not in valid_config_items]
+        if invalid_config_items:
+            problem = "AgileCentral section of the config contained these invalid entries: %s" % ", ".join(invalid_config_items)
+            raise ConfigurationError(problem)
 
     def validate(self):
         satisfactory = True
@@ -505,6 +510,9 @@ class AgileCentralConnection(BLDConnection):
             matches = [found_art for found_art in found_arts if found_art.FormattedID in commit_fid[ident]]
             if matches:
                 va[ident] = matches
+                # for art in matches:
+                #     if art.Project.oid != targeted_project.oid:
+                #         self.log.warning('')
         return va
 
     def makeOrQuery(self,field, values):

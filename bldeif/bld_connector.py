@@ -82,6 +82,13 @@ class BLDConnector:
         self.max_builds  = self.svc_conf.get('MaxBuilds', 20)
         default_project = self.agicen_conf['Project']
 
+        valid_config_items = ['Preview', 'LogLevel', 'MaxBuilds', 'ShowVCSData' ]
+        svc_conf = config.topLevel('Service')
+        invalid_config_items = [item for item in svc_conf.keys() if item not in valid_config_items]
+        if invalid_config_items:
+            problem = "Service section of the config contained these invalid entries: %s" % ", ".join(invalid_config_items)
+            raise ConfigurationError(problem)
+
         # create a list of AgileCentral_Project values, start with the default project value
         # and then add add as you see overrides in the config.
         # eventually, we'll strip out any duplicates
@@ -89,18 +96,27 @@ class BLDConnector:
 
         if "Views" in self.bld_conf:
             self.views = self.bld_conf["Views"]
+            if not self.views:
+                msg = "Views section of the config is empty"
+                raise ConfigurationError(msg)
             for view in self.views:
                 view_name = view['View']
                 self.target_projects.append(view.get('AgileCentral_Project', default_project))
 
         if "Folders" in self.bld_conf:
             self.folders = self.bld_conf["Folders"]
+            if not self.folders:
+                msg = "Folders section of the config is empty"
+                raise ConfigurationError(msg)
             for folder_conf in self.folders:
                 folder_display_name = folder_conf['Folder']
                 self.target_projects.append(folder_conf.get('AgileCentral_Project', default_project))
 
         if "Jobs" in self.bld_conf:
             self.jobs = self.bld_conf["Jobs"]
+            if not self.jobs:
+                msg = "Jobs section of the config is empty"
+                raise ConfigurationError(msg)
             for job in self.jobs:
                 job_name = job['Job']
                 self.target_projects.append(job.get('AgileCentral_Project', default_project))
@@ -205,7 +221,7 @@ class BLDConnector:
         unrecorded_builds = self._identifyUnrecordedBuilds(recent_agicen_builds, recent_bld_builds)
         self.log.info("unrecorded Builds count: %d" % len(unrecorded_builds))
         self.log.info("no more than %d builds per job will be recorded on this run" % self.max_builds)
-        if self.svc_conf['ShowVCSData']:
+        if self.svc_conf.get('ShowVCSData', False):
             self.dumpChangesetInfo(unrecorded_builds)
 
         recorded_builds = OrderedDict()

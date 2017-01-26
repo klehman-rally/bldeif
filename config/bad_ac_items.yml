@@ -1,3 +1,4 @@
+
 ---
 JenkinsBuildConnector:
 
@@ -5,7 +6,8 @@ JenkinsBuildConnector:
         Server    :  rally1.rallydev.com
         APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
         Workspace :  Alligators BLD Unigrations
-        Lookback  :  120
+        Project   :  Jenkins
+        KanbanState : Lowball
 
     Jenkins:
         Protocol  :  http
@@ -14,19 +16,18 @@ JenkinsBuildConnector:
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
         Password  :  None
-        MaxDepth  :  9
-        FullFolderPath: True
+        MaxDepth  :  5
         AgileCentral_DefaultBuildProject :  Jenkins
 
-        Folders:
-            - Folder : bontamy
-            - Folder : abacab // bontamy
-            - Folder : bontamy // polpotimus // bontamy
+        Jobs:
+            - Job: centaur-mordant
+              AgileCentral_Project: Jenkins // Salamandra
+            - Job: Azure Dragon of the East
+              AgileCentral_Project: Jenkins // Corral // Salamandra
+
     Service:
-        Preview       : False
-        LogLevel      : DEBUG
-        MaxBuilds     : 50
-        ShowVCSData   : True
-
-
+            Preview: False
+            LogLevel: DEBUG
+            MaxBuilds: 50
+            ShowVCSData: True
 ...
