@@ -218,7 +218,7 @@
  JenkinsBuildConnector:
      AgileCentral:   # all of the possible key value pairs, not all must be used, see the right-hand side
                      # comments for designation as either 'R' required or 'O' optional
-         Server:       : rally1.rallydev.com      # R
+         Server:       : rally1.rallydev.com      # R   if not provided, defaults to rally1.rallydev.com
          Username      : henry5@hauslancaster.uk  # R   if an API_Key entry is used, then this isn't needed
          Password      : 2MuchAngst1415           # R   if an API_Key entry is used, then this isn't needed
          API_Key       : _zzzyyyy234twqwtqwet89y4t38g38y0  # O can use this instead of a Username and Password
@@ -230,9 +230,9 @@
 
      Jenkins:        # all of the possible key value pairs, not all must be used, see the right-hand side
                      # comments for designation as either 'R' required or 'O' optional
-         Protocol    : http                       # R
-         Server      : jenkado.mydomain.com       # R
-         Port        : 8080                       # R
+         Protocol    : http                       # R  if not provided, defaults to http
+         Server      : jenkado.mydomain.com       # R  if not provided, defaults to the host the connector is running on
+         Port        : 8080                       # R  if not provided, defaults to 8080
          Prefix      :                            # O  for custom Jenkins installation in a non-standard directory
          Username    : validuser                  # R  provide a value when Jenkins requires credentials for access
          Password    : somepasswd                 # R  provide a value when Jenkins requires credentials for access

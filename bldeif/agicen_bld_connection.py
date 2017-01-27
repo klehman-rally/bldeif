@@ -12,7 +12,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.9.8"
+__version__ = "0.9.9"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -62,9 +62,7 @@ class AgileCentralConnection(BLDConnection):
     def internalizeConfig(self, config):
         super().internalizeConfig(config)
 
-        server = config.get('Server', False)
-        if not server:
-            raise ConfigurationError("AgileCentral spec missing a value for Server")
+        server = config.get('Server', 'rally1.rallydev.com')
         if 'http' in server.lower() or '/slm' in server.lower():
             self.log.error(self, "AgileCentral URL should be in the form 'rally1.rallydev.com'")
         self.server = server
@@ -172,7 +170,7 @@ class AgileCentralConnection(BLDConnection):
     def get_custom_headers(self):
         custom_headers =  {}
         custom_headers['name']    = "AgileCentral Build Connector for %s" % self.other_name
-        custom_headers['vendor']  = "Open Source contributors"
+        custom_headers['vendor']  = "CA Technologies"
         custom_headers['version'] = self.version
         if self.integration_other_version: 
             spoke_versions = "%s - %s " % (self.version, self.integration_other_version)
@@ -608,7 +606,7 @@ class AgileCentralConnection(BLDConnection):
 
         try:
             build = self.agicen.create('Build', int_work_item)
-            self.log.debug("  Created Build: %-56.56s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
+            self.log.debug("  Created Build: %-90.90s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
         except Exception as msg:
             print("AgileCentralConnection._createInternal detected an Exception, {0}".format(sys.exc_info()[1]))
             excp_type, excp_value, tb = sys.exc_info()

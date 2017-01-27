@@ -17,10 +17,12 @@ JenkinsBuildConnector:
         MaxDepth  :  5
         AgileCentral_DefaultBuildProject :  Jenkins
 
+        Folders:
+            - Folder: frozique
+              AgileCentral_Project: Jenkins // Corral // Salamandra
+
         Jobs:
-            - Job: 2+2={4}~~~~~~~()_-`"'
-            - Job: áâèüSørençñ
-            - Job: 東方青龍
+
 
     Service:
             Preview: False

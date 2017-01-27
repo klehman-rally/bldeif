@@ -15,7 +15,7 @@ quote = urllib.parse.quote
 
 ############################################################################################
 
-__version__ = "0.9.8"
+__version__ = "0.9.9"
 
 ACTION_WORD_PATTERN = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
@@ -327,6 +327,10 @@ class JenkinsConnection(BLDConnection):
                 self.password = self.api_token
         else:
             self.log.debug('%s - password entry detected in config file' % self.__class__.__name__)
+
+        if not self.ac_project:
+            self.log.error("No AgileCentral_DefaultBuildProject value was provided in your configuration in the Jenkins section")
+            return False
 
         if not (self.views or self.folders or self.jobs):
             self.log.error("No Jobs, Views, or job Folders were provided in your configuration")
@@ -756,7 +760,7 @@ class JenkinsInventory:
             #tfk = fk.replace(self.base_url,'')
             path_components = re.split(r'\/', fk)[1:]
             fqpath = " // ".join(path_components)
-            print(fqpath)
+            #print(fqpath)
             fm[fqpath] = fk
 
         return fm
@@ -776,7 +780,7 @@ class JenkinsInventory:
         for vk in sorted(self.views.keys()):
             path_components = re.split(r'\/', vk)[1:]
             fqpath = " // ".join(path_components)
-            print(fqpath)
+            #print(fqpath)
             vm[fqpath] = vk
 
         return vm

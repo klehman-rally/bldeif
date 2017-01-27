@@ -1,0 +1,40 @@
+# a file indented using 3 space increments instead of 4
+
+JenkinsBuildConnector:
+
+   AgileCentral:
+      Server    :  rally1.rallydev.com
+      APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
+      Workspace :  Alligators BLD Unigrations
+
+   Jenkins:
+      Protocol  :  http
+      Server    :  tiema03-u183073.ca.com
+      Port      :  8080
+      API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
+      Username  :  jenkins
+      #Password  :  None
+      MaxDepth  :  3
+      AgileCentral_DefaultBuildProject :  Manual Test 1
+
+      Jobs:
+         - Job: wildland butchery
+#
+#      Views:
+#         - View: Shoreline
+#           include: ^B*
+#           exclude: ^C*
+
+#      Folders:
+#         - Folder : Zoolander
+#           AgileCentral_Project: Sub Project Manual Test 11
+#           include: juvenile
+#           exclude: hall of mirrors
+
+   Service:
+      Preview       : True
+      LogLevel      : DEBUG
+      MaxBuilds     : 50
+      ShowVCSData   : True
+
+

@@ -14,7 +14,7 @@ import re
 from bldeif.bld_connector_runner import BuildConnectorRunner
 from bldeif.bld_connector    import BLDConnector
 
-SOME_CONFIG    = 'wombat.yml'
+SOME_CONFIG    = 'kangaroo.yml'
 OTHER_CONFIG   = 'nebuchadnezzar.yml'
 SHALLOW_CONFIG = 'shallow.yml'
 DSF_CONFIG     = 'deepstatefolders.yml'

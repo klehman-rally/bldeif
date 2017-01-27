@@ -18,9 +18,10 @@ JenkinsBuildConnector:
         AgileCentral_DefaultBuildProject :  Jenkins
 
         Jobs:
-            - Job: 2+2={4}~~~~~~~()_-`"'
-            - Job: áâèüSørençñ
-            - Job: 東方青龍
+            - Job: centaur-mordant
+              AgileCentral_Project: Jenkins // Salamandra
+            - Job: Azure Dragon of the East
+              AgileCentral_Project: Jenkins // Corral // Salamandra
 
     Service:
             Preview: False

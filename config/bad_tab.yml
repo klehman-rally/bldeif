@@ -1,4 +1,3 @@
-
 ---
 JenkinsBuildConnector:
 
@@ -14,29 +13,19 @@ JenkinsBuildConnector:
         Port      :  8080
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
-        Password  :  None
-        MaxDepth  :  2
+        Password  :  encoded-T-m-9-u-Z-Q-=-=
+        MaxDepth  :  9
+        FullFolderPath: True
         AgileCentral_DefaultBuildProject :  Jenkins
 
-#        Jobs:
-#            - Job: troglodyte
-#            - Job: australopithicus
-#
-#        Views:
-#            - View: Prairie
-#              include: ^blue*
-#              exclude: ^stem,fumar,launch
-#
-#            - View: Cliffside
-
         Folders:
-            - Folder : dungeon
-#            - Folder : crinkely
-#              exclude: ^mud
-    Service:
+            - Folder : bang-ladesh
+
+	Service:
         Preview       : False
         LogLevel      : DEBUG
         MaxBuilds     : 50
         ShowVCSData   : True
+
 
 ...

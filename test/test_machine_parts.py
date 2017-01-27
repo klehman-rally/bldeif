@@ -81,23 +81,8 @@ def test_bld_connector_runner():
 
 def test_reflect_builds():
     config_file = 'wombat.yml'
-    create_time_file(config_file, minutes=2)
-    args = [config_file]
-    runner = BuildConnectorRunner(args)
-    assert runner.first_config == config_file
-
-    runner.run()
-
-    assert config_file in runner.config_file_names
-    assert 'AgileCentral' in runner.connector.config.topLevels()
-    assert 'Static' in runner.connector.target_projects
-    log = "log/{}.log".format(config_file.replace('.yml', ''))
-    assert runner.logfile_name == log
-
-    config_path = "config/{}".format(config_file)
     folder = "immovable wombats"
     my_job = "Top"
-
 
     ymlfile = open("config/{}".format(config_file), 'r')
     data = yaml.load(ymlfile)
@@ -113,13 +98,25 @@ def test_reflect_builds():
     url = "{}/job/{}/job/{}/build".format(jenkins_base_url, folder, my_job)
     r = requests.post(url, auth=(username, api_token), headers=headers)
     assert r.status_code in [200, 201]
+
+    create_time_file(config_file, minutes=2)
+    args = [config_file]
+    runner = BuildConnectorRunner(args)
+    assert runner.first_config == config_file
+
+    runner.run()
+
+    assert config_file in runner.config_file_names
+    assert 'AgileCentral' in runner.connector.config.topLevels()
+    assert 'Static' in runner.connector.target_projects
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    assert runner.logfile_name == log
     with open(log, 'r') as f:
         log_content = f.readlines()
-
-    line1 = "{} Build #".format(my_job)
-    match1 = [line for line in log_content if "{}".format(line1) in line][0]
-
-    assert re.search(r'%s' % line1, match1)
+    job_build_signature =  "Created Build: tiema03-u183073.ca.com:8080/job/immovable wombats/job/Top"
+    #job_build_signature = "Created Build: {}/job/{}/job/{}".format(jenkins_base_url, folder, my_job)
+    job_url_lines = [line for line in log_content if job_build_signature in line]
+    assert job_url_lines
 
 
 def test_dont_duplicate_builds():

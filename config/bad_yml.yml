@@ -1,0 +1,14 @@
+JenkinsBuildConnector:
+
+    AgileCentral:
+        APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
+        Workspace :  Alligators BLD Unigrations
+
+     Jenkins:
+        AgileCentral_DefaultBuildProject :  Jenkins
+
+        Jobs:
+            - Job: A
+            - Job: B
+
+    Service:

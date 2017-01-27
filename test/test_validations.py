@@ -332,3 +332,48 @@ def test_jenkins_for_empty_folders():
     target_line = "Folders section of the config is empty"
     match = [line for line in log_content if target_line in line][0]
     assert re.search(r'%s' % target_line, match)
+
+def test_config_defaults():
+    #config_file = ('defaults.yml')
+    logger = ActivityLogger('log/defaults.log')
+    konf = Konfabulator('config/defaults.yml', logger)
+    jenk_conf = konf.topLevel('Jenkins')
+    ac_conf = konf.topLevel('AgileCentral')
+    srv_config = konf.topLevel('Service')
+    assert not ac_conf.get('Server', None)
+    assert not jenk_conf.get('Server', None)
+
+    # runner = BuildConnectorRunner([config_file])
+    # runner.run()
+
+    agicen = bsh.AgileCentralConnection(konf.topLevel('AgileCentral'), logger)
+    agicen.other_name = 'Jenkins'
+    agicen.project_name = jenk_conf['AgileCentral_DefaultBuildProject']
+    agicen.connect()
+    assert agicen.server == 'rally1.rallydev.com'
+    assert not agicen.proxy
+
+    jc = bsh.JenkinsConnection(jenk_conf, logger)
+    jc.connect()
+    assert jc.server == 'coyotepair.ca.com'
+    assert jc.port   == 8080
+    assert jc.protocol == 'http'
+
+def test_bad_yml():
+    logger = ActivityLogger('log/bad_yml.log')
+    expectedErrPattern = "The file does not contain consistent indentation for the sections and section contents"
+    unexpectedErrPattern = "Oh noes!"
+    with pytest.raises(Exception) as excinfo:
+        konf = Konfabulator('config/bad_yml.yml', logger)
+    actualErrVerbiage = excinfo.value.args[0]
+    assert re.search(expectedErrPattern, actualErrVerbiage)
+    assert not re.search(unexpectedErrPattern, actualErrVerbiage)
+
+def test_tab_yml():
+    logger = ActivityLogger('log/bad_tab.log')
+    expectedErrPattern = "Your config file contains tab characters which are not allowed in a YML file."
+    with pytest.raises(Exception) as excinfo:
+        konf = Konfabulator('config/bad_tab.yml', logger)
+    actualErrVerbiage = excinfo.value.args[0]
+    assert re.search(expectedErrPattern, actualErrVerbiage)
+

@@ -1,5 +1,4 @@
 
----
 JenkinsBuildConnector:
 
     AgileCentral:
@@ -14,29 +13,27 @@ JenkinsBuildConnector:
         Port      :  8080
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
-        Password  :  None
-        MaxDepth  :  2
+        Password  :  encoded-T-m-9-u-Z-Q-=-=
+        FullFolderPath: True
         AgileCentral_DefaultBuildProject :  Jenkins
+        Lookback  :  30000
 
-#        Jobs:
-#            - Job: troglodyte
-#            - Job: australopithicus
-#
-#        Views:
-#            - View: Prairie
-#              include: ^blue*
-#              exclude: ^stem,fumar,launch
-#
-#            - View: Cliffside
+        Views:
+            - View: Prairie
+              include: ^blue*
+              exclude: ^stem,fumar,launch
+              AgileCentral_Project: Salamandra
+
+        Jobs:
+            - Job: troglodyte
+              AgileCentral_Project: Salamandra
 
         Folders:
-            - Folder : dungeon
-#            - Folder : crinkely
-#              exclude: ^mud
+            - Folder : immovable wombats
+              AgileCentral_Project: Static
+
     Service:
         Preview       : False
         LogLevel      : DEBUG
         MaxBuilds     : 50
         ShowVCSData   : True
-
-...
