@@ -6,8 +6,8 @@ from bldeif.utils.ac_prefixes import get_all_prefixes, get_artifact_types_info, 
 config_file = 'wombat.yml'
 fake_logger = bsh.ActivityLogger('test.log')
 
-conf = {'Server'  : 'rally1.rallydev.com',
-        'API_Key' : '_2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8',
+conf = {'Server'   : 'rally1.rallydev.com',
+        'APIKey'   : '_2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8',
         'Workspace': 'Alligators BLD Unigrations',
         'Project'  : 'Static'
        }

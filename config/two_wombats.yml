@@ -1,0 +1,31 @@
+JenkinsBuildConnector:
+
+    AgileCentral:
+        Server    :  rally1.rallydev.com
+        #APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
+        Username  :  yeti@rallydev.com
+        Password  :  encoded-V-m-l-z-d-G-F-i-Y-W-h-u
+        Workspace :  Alligators BLD Unigrations
+        Lookback  :  120
+
+    Jenkins:
+        Protocol  :  http
+        Server    :  tiema03-u183073.ca.com
+        Port      :  8080
+        API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
+        Username  :  jenkins
+        #Password  :  None
+        MaxDepth  :  3
+        AgileCentral_DefaultBuildProject :  Manual Test 1
+
+        Folders:
+            - Folder: immovable wombats
+              exclude: Carver
+            - Folder: Parkour
+            - Folder: immovable wombats
+
+    Service:
+        Preview     : False
+        LogLevel    : DEBUG
+        MaxBuilds   : 50
+        ShowVCSData : True

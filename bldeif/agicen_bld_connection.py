@@ -12,7 +12,7 @@ from pyral import Rally, rallySettings, RallyRESTAPIError
 
 ############################################################################################
 
-__version__ = "0.9.6"
+__version__ = "0.9.9"
 
 VALID_ARTIFACT_PATTERN = None # set after config with artifact prefixes are known
 
@@ -62,9 +62,7 @@ class AgileCentralConnection(BLDConnection):
     def internalizeConfig(self, config):
         super().internalizeConfig(config)
 
-        server = config.get('Server', False)
-        if not server:
-            raise ConfigurationError("AgileCentral spec missing a value for Server")
+        server = config.get('Server', 'rally1.rallydev.com')
         if 'http' in server.lower() or '/slm' in server.lower():
             self.log.error(self, "AgileCentral URL should be in the form 'rally1.rallydev.com'")
         self.server = server
@@ -83,6 +81,11 @@ class AgileCentralConnection(BLDConnection):
             if self.proxy_username and self.proxy_password:
                 self.proxy  = "%s://%s:%s@%s:%s" % (self.proxy_protocol, self.proxy_username, self.proxy_password, self.proxy_server, self.proxy_port)
 
+        valid_config_items = ['Server', 'Port', 'APIKey','Workspace','Project','Username','Password','ProxyProtocol', 'ProxyServer','ProxyPort','ProxyUser','ProxyUsername', 'ProxyPassword','Debug', 'Lookback']
+        invalid_config_items = [item for item in config.keys() if item not in valid_config_items]
+        if invalid_config_items:
+            problem = "AgileCentral section of the config contained these invalid entries: %s" % ", ".join(invalid_config_items)
+            raise ConfigurationError(problem)
 
     def validate(self):
         satisfactory = True
@@ -167,7 +170,7 @@ class AgileCentralConnection(BLDConnection):
     def get_custom_headers(self):
         custom_headers =  {}
         custom_headers['name']    = "AgileCentral Build Connector for %s" % self.other_name
-        custom_headers['vendor']  = "Open Source contributors"
+        custom_headers['vendor']  = "CA Technologies"
         custom_headers['version'] = self.version
         if self.integration_other_version: 
             spoke_versions = "%s - %s " % (self.version, self.integration_other_version)
@@ -291,14 +294,12 @@ class AgileCentralConnection(BLDConnection):
             self.log.info(log_msg % (response.resultCount, project))
 
             for build in response:
-                project_name = build.BuildDefinition.Project.Name
-                build_name   = build.BuildDefinition.Name
-                if project_name not in builds:
-                    builds[project_name] = {}
-                if build_name not in builds[project_name]:
-                    builds[project_name][build_name] = []
-                builds[project_name][build_name].append(build)
-
+                build_name = build.BuildDefinition.Name
+                if project not in builds:
+                    builds[project] = {}
+                if build_name not in builds[project]:
+                    builds[project][build_name] = []
+                builds[project][build_name].append(build)
         return builds
 
 
@@ -311,10 +312,11 @@ class AgileCentralConnection(BLDConnection):
                                        query=selectors,
                                        workspace=self.workspace_name,
                                        project=project,
-                                       projectScopeDown=True,
+                                       projectScopeDown=False,
+                                       projectScopeUp=False,
                                        order="CreationDate",
-                                       pagesize=200, limit=2000
-                                       )
+                                       pagesize=1000
+                                      )
         except Exception as msg:
             excp_type, excp_value, tb = sys.exc_info()
             mo = re.search(r"'(?P<ex_name>.+)'", str(excp_type))
@@ -341,13 +343,13 @@ class AgileCentralConnection(BLDConnection):
             return response.next()
         return None
 
-    def _fillBuildDefinitionCache(self,project):
+    def _fillBuildDefinitionCache(self, project):
         response = self.agicen.get('BuildDefinition',
                                   fetch='ObjectID,Name,Project,LastBuild,Uri', 
                                   query='Name != "Default Build Definition"',
                                   workspace=self.workspace_name,
                                   project=project,
-                                  projectScopeUp=False, projectScopeDown=True, 
+                                  projectScopeUp=False, projectScopeDown=False,
                                   order='Project.Name,Name')
 
         if response.errors:
@@ -358,14 +360,13 @@ class AgileCentralConnection(BLDConnection):
            #print("_fillBuildDefinitionCache:  BuildDefinition  Project: %s  JobName: %s" % \
            #        (build_defn.Project.Name, build_defn.Name))
 ##
-            project  = build_defn.Project.Name
             job_name = build_defn.Name
             if not project in self.build_def:
                 self.build_def[project] = {}
             self.build_def[project][job_name] = build_defn
 
 
-    def prepAgileCentralBuildPrerequisites(self, target_build, project):
+    def prepAgileCentralBuildPrerequisites(self, job, target_build, project):
         """
             Given a target_build which has information about a build that has been completed on
              some target build system, accommodate/create the following:
@@ -390,7 +391,7 @@ class AgileCentralConnection(BLDConnection):
 
             changesets = self.ensureChangesetsExist(scm_repo, project, ac_changesets, missing_changesets)
 
-        build_defn = self.ensureBuildDefinitionExists(target_build.name, project, target_build.vcs)
+        build_defn = self.ensureBuildDefinitionExists(job.fully_qualified_path(), project, target_build.vcs)
         return changesets, build_defn
 
 
@@ -441,7 +442,8 @@ class AgileCentralConnection(BLDConnection):
         """
         repo_name = repo_name.replace('\\','/')
         name = repo_name.split('/')[-1]
-        response = self.agicen.get('SCMRepository', fetch="Name,ObjectID", query = '(Name contains "{0}")'.format(name))
+        criteria = '(Name contains "{0}")'.format(name)
+        response = self.agicen.get('SCMRepository', fetch="Name,ObjectID", query = criteria, project=None)
         if response.resultCount:
             scm_repos = [item for item in response]
             exact_matches = [scm_repo for scm_repo in scm_repos if scm_repo.Name.lower() == repo_name.lower()]
@@ -506,6 +508,9 @@ class AgileCentralConnection(BLDConnection):
             matches = [found_art for found_art in found_arts if found_art.FormattedID in commit_fid[ident]]
             if matches:
                 va[ident] = matches
+                # for art in matches:
+                #     if art.Project.oid != targeted_project.oid:
+                #         self.log.warning('')
         return va
 
     def makeOrQuery(self,field, values):
@@ -522,46 +527,49 @@ class AgileCentralConnection(BLDConnection):
                 query = '(%s OR (%s = "%s"))' % (query, field, v)
             return query
 
-    def ensureBuildDefinitionExists(self, job, project, job_uri):
+    def ensureBuildDefinitionExists(self, job_path, project, job_uri):
         """
-            use the self.build_def dict keyed by project at first level, job name at second level
-            to determine if the job has a BuildDefinition for it.
+            use the self.build_def dict keyed by project at first level, job_path at second level
+            to determine if the job_path has a BuildDefinition for it.
 
             Returns a pyral BuildDefinition instance corresponding to the job (and project)
         """
-        if project in self.build_def and job in self.build_def[project]:
-            return self.build_def[project][job]
+        # front-truncate the job_path if the string length of that is > 256 chars
+        if (len(job_path) > 256):
+            job_path = job_path[-256:]
+        if project in self.build_def and job_path in self.build_def[project]:
+            return self.build_def[project][job_path]
 
         # do we have the BuildDefinition cache populated?  If not, do it now...
         if project not in self.build_def:  # to avoid build definition duplication
             self.log.debug("Detected build definition cache for the project: {} is empty, populating ...".format(project))
             self._fillBuildDefinitionCache(project)
 
-        # OK, the job is not in the BuildDefinition cache
-        # so look in the BuildDefinition cache to see if the job exists for the given project
+        # OK, the job_path is not in the BuildDefinition cache
+        # so look in the BuildDefinition cache to see if the job_path exists for the given project
         if project in self.build_def:
-            if job in self.build_def[project]:
-                return self.build_def[project][job]
+            if job_path in self.build_def[project]:
+                return self.build_def[project][job_path]
 
         target_project_ref = self._project_cache[project]
 
         bdf_info = {'Workspace' : self.workspace_ref,
                     'Project'   : target_project_ref,
-                    'Name'      : job,
+                    'Name'      : job_path,
                     'Uri'       : job_uri #something like {base_url}/job/{job} where base_url comes from other spoke conn
                    }
         try:
-            self.log.debug("Creating a BuildDefinition for job '%s' in Project '%s' ..." % (job, project))
+            self.log.debug("Creating a BuildDefinition for job '%s' in Project '%s' ..." % (job_path, project))
             build_defn = self.agicen.create('BuildDefinition', bdf_info, workspace=self.workspace_name, project=project)
         except Exception as msg:
-            self.log.error("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
-            raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job, msg))
+            self.log.error("Unable to create a BuildDefinition for job: '%s';  %s" % (job_path, msg))
+            raise OperationalError("Unable to create a BuildDefinition for job: '%s';  %s" % (job_path, msg))
 
         # Put the freshly minted BuildDefinition in the BuildDefinition cache and return it
         if project not in self.build_def:
             self.build_def[project] = {}
 
-        self.build_def[project][job] = build_defn
+        self.build_def[project][job_path] = build_defn
         return build_defn
 
 
@@ -598,7 +606,7 @@ class AgileCentralConnection(BLDConnection):
 
         try:
             build = self.agicen.create('Build', int_work_item)
-            self.log.debug("  Created Build: %-36.36s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
+            self.log.debug("  Created Build: %-90.90s #%5s  %-8.8s %s" % (build.BuildDefinition.Name, build.Number, build.Status, build.Start))
         except Exception as msg:
             print("AgileCentralConnection._createInternal detected an Exception, {0}".format(sys.exc_info()[1]))
             excp_type, excp_value, tb = sys.exc_info()
@@ -618,7 +626,7 @@ class AgileCentralConnection(BLDConnection):
         """
         criteria = ['BuildDefinition.ObjectID = %s' % build_defn.ObjectID, 'Number = %s' % number]
         response = self.agicen.get('Build', fetch="CreationDate,Number,Name,BuildDefinition,Project", query=criteria,
-                                            workspace=self.workspace_name, project=self.project_name, projectScopeDown=True)
+                                            workspace=self.workspace_name, project=None)
 
         if response.resultCount:
             return response.next()

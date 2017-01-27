@@ -6,6 +6,7 @@ import re
 import time
 
 import requests
+from collections import Counter
 
 from bldeif.connection import BLDConnection
 from bldeif.utils.eif_exception import ConfigurationError, OperationalError
@@ -14,7 +15,7 @@ quote = urllib.parse.quote
 
 ############################################################################################
 
-__version__ = "0.9.6"
+__version__ = "0.9.9"
 
 ACTION_WORD_PATTERN = re.compile(r'[A-Z][a-z]+')
 ARTIFACT_IDENT_PATTERN = re.compile(r'(?P<art_prefix>[A-Z]{1,4})(?P<art_num>\d+)')
@@ -71,6 +72,7 @@ class JenkinsConnection(BLDConnection):
         self.api_token  = config.get("API_Token", '')
         self.debug      = config.get("Debug", False)
         self.max_items  = config.get("MaxItems", 1000)
+        self.full_folder_path = config.get("FullFolderPath", False)
         self.ac_project = config.get("AgileCentral_DefaultBuildProject", None)
         self.views      = config.get("Views", [])
         self.jobs       = config.get("Jobs", [])
@@ -100,6 +102,22 @@ class JenkinsConnection(BLDConnection):
                 proxy  = "%s://%s:%s@%s:%s" % (self.proxy_protocol, self.proxy_username, self.proxy_password, self.proxy_server, self.proxy_port)
             self.http_proxy = {self.protocol : proxy}
             self.log.info("Proxy for Jenkins connection:  %s" % proxy)
+
+        valid_config_items = ['Server', 'Protocol', 'Prefix', 'Port', 'API_Token', 'MaxItems',
+                              'Username', 'User', 'Password',
+                              'ProxyProtocol', 'ProxyServer', 'ProxyPort', 'ProxyUser', 'ProxyUsername',
+                              'ProxyPassword',
+                              'Debug', 'Lookback',
+                              'AgileCentral_DefaultBuildProject',
+                              'MaxDepth', 'FullFolderPath',
+                              'Views', 'Jobs', 'Folders',
+                             ]
+
+        invalid_config_items = [item for item in config.keys() if item not in valid_config_items]
+        if invalid_config_items:
+            problem = "Jenkins section of the config contained these invalid entries: %s" % ", ".join(
+                invalid_config_items)
+            raise ConfigurationError(problem)
 
     def connect(self):
         """
@@ -310,17 +328,179 @@ class JenkinsConnection(BLDConnection):
         else:
             self.log.debug('%s - password entry detected in config file' % self.__class__.__name__)
 
+        if not self.ac_project:
+            self.log.error("No AgileCentral_DefaultBuildProject value was provided in your configuration in the Jenkins section")
+            return False
+
         if not (self.views or self.folders or self.jobs):
             self.log.error("No Jobs, Views, or job Folders were provided in your configuration")
-            satisfactory = False
+            return False
 
-        if not self.configItemsVetted():
+        if self.duplicate_items_found():
+            return False
+
+        if self.full_folder_path:
+            vetted = self.fullyPathedConfigItemsVetted()
+        else:
+            vetted =  self.nonFullyPathedConfigItemsVetted()
+
+        if not vetted:
             self.log.error("Some Jobs, Views, or Job Folders were invalid in your configuration")
             satisfactory = False
 
         return satisfactory
 
-    def configItemsVetted(self):
+    def duplicate_items_found(self):
+        job_names    = [j['Job'] for j in self.jobs]
+        dupe_jobs    = [name for name, count in Counter(job_names).items() if count > 1]
+
+        folder_names = [f['Folder'] for f in self.folders]
+        dupe_folders = [name for name, count in Counter(folder_names).items() if count > 1]
+
+        view_names   = [v['View'] for v in self.views]
+        dupe_views   = [name for name, count in Counter(view_names).items() if count > 1]
+
+        has_dupes = False
+
+        if dupe_jobs:
+            self.log.error("Duplicated job names: %s" % ", ".join(dupe_jobs))
+            has_dupes = True
+
+        if dupe_folders:
+            self.log.error("Duplicated folder names: %s" % ", ".join(dupe_folders))
+            has_dupes = True
+
+        if dupe_views:
+            self.log.error("Duplicated view names: %s" % ", ".join(dupe_views))
+            has_dupes = True
+
+        if has_dupes:
+            self.log.error('You should use the FullFolderPath : True config specification to be able to process duplicately named elements.')
+
+        return has_dupes
+
+
+    def fullyPathedConfigItemsVetted(self):
+        """
+            Mash the self.jobs, self.views and self.folders
+            against what is in our self.inventory.  If there are items/sub-items in
+            the config structure that aren't in the self.inventory, call a foul and get out.
+            Otherwise declare a Trump-like victory!
+
+            The config items for folder and view have to be fully qualified.
+        """
+        self.vetted_jobs        = []
+        self.vetted_view_jobs   = {}
+        self.vetted_folder_jobs = {}
+
+        if self.jobs:
+            job_names = [job.name.replace('::','') for job in self.inventory.jobs]
+            config_job_names = [job['Job'] for job in self.jobs]
+            diff = set(config_job_names) - set(job_names)
+            if diff:
+                villains = ', '.join(["'%s'" % d for d in diff])
+                self.log.error("these jobs: %s  were not present in the Jenkins inventory of Jobs" % villains)
+                return False
+
+            self.vetted_jobs = [job for job in self.inventory.jobs if job.name in config_job_names]
+
+        if self.views:
+            #view_names = [view_name.rsplit('/', 1)[-1] for view_name in self.inventory.views.keys()]
+            view_map = self.inventory.getFullyQualifiedViewMapping()
+
+            config_view_names = [view['View'] for view in self.views]
+            # other means of detecting things in config_view_names that are not in view_names
+            diff = [name for name in config_view_names if name not in view_map.keys()]
+            if diff:
+                villains = ', '.join(["'%s'" % d for d in diff])
+                self.log.error("these views: %s  were not present in the Jenkins inventory of Views" % villains)
+                max_depth_comment = "Check if MaxDepth value %s in config is sufficient to reach these views" % self.config['MaxDepth']
+                self.log.error(max_depth_comment)
+                if self.config['FullFolderPath']:
+                    fqp_comment = "Check if your View entries use the fully qualified path syntax"
+                    self.log.error(fqp_comment)
+                return False
+
+            for view in self.views:
+                view_name = view['View']
+                ac_project  = view.get('AgileCentral_Project', self.ac_project)
+                key = '%s::%s' % (view_name, ac_project)
+                view_jobs = self.getMatchingFullyQualifiedViewPathJobs(view)
+                self.vetted_view_jobs[key] = view_jobs
+
+        if self.folders:
+            #folder_names = [folder_name.rsplit('/', 1)[-1] for folder_name in self.inventory.folders.keys()]
+            folder_map = self.inventory.getFullyQualifiedFolderMapping()
+
+            config_folder_names = [folder['Folder'] for folder in self.folders]
+            # other means of detecting things in config_folder_names that are not in folder_names
+            diff = [name for name in config_folder_names if name not in folder_map.keys()]
+            if diff:
+                villains = ', '.join(["'%s'" % d for d in diff])
+                self.log.error("these folders: %s  were not present in the Jenkins inventory of Folders" % villains)
+                max_depth_comment = "Check if MaxDepth value %s in config is sufficient to reach these folders" % self.config['MaxDepth']
+                self.log.error(max_depth_comment)
+                if self.config['FullFolderPath']:
+                    fqp_comment = "Check if your Folder entries use the fully qualified path syntax"
+                    self.log.error(fqp_comment)
+                return False
+
+            for folder in self.folders:
+                folder_name = folder['Folder']
+                ac_project  = folder.get('AgileCentral_Project', self.ac_project)
+                key = '%s::%s' % (folder_name, ac_project)
+                folder_jobs = self.getMatchingFullyQualifiedFolderPathJobs(folder)
+                self.vetted_folder_jobs[key] = folder_jobs
+
+        return True
+
+
+    def getMatchingFullyQualifiedFolderPathJobs(self, folder):
+        folder_path = folder['Folder']
+        jenkins_folder = self.inventory.getFolderByPath(folder_path)
+        all_folder_jobs = jenkins_folder.jobs
+
+        included_jobs = all_folder_jobs[:]
+        if 'include' in folder:
+            inclusions = folder.get('include', '*')
+            inclusions = inclusions.replace('*', '\.*')
+            include_patt = "(%s)" % '|'.join(re.split(', ?', inclusions))
+            included_jobs = [job for job in all_folder_jobs if re.search(include_patt, job.name) != None]
+
+        excluded_jobs = []
+        if 'exclude' in folder and folder['exclude']:
+            exclusions = folder.get('exclude')
+            exclusions = exclusions.replace('*', '\.*')
+            exclude_patt = "(%s)" % '|'.join(re.split(', ?', exclusions))
+            excluded_jobs = [job for job in all_folder_jobs if re.search(exclude_patt, job.name) != None]
+
+        qualifying_jobs = list(set(included_jobs) - set(excluded_jobs))
+        return qualifying_jobs
+
+    def getMatchingFullyQualifiedViewPathJobs(self, view):
+        view_path = view['View']
+        jenkins_view = self.inventory.getViewByPath(view_path)
+        all_view_jobs = jenkins_view.jobs
+
+        included_jobs = all_view_jobs[:]
+        if 'include' in view:
+            inclusions = view.get('include', '*')
+            inclusions = inclusions.replace('*', '\.*')
+            include_patt = "(%s)" % '|'.join(re.split(', ?', inclusions))
+            included_jobs = [job for job in all_view_jobs if re.search(include_patt, job.name) != None]
+
+        excluded_jobs = []
+        if 'exclude' in view and view['exclude']:
+            exclusions = view.get('exclude')
+            exclusions = exclusions.replace('*', '\.*')
+            exclude_patt = "(%s)" % '|'.join(re.split(', ?', exclusions))
+            excluded_jobs = [job for job in all_view_jobs if re.search(exclude_patt, job.name) != None]
+
+        qualifying_jobs = list(set(included_jobs) - set(excluded_jobs))
+        return qualifying_jobs
+
+
+    def nonFullyPathedConfigItemsVetted(self):
         """
             Mash the self.jobs, self.views and self.folders
             against what is in our self.inventory.  If there are items/sub-items in
@@ -365,7 +545,9 @@ class JenkinsConnection(BLDConnection):
             diff = [name for name in config_folder_names if name not in folder_names]
             if diff:
                 villains = ', '.join(["'%s'" % d for d in diff])
+                max_depth_comment = "Check if MaxDepth value %s in config is sufficient to reach these folders" % self.config['MaxDepth']
                 self.log.error("these folders: %s  were not present in the Jenkins inventory of Folders" % villains)
+                self.log.error(max_depth_comment)
                 return False
 
             for folder in self.folders:
@@ -471,8 +653,9 @@ class JenkinsConnection(BLDConnection):
             key = '%s::%s' % (folder_name, ac_project)
             builds[key] = {}
             for job in self.vetted_folder_jobs[key]:
-                builds[key][job.name] = self.getFolderJobBuildHistory(folder_name, job, zulu_ref_time)
-                recent_builds_count += len(builds[key][job.name])
+                builds[key][job] = self.getFolderJobBuildHistory(folder_name, job, zulu_ref_time)
+                self.log.debug("retrieved %d builds for Job %s that occured after %s" % (len(builds[key][job]), job.fully_qualified_path(), ref_time_readable))
+                recent_builds_count += len(builds[key][job])
 
         for view_conf in self.views:
             view_name  = view_conf['View']
@@ -480,19 +663,19 @@ class JenkinsConnection(BLDConnection):
             key = '%s::%s' % (view_name, ac_project)
             builds[key] = {}
             for job in self.vetted_view_jobs[key]:
-                builds[key][job.name] = self.getBuildHistory(view_name, job, zulu_ref_time)
-                recent_builds_count += len(builds[key][job.name])
+                builds[key][job] = self.getBuildHistory(view_name, job, zulu_ref_time)
+                self.log.debug("retrieved %d builds for View Job %s that occured after %s" % (len(builds[key][job]), job.fully_qualified_path(), ref_time_readable))
+                recent_builds_count += len(builds[key][job])
 
         for job in self.jobs:
-            job_name = job['Job']
-            jenkins_job = self.inventory.getJob(job_name)
-            #jenkins_job = [job for job in self.inventory.jobs if job.name == job_name][0]
+            jenkins_job = self.inventory.getJob(job['Job'])
             ac_project = job.get('AgileCentral_Project', self.ac_project)
             key = 'All::%s' % ac_project
             if key not in builds:
                 builds[key] = {}
-            builds[key][job_name] = self.getBuildHistory('All', jenkins_job, zulu_ref_time)
-            recent_builds_count += len(builds[key][job_name])
+            builds[key][jenkins_job] = self.getBuildHistory('All', jenkins_job, zulu_ref_time)
+            self.log.debug("retrieved %d builds for Folder Job %s that occured after %s" % (len(builds[key][jenkins_job]), jenkins_job.fully_qualified_path(), ref_time_readable))
+            recent_builds_count += len(builds[key][jenkins_job])
 
         log_msg = "recently added Jenkins Builds detected: %s"
         self.log.info(log_msg % recent_builds_count)
@@ -508,6 +691,8 @@ class JenkinsConnection(BLDConnection):
         JOB_BUILDS_ENDPOINT = "/api/json?tree=builds[%s]" % BUILD_ATTRS
         urlovals = {'prefix': self.base_url, 'view': quote(view), 'job': quote(job.name)}
         job_builds_url = job.url + (JOB_BUILDS_ENDPOINT.format(**urlovals))
+        if job._type == 'WorkflowJob':
+            job_builds_url = job_builds_url.replace('changeSet', 'changeSets')
         self.log.debug("view: %s  job: %s  req_url: %s" % (view, job, job_builds_url))
         raw_builds = requests.get(job_builds_url, auth=self.creds, proxies=self.http_proxy).json()['builds']
         qualifying_builds = self.extractQualifyingBuilds(job.name, None, ref_time, raw_builds)
@@ -515,6 +700,8 @@ class JenkinsConnection(BLDConnection):
 
     def getFolderJobBuildHistory(self, folder_name, job, ref_time):
         folder_job_builds_url = job.url + ('/api/json?tree=builds[%s]' % FOLDER_JOB_BUILD_ATTRS)
+        if job._type == 'WorkflowJob':
+            folder_job_builds_url = folder_job_builds_url.replace('changeSet', 'changeSets')
         self.log.debug("folder: %s  job: %s  req_url: %s" % (folder_name, job.name, folder_job_builds_url))
         raw_builds = requests.get(folder_job_builds_url, auth=self.creds, proxies=self.http_proxy).json()['builds']
         qualifying_builds = self.extractQualifyingBuilds(job.name, folder_name, ref_time, raw_builds)
@@ -565,6 +752,47 @@ class JenkinsInventory:
 
         return jobs[0]
 
+    def getFullyQualifiedFolderMapping(self):
+        # maps folder's path representation from the config file to the folder's path
+        #fm = {" // ".join(re.split(r'\/', key)[1:]) : key for key in self.folders.keys()}
+        fm = {}
+        for fk in sorted(self.folders.keys()):
+            #tfk = fk.replace(self.base_url,'')
+            path_components = re.split(r'\/', fk)[1:]
+            fqpath = " // ".join(path_components)
+            #print(fqpath)
+            fm[fqpath] = fk
+
+        return fm
+
+    def getFolderByPath(self, folder_path):
+        folder_map = self.getFullyQualifiedFolderMapping()
+        if folder_path in folder_map:
+            folder = self.folders[folder_map[folder_path]]
+            return folder
+        return None
+
+
+    def getFullyQualifiedViewMapping(self):
+        # maps view's path representation from the config file to the view's path
+        #vm = {" // ".join(re.split(r'\/', key)[1:]) : key for key in self.views.keys()}
+        vm = {}
+        for vk in sorted(self.views.keys()):
+            path_components = re.split(r'\/', vk)[1:]
+            fqpath = " // ".join(path_components)
+            #print(fqpath)
+            vm[fqpath] = vk
+
+        return vm
+
+    def getViewByPath(self, view_path):
+        view_map = self.getFullyQualifiedViewMapping()
+        if view_path in view_map:
+            folder = self.views[view_map[view_path]]
+            return folder
+        return None
+
+
 ##############################################################################################
 
 class JenkinsJob:
@@ -573,13 +801,16 @@ class JenkinsJob:
         self.name      = info.get('name', 'UNKNOWN-ITEM')
         self._type     = info['_class'].split('.')[-1]
         self.url       = "%s/job/%s" % (container, self.name)
-
+        # job_path is really only for dev purposes of displaying a short, readable job path, e.g. "/frozique::australopithicus"
         self.job_path  = "%s::%s" % (re.sub(r'%s/?' % base_url, '', container), self.name)
         self.job_path  = '/'.join(re.split('/?job/?', self.job_path))
 
+    def fully_qualified_path(self):
+        return re.sub('https?://', '', self.url)
+
     def __str__(self):
         vj = "%s::%s" % (self.container, self.name)
-        return "%-80.80s  %s" % (vj, self._type)
+        return "%s  %s" % (vj, self._type)
 
     def __repr__(self):
         return str(self)
@@ -587,12 +818,15 @@ class JenkinsJob:
 #############################################################################################
 
 class JenkinsView:
-    def __init__(self, info, container='/',  base_url=''):
-        self.container = container
-        self.name      = info['name']  # .get('name', 'UNKNOWN-ITEM')
-        self._type     = info['_class'].split('.')[-1]
-        self.url       = "%s/view/%s" % (base_url, self.name)
-        self.jobs      = [JenkinsJob(job, self.url, base_url=self.url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
+    def __init__(self, info, container='/', base_url=''):
+        self.name = '/%s' % info['name']
+        if container == '/':
+            job_container  = "%s/view%s" % (base_url, self.name)
+        else:
+            job_container = "%s/view%s" % (container, self.name)
+
+        self.url  = job_container
+        self.jobs = [JenkinsJob(job, job_container, base_url=base_url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
 
     def __str__(self):
         vj = "%s::%s" % (self.container, self.name)
@@ -607,7 +841,7 @@ class JenkinsJobsFolder:
     def __init__(self, info, container='/',  folder_url=''):
         self.name      = '/%s' % info['name']
         job_container  = "%s/job%s" % (container, self.name)
-        self.url       = "%s/job/%s" % (folder_url, self.name)
+        self.url       = job_container
         self.jobs      = [JenkinsJob(job, job_container, base_url=folder_url) for job in info['jobs'] if not job['_class'].endswith('.Folder')]
 
     def __str__(self):
@@ -629,6 +863,9 @@ class JenkinsBuild(object):
         self.result = str(raw['result'])
         self.actions = raw['actions']
         self.result = 'INCOMPLETE' if self.result == 'ABORTED' else self.result
+        cs_label = 'changeSet'
+        if str(raw['_class']).endswith('.WorkflowRun'):
+            cs_label = 'changeSets'
 
         self.id_str = str(raw['id'])
         self.Id     = self.id_str
@@ -660,23 +897,45 @@ class JenkinsBuild(object):
         total = (self.timestamp + self.duration) / 1000
         self.finished = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime(total))
 
-        self.vcs        = ''
+        self.vcs        = 'unknown'
         self.revisions  = ''
         self.repository = ''
         self.changeSets = []
-        if not raw['changeSet']['items']:
-            return
+        self.extractChangeSetInformation(raw, cs_label)
 
-        self.vcs   = str(raw['changeSet']['kind'])
-        self.revisions = raw['changeSet']['revisions'] if 'changeSet' in raw and 'revisions' in raw['changeSet'] else None
 
-        getRepoName = {'git'  : self.ripActionsForRepositoryName,
-                       'svn'  : self.ripRevisionsForRepositoryName,
-                       None   : self.ripNothing
-                      }
-        self.repository = getRepoName[self.vcs]()
-        if self.vcs:
-            self.changeSets = self.ripChangeSets(self.vcs, raw['changeSet']['items'])
+    def extractChangeSetInformation(self, json, cs_label):
+        """
+             A FreestyleJob build has changeset info in the json under the 'changeSet' element, but
+             WorkflowRun build has the equivalent changeset info under the 'changeSets' element as a list.
+             Here we transform the FreestyleJob changeset info into the one element 'changeSets' list so
+             that the processing is conistent.
+        """
+        try:
+            if cs_label == 'changeSet':
+                json['changeSets'] = [json['changeSet']]
+            if len(json[cs_label]) == 0:
+                return
+            try:
+                self.vcs = json['changeSets'][0]['kind']
+            except Exception as msg:
+                self.log.warning(
+                    'JenkinsBuild constructor unable to determine VCS kind, %s, marking vcs type as unknown' % (msg))
+                self.log.warning(
+                    "We accessed your job's build JSON with this param %s and did not see 'kind' value" % BUILD_ATTRS)
+            self.revisions = json['changeSets'][0]['revisions'] if cs_label in json and 'revisions' in json['changeSets'][0] else None
+            getRepoName = {'git': self.ripActionsForRepositoryName,
+                           'svn': self.ripRevisionsForRepositoryName,
+                           None: self.ripNothing
+                           }
+            self.repository = getRepoName[self.vcs]()
+            if self.vcs != 'unknown':
+                for ch in json['changeSets']:
+                    self.changeSets.extend(self.ripChangeSets(self.vcs, ch['items']))
+            csd = {changeset.commitId: changeset for changeset in self.changeSets}
+            self.changeSets = [chgs for chgs in csd.values()]
+        except Exception as msg:
+            self.log.warning('JenkinsBuild constructor unable to process %s information, %s' % (cs_label, msg))
 
 
     def ripActionsForRepositoryName(self):

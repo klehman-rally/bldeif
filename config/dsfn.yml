@@ -1,4 +1,3 @@
-
 ---
 JenkinsBuildConnector:
 
@@ -6,6 +5,7 @@ JenkinsBuildConnector:
         Server    :  rally1.rallydev.com
         APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
         Workspace :  Alligators BLD Unigrations
+        Lookback  :  120
 
     Jenkins:
         Protocol  :  http
@@ -15,29 +15,28 @@ JenkinsBuildConnector:
         Username  :  jenkins
         Password  :  None
         MaxDepth  :  5
-        AgileCentral_DefaultBuildProject :  #Jenkins
+        AgileCentral_DefaultBuildProject :  Jenkins
 
-        Views:
-            - View: Prairie
-              include: ^blue*
-              exclude: ^stem,fumar,launch
-              #AgileCentral_Project: Salamandra
-
-        Jobs:
-            - Job: troglodyte
-              #AgileCentral_Project: Salamandra
-
+#        Jobs:
+#            - Job: troglodyte
+#            - Job: australopithicus
+#
+#        Views:
+#            - View: Prairie
+#              include: ^blue*
+#              exclude: ^stem,fumar,launch
+#
+#            - View: Cliffside
 
         Folders:
-            - Folder : Parkour
-              #AgileCentral_Project: Salamandra
-              exclude: angela merkel,
-
+            - Folder : bontamy
+            - Folder : abacab // bontamy
 
     Service:
-        Preview       : True
+        Preview       : False
         LogLevel      : DEBUG
         MaxBuilds     : 50
         ShowVCSData   : True
+        FullFolderPath: False
 
 ...

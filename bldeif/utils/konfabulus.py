@@ -47,19 +47,23 @@ class Konfabulator(object):
 
         content = []
         try:
-            cf = open(config_file_name, 'r')
+            cf = open(config_file_name, 'r', encoding='utf-8')
         except IOError as msg:
             raise ConfigurationError('Unable to open %s for reading, %s' % (config_file_name, msg))
         content = cf.read()
         self.content = content
         cf.close()
 
+        basic_sanity, problem = self._checkConfigFileContentSanity()
+        if not basic_sanity:
+            raise ConfigurationError('Config file (%s) syntax/structure is incorrect, %s' % (config_file_name, problem), logger=logger)
+
         try:
             complete_config = yaml.load(content)
             top_key = list(complete_config.keys())[0]
             self.config = complete_config[top_key]
         except Exception as msg:
-            raise ConfigurationError('Unable to parse %s successfully, %s' % (config_file_name, msg))
+            raise ConfigurationError('Unable to parse %s successfully, %s' % (config_file_name, msg), logger=logger)
 
         conf_lines = [line for line in content.split('\n') if line and not re.search(r'^\s*#', line)]
         connector_header = [line for line in conf_lines if re.search(r'^[A-Z][A-Za-z_]+.+\s*:', line)]
@@ -104,6 +108,51 @@ class Konfabulator(object):
 
         # defuzz the passwords if they are fuzzed, and if they are not, fuzz them in the file
         self.defuzzPasswords()
+
+    def _checkConfigFileContentSanity(self):
+        sanity = True
+        problem = ''
+        has_tabs = [char for char in self.content if char == "\t"]
+        if has_tabs:
+            sanity = False
+            problem = "Your config file contains tab characters which are not allowed in a YML file."
+            return sanity, problem
+
+        config_lines = self.content.split("\n")
+        yaml_lines = [line for line in config_lines if line and not re.search(r'^\s*#', line)]
+        yaml_lines = [line for line in yaml_lines if not re.search(r'^---|\.\.\.$', line)]
+        yee = r' (include|exclude|AgileCentral_Project)\s*:'  # yee --> YAML entry exclusions
+        yaml_major_lines = [line for line in yaml_lines if not re.search(yee, line)]
+        line_indents = [re.search(r'^(?P<indent>\s*)', line).group('indent') for line in yaml_major_lines]
+        indent_levels = sorted(list(set([len(indent) for indent in line_indents])))
+        outer_start = indent_levels[0]
+        if outer_start:
+            first_item = 0
+        else:
+            first_item = 1
+
+        indent = indent_levels[first_item]
+        for line_indent in indent_levels[first_item+1:]:
+            if line_indent % indent:
+                # check to see if the "violation" involves one of 'exclude', 'include', 'AgileCentral_Project'
+                #   parent ident = line_indent - 2
+                #   if parent_ident is not  a violator  parent_ident % indent == 0, then skip calling this a problem...
+                sanity = False
+                problem = 'The file does not contain consistent indentation for the sections and section contents. '
+                break
+
+        if not sanity:
+            first_offender_indent = line_indent
+            for ix, config_line in enumerate(config_lines):
+                mo = re.search("^(?P<spaces>\s+)(?P<non_space>\S)", config_line)
+                if mo and mo.group('non_space') == '#':
+                    continue
+                if mo and len(mo.group('spaces')) == first_offender_indent:
+                    offending_line_index = ix + 1
+                    problem = problem + "The first occurrence of the problem is on line: %d" % offending_line_index
+                    break
+
+        return sanity, problem
 
 
     def topLevels(self):
@@ -166,7 +215,7 @@ class Konfabulator(object):
             
         conf_lines = []
         try:
-            cf = open(self.config_file_name, 'r')
+            cf = open(self.config_file_name, 'r', encoding='utf-8')
         except IOError as msg:
             raise ConfigurationError('Unable to open %s for reading, %s' % (self.config_file_name, msg))
         conf_lines = cf.readlines()
@@ -191,7 +240,7 @@ class Konfabulator(object):
             conf_lines[pwent_ix] = '        Password  :  %s\n' % encoded_password
 
         enc_file_name = '%s.pwenc' % self.config_file_name
-        enf = open(enc_file_name, 'w')
+        enf = open(enc_file_name, 'w', encoding='utf-8')
         enf.write(''.join(conf_lines))
         enf.close()
        

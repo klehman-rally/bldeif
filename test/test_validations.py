@@ -9,6 +9,7 @@ from bldeif.utils.klog       import ActivityLogger
 from bldeif.utils.konfabulus import Konfabulator
 from bldeif.agicen_bld_connection import AgileCentralConnection
 import build_spec_helper   as bsh
+from bldeif.bld_connector_runner import BuildConnectorRunner
 import re
 
 PLATYPUS_JENKINS_STRUCTURE="""
@@ -231,7 +232,7 @@ def test_namesake_projects():
     # if so, get all such commit IDs and their associated Changeset ObjectID, then
     # add that "collection" as the Build's Changesets collection
 
-    agicen_build = bc.postBuildsToAgileCentral(build_defn, build, [], job_name)
+    agicen_build, status = bc.postBuildToAgileCentral(build_defn, build, [], job_name)
     assert agicen_build.BuildDefinition.ref == build_defn.ref
 
     # build_defn = agiconn.agicen.ensureBuildDefinitionExistence(job, 'Jenkins', True, build_job_uri)
@@ -255,6 +256,124 @@ def test_without_project():
     assert re.search(expectedErrPattern, actualErrVerbiage) is not None
     assert excinfo.typename == 'ConfigurationError'
 
+def test_ac_for_invalid_items():
+    config_file = ('bad_ac_items.yml')
+    runner = BuildConnectorRunner([config_file])
+    runner.run()
 
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    with open(log, 'r') as f:
+        log_content = f.readlines()
 
+    target_line = "AgileCentral section of the config contained these invalid entries"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)
+
+def test_jenkins_for_invalid_items():
+    config_file = ('bad_jenk_items.yml')
+    runner = BuildConnectorRunner([config_file])
+    runner.run()
+
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+    target_line = "Jenkins section of the config contained these invalid entries"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)
+
+def test_service_for_invalid_items():
+    config_file = ('bad_service_items.yml')
+    runner = BuildConnectorRunner([config_file])
+    runner.run()
+
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+
+    target_line = "Service section of the config contained these invalid entries"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)
+
+def test_jenkins_for_empty_jobs():
+    config_file = ('bad_jenk_empty_jobs.yml')
+    runner = BuildConnectorRunner([config_file])
+    runner.run()
+
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+
+    target_line = "Jobs section of the config is empty"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)
+
+def test_jenkins_for_empty_views():
+    config_file = ('bad_jenk_empty_views.yml')
+    runner = BuildConnectorRunner([config_file])
+    runner.run()
+
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+
+    target_line = "Views section of the config is empty"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)
+
+def test_jenkins_for_empty_folders():
+    config_file = ('bad_jenk_empty_folders.yml')
+    runner = BuildConnectorRunner([config_file])
+    runner.run()
+
+    log = "log/{}.log".format(config_file.replace('.yml', ''))
+    with open(log, 'r') as f:
+        log_content = f.readlines()
+
+    target_line = "Folders section of the config is empty"
+    match = [line for line in log_content if target_line in line][0]
+    assert re.search(r'%s' % target_line, match)
+
+def test_config_defaults():
+    #config_file = ('defaults.yml')
+    logger = ActivityLogger('log/defaults.log')
+    konf = Konfabulator('config/defaults.yml', logger)
+    jenk_conf = konf.topLevel('Jenkins')
+    ac_conf = konf.topLevel('AgileCentral')
+    srv_config = konf.topLevel('Service')
+    assert not ac_conf.get('Server', None)
+    assert not jenk_conf.get('Server', None)
+
+    # runner = BuildConnectorRunner([config_file])
+    # runner.run()
+
+    agicen = bsh.AgileCentralConnection(konf.topLevel('AgileCentral'), logger)
+    agicen.other_name = 'Jenkins'
+    agicen.project_name = jenk_conf['AgileCentral_DefaultBuildProject']
+    agicen.connect()
+    assert agicen.server == 'rally1.rallydev.com'
+    assert not agicen.proxy
+
+    jc = bsh.JenkinsConnection(jenk_conf, logger)
+    jc.connect()
+    assert jc.server == 'coyotepair.ca.com'
+    assert jc.port   == 8080
+    assert jc.protocol == 'http'
+
+def test_bad_yml():
+    logger = ActivityLogger('log/bad_yml.log')
+    expectedErrPattern = "The file does not contain consistent indentation for the sections and section contents"
+    unexpectedErrPattern = "Oh noes!"
+    with pytest.raises(Exception) as excinfo:
+        konf = Konfabulator('config/bad_yml.yml', logger)
+    actualErrVerbiage = excinfo.value.args[0]
+    assert re.search(expectedErrPattern, actualErrVerbiage)
+    assert not re.search(unexpectedErrPattern, actualErrVerbiage)
+
+def test_tab_yml():
+    logger = ActivityLogger('log/bad_tab.log')
+    expectedErrPattern = "Your config file contains tab characters which are not allowed in a YML file."
+    with pytest.raises(Exception) as excinfo:
+        konf = Konfabulator('config/bad_tab.yml', logger)
+    actualErrVerbiage = excinfo.value.args[0]
+    assert re.search(expectedErrPattern, actualErrVerbiage)
 

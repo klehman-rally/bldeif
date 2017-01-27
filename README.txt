@@ -35,10 +35,10 @@
       pip3.5 install requests==2.8.1
       pip3.5 install pyral==1.2.3
       pip3.5 install PyYAML==3.12
-      unpack bldeif-0.9.0.zip
+      unpack bldeif-1.0.0.zip
          change your working directory (cd) to a directory where you want to install the connector
-         unzip bldeif-0.9.0.zip   (or use a suitable program that can unzip a .zip file)
-         cd bldeif-0.9.0
+         unzip bldeif-1.0.0.zip   (or use a suitable program that can unzip a .zip file)
+         cd bldeif-1.0.0
          ls -laR   # observe the unpacked contents, or use dir on Windows
 
             bldeif              # bldeif module root directory
@@ -49,6 +49,15 @@
 
 
    Setup
+
+      General recommendations:
+         - start simple
+         - use fully qualified path for folders and views if you have duplicate job, folder and view names in your jenkins structure
+              (See Appendix B if your Jenkins installation contains duplicate job/folder/view names)
+         - use an appropriate MaxDepth value if your Jenkins structure is deeply nested
+
+      When you have a deeply nested Jenkins structure and duplicate folder view and job names,
+      we strongly recommend using appropriate MaxDepth and FullFolderPath in order to insure a deterministic outcome.
 
       Locate the config subdirectory
       Copy the sample.yml file to a file named suitably for your environment
@@ -65,7 +74,7 @@
 
       Manual
          Using a terminal window or console:
-            cd to the installation root directory  eg.  /opt/local/sw/bldeif-0.9.0
+            cd to the installation root directory  eg.  /opt/local/sw/bldeif-1.0.0
             python3.5 bldeif_connector product_x.yml
 
          This software requires that the configuration file reside in the config subdirectory.  You specify the name
@@ -80,7 +89,7 @@
             where $BLDEIF is the reference to an environment variable containing the
             fully qualified path to the directory where the software is installed.  Here's an example:
             If you unzipped the package in /opt/local/sw, then your BLDEIF would be set like this:
-               export BLDEIF=/opt/local/sw/bldeif-0.9.0
+               export BLDEIF=/opt/local/sw/bldeif-1.0.0
 
 
   Time File
@@ -115,8 +124,38 @@
       can show you what Jenkins jobs would actually be considered without actually posting
       any build information to Agile Central.
 
+   Known Size Limitation on Job Names
 
-  Appendix A  - Configuration file editing
+      Within AgileCentral there is an entity called a BuildDefinition which for the purposes
+      of the Build Connector for Jenkins contains the name of the Jenkins job.  The Jenkins job
+      as recorded in a BuildDefinition item is the full URL of the Jenkins job, including any folder
+      and view elements.  A BuildDefinition Name is limited to 256 characters.  In the
+      event that a Jenkins job has a URL whose length exceeds 256 characters, the behavior of the
+      connector is to delete off leading chars on the the job URL such that the result is no longer
+      than 256 characters and this resulting string value is used as the BuildDefinition name.  Be aware that
+      in some edge cases you might have a Jenkins installation in which this type of modification of the full Job
+      URL for various Jenkins Job URLs could end up with the same abbreviated value.  We do not anticipate
+      that this will be a common occurence.  If you are in the situation where your Jenkins installation
+      contains folder and view names that are fairly long (> 40 chars per folder/view name) with a high
+      degree of nesting (> 6 levels) then you may need to alter your connnector config file(s) such that
+      jobs whose URL results in a string of > 256 chars are not specified in your config file.
+
+         Example Jenkins Job URL:  http://bigjenkins.stegasaurus.ancient:8080/job/ReallyLongScientificFolderName/.../job/FernCoveredLowlands/job/MickyDinosaur
+         Result   .../job/FernCoveredLowlands/job/MickyDinosaur
+
+   How the connector handles duplicately named Jobs/Folders/Views
+       see Appendix B
+
+   VCS Support
+       Currently the connector will process changesets related to builds as long as related job is using a Git repository.
+       Some configurations with Subversion have been successful, but there are combinations of Jenkins version, Subversion version and
+         Jenkins Subversion plugin version that do not work with our connector due to variances in the json data returned for the
+         build information.
+         We recommend using a designated VCS connector for Subversion along with Jenkins connector to capture commit/changeSet and build information.
+         In those cases set ShowVCSData property in the Jenkins config file to False.
+
+
+  Appendix A:  Configuration file editing
                 --------------------------
      The Agile Central bldeif connector for Jenkins uses a text file in the YAML format.
      For complete information, consult the web page at www.yaml.org/start.html or any of the
@@ -163,7 +202,7 @@
  JenkinsBuildConnector:
      AgileCentral:   # all of the possible key value pairs, not all must be used, see the right-hand side
                      # comments for designation as either 'R' required or 'O' optional
-         Server:       : rally1.rallydev.com      # R
+         Server:       : rally1.rallydev.com      # R   if not provided, defaults to rally1.rallydev.com
          Username      : henry5@hauslancaster.uk  # R   if an API_Key entry is used, then this isn't needed
          Password      : 2MuchAngst1415           # R   if an API_Key entry is used, then this isn't needed
          API_Key       : _zzzyyyy234twqwtqwet89y4t38g38y0  # O can use this instead of a Username and Password
@@ -175,25 +214,29 @@
 
      Jenkins:        # all of the possible key value pairs, not all must be used, see the right-hand side
                      # comments for designation as either 'R' required or 'O' optional
-         Protocol    : http                       # R
-         Server      : jenkado.mydomain.com       # R
-         Port        : 8080                       # R
+         Protocol    : http                       # R  if not provided, defaults to http
+         Server      : jenkado.mydomain.com       # R  if not provided, defaults to the host the connector is running on
+         Port        : 8080                       # R  if not provided, defaults to 8080
          Prefix      :                            # O  for custom Jenkins installation in a non-standard directory
          Username    : validuser                  # R  provide a value when Jenkins requires credentials for access
          Password    : somepasswd                 # R  provide a value when Jenkins requires credentials for access
          API_Token   : 320ca9ae9408d099183aa052ff3199c2  # O can use in place of Password when credentials required
          MaxDepth    : 3                          # O  how many folder levels will be considered, default is three
                                                   #    this will accommodate a scenario like AlphaFolder // BetaFolder // CherryFolder and the jobs in that folder
+         FullFolderPath : False                   # O (default is False)  False value indicates Folder and View names only need the leaf name not the full path
+                                                  #   When set to True Folder and Value names must use the full path syntax, example:
+                                                  #       Some Top Level Folder // some second level folder // target folder name
+                                                  #   The path component separator is ' // '.
          AgileCentral_DefaultProject : an Agile Central Project name  # R
 
          Folders:
              - Folder: a folder name
-               include: toaster,microwave,stove  # O use adequate non-ambiguous patterns of job names to include 
-                                                 #   only those specified. this example would include the jobs
-                                                 #   stove-hot, stove-warm, stove-burning
+               include: toaster,microwave,stove   # O use adequate non-ambiguous patterns of job names to include
+                                                  #   only those specified. this example would include the jobs
+                                                  #   stove-hot, stove-warm, stove-burning
              - Folder: another folder name
-               exclude: beta-,post-prod      # O use adequate non-ambiguous patterns of job names to exclude, 
-                                             # you do not have to specify the full job name
+               exclude: beta-,post-prod           # O use adequate non-ambiguous patterns of job names to exclude,
+                                                  # you do not have to specify the full job name
                AgileCentral_Project: Divison X // National // Engineering
 
          Views:
@@ -204,7 +247,7 @@
                exclude: pre-prod
 
          Jobs:
-             - Job   : job name
+             - Job   : job name             # only top level jobs can be listed here. Jobs nested in Views or Folders must be listed in respective sections
                AgileCentral_Project: Beta Test for Northeast
              - Job   : another job name     # this job with a unique name could live in some view or folder not at the top level
 
@@ -216,12 +259,63 @@
          LogLevel     : INFO   # This is the default value, can also be DEBUG, WARN, ERROR. DEBUG is very verbose
          MaxBuilds    : 100    # Use a non-negative integer value. This "limit" pertains to builds for a particular job.
 
+
+ Appendix B: Handling duplicate names in Jenkins
+
+   The connector will process jobs under named folders, there is not currently the facility to specify an upper level
+      folder and process all jobs directly in that folder and in any contained folders in any level of nesting.
+      To get jobs in folders to be processed you must specify the folder name in the config file.
+
+      You may have a nested folder structure as illustrated below:
+       - upper folder
+         -- job 1
+         -- lower folder
+            -- job 2
+
+       To insure that both job 1 and job 2 are picked up by the connector the Folders section of the config file must look as follows:
+          Folders:
+            - Folder : upper folder
+            - Folder : lower folder
+
+       If you have multiple folders in various locations in your Jenkins Job organization that have the same name,
+       you must specify each folder using a fully qualified path with ' // ' as a separator between each folder/view level.
+         Example config file snippet...
+             Jenkins:
+                 ...
+                 MaxDepth : 5
+                 FullFolderPath : True
+                 ...
+                 Folders:
+                     - Folder: Area 51 // Intermediate Stuff // Good Stuff
+                     - Folder: Level1 //  Level 2 // Level 3 // Good Stuff
+
+
+ Appendix C: AgileCentral Project specification
+     In AgileCentral, project names do not have to be unique. The connector provides a mechanism of distinguishing projects with the same name.
+     For example, if a fragment of a project tree looks like this:
+
+     |__ Jenkins
+         |__ Salamandra
+         |__ Corral
+             |__ Salamandra
+
+     we recommend that in order for the build definitions to be assigned to the intended projects in AC the following syntax should be used:
+
+
+      Example config file snippet...
+
+        Jenkins:
+            ...
+            AgileCentral_DefaultBuildProject :  Jenkins
+
+            Jobs:
+                - Job: monitor sub-tropical habitat
+                  AgileCentral_Project: Jenkins // Salamandra
+                - Job: fill the water bottles
+                  AgileCentral_Project: Jenkins // Corral // Salamandra
+
  ------  end of the file ---------------------------------------
 
 
 
-Duplicate Job Names
--------------------
-   At the current time, if you have Job names in your Jenkins installation that are duplicated but in different views/folders
-the connector configuration has no way to disambiguate those names.  One way to handle that situation is to specify the job 
-implicitly (without naming it) using a View or a Folder in the connector's configuration file.
+

@@ -13,7 +13,7 @@ from bldeif.utils.claslo          import ClassLoader
 
 ##############################################################################################
 
-__version__ = "0.9.6"
+__version__ = "0.9.9"
 
 PLUGIN_SPEC_PATTERN       = re.compile(r'^(?P<plugin_class>\w+)\s*\((?P<plugin_config>[^\)]*)\)\s*$')
 PLAIN_PLUGIN_SPEC_PATTERN = re.compile(r'(?P<plugin_class>\w+)\s*$')
@@ -80,8 +80,14 @@ class BLDConnector:
         self.agicen_conf['Project'] = self.bld_conf['AgileCentral_DefaultBuildProject']
         self.svc_conf    = config.topLevel('Service')
         self.max_builds  = self.svc_conf.get('MaxBuilds', 20)
-
         default_project = self.agicen_conf['Project']
+
+        valid_config_items = ['Preview', 'LogLevel', 'MaxBuilds', 'ShowVCSData' ]
+        svc_conf = config.topLevel('Service')
+        invalid_config_items = [item for item in svc_conf.keys() if item not in valid_config_items]
+        if invalid_config_items:
+            problem = "Service section of the config contained these invalid entries: %s" % ", ".join(invalid_config_items)
+            raise ConfigurationError(problem)
 
         # create a list of AgileCentral_Project values, start with the default project value
         # and then add add as you see overrides in the config.
@@ -90,18 +96,27 @@ class BLDConnector:
 
         if "Views" in self.bld_conf:
             self.views = self.bld_conf["Views"]
+            if not self.views:
+                msg = "Views section of the config is empty"
+                raise ConfigurationError(msg)
             for view in self.views:
                 view_name = view['View']
                 self.target_projects.append(view.get('AgileCentral_Project', default_project))
 
         if "Folders" in self.bld_conf:
             self.folders = self.bld_conf["Folders"]
+            if not self.folders:
+                msg = "Folders section of the config is empty"
+                raise ConfigurationError(msg)
             for folder_conf in self.folders:
                 folder_display_name = folder_conf['Folder']
                 self.target_projects.append(folder_conf.get('AgileCentral_Project', default_project))
 
         if "Jobs" in self.bld_conf:
             self.jobs = self.bld_conf["Jobs"]
+            if not self.jobs:
+                msg = "Jobs section of the config is empty"
+                raise ConfigurationError(msg)
             for job in self.jobs:
                 job_name = job['Job']
                 self.target_projects.append(job.get('AgileCentral_Project', default_project))
@@ -206,7 +221,7 @@ class BLDConnector:
         unrecorded_builds = self._identifyUnrecordedBuilds(recent_agicen_builds, recent_bld_builds)
         self.log.info("unrecorded Builds count: %d" % len(unrecorded_builds))
         self.log.info("no more than %d builds per job will be recorded on this run" % self.max_builds)
-        if self.svc_conf['ShowVCSData']:
+        if self.svc_conf.get('ShowVCSData', False):
             self.dumpChangesetInfo(unrecorded_builds)
 
         recorded_builds = OrderedDict()
@@ -216,7 +231,7 @@ class BLDConnector:
         self.log.debug("About to process %d unrecorded builds" % len(unrecorded_builds))
         for job, build, project, view in unrecorded_builds:
             if build.result == 'None':
-                self.log.warn("%s #%s job/build was not processed because is still running" %(job, build.number))
+                self.log.warn("%s #%s job/build was not processed because is still running" % (job, build.number))
                 continue
             #self.log.debug("current job: %s  build: %s" % (job, build))
             if not job in builds_posted:
@@ -226,9 +241,19 @@ class BLDConnector:
             if preview_mode:
                 continue
 
-            changesets, build_definition = agicen.prepAgileCentralBuildPrerequisites(build, project)
-            agicen_build = self.postBuildsToAgileCentral(build_definition, build, changesets, job)
-            if agicen_build:
+            try:
+                changesets, build_definition = agicen.prepAgileCentralBuildPrerequisites(job, build, project)
+            except Exception as msg:
+                self.log.error('OperationalException prepACBuildPrerequisites - %s' % msg)
+                continue
+
+            try:
+                agicen_build, status = self.postBuildToAgileCentral(build_definition, build, changesets, job)
+            except Exception as msg:
+                self.log.error('OperationalException postingACBuild - %s' % msg)
+                continue
+
+            if agicen_build and status == 'posted':
                 builds_posted[job] += 1
                 if job not in recorded_builds:
                     recorded_builds[job] = []
@@ -237,7 +262,7 @@ class BLDConnector:
 
         return status, recorded_builds
 
-    def postBuildsToAgileCentral(self, build_defn, build, changesets, job):
+    def postBuildToAgileCentral(self, build_defn, build, changesets, job):
         desc = '%s %s #%s | %s | %s  not yet reflected in Agile Central'
         # add that "collection" as the Build's Changesets collection                                                                 bts = time.strftime("%Y-%m-%d %H:%M:%S Z", time.gmtime(build.timestamp / 1000.0))
         # self.log.debug(desc % (pm_tag, job, build.number, build.result, bts))
@@ -249,9 +274,9 @@ class BLDConnector:
         existing_agicen_build = self.agicen_conn.buildExists(build_defn, build.number)
         if existing_agicen_build:
             self.log.debug('Build #{0} for {1} already recorded, skipping...'.format(build.number, job))
-            return existing_agicen_build
+            return existing_agicen_build, 'skipped'
         agicen_build = self.agicen_conn.createBuild(info)
-        return agicen_build
+        return agicen_build, 'posted'
 
     def getRefTimes(self, last_run):
         """
@@ -306,8 +331,9 @@ class BLDConnector:
                     if project in agicen_builds:
                         job_builds = agicen_builds[project]
                         # now look for a matching job in job_builds
-                        if job in job_builds:
-                            ac_build_nums = [int(bld.Number) for bld in job_builds[job]]
+                        job_fqp = job.fully_qualified_path()
+                        if job_fqp in job_builds:
+                            ac_build_nums = [int(bld.Number) for bld in job_builds[job_fqp]]
                             if build.number in ac_build_nums:
                                 reflected_builds.append((job, build, project, view))
                                 continue
@@ -318,6 +344,8 @@ class BLDConnector:
 
     def dumpChangesetInfo(self, builds):
         for job, build, project, view in builds:
+            if not build.changeSets:
+                continue
             self.log.debug(build)
             for cs in build.changeSets:
                 self.log.debug(str(cs))

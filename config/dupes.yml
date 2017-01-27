@@ -1,4 +1,3 @@
-
 ---
 JenkinsBuildConnector:
 
@@ -6,6 +5,7 @@ JenkinsBuildConnector:
         Server    :  rally1.rallydev.com
         APIKey    :  _2QFAQA0wQoSKiORUOsVlMjeQfFr1JkawtItGFHtrtx8
         Workspace :  Alligators BLD Unigrations
+        Lookback  :  0
 
     Jenkins:
         Protocol  :  http
@@ -13,23 +13,25 @@ JenkinsBuildConnector:
         Port      :  8080
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
-        Password  :  encoded-c-m-F-s-b-H-l-k-Z-X-Y-=
-        MaxDepth  :  5
+        Password  :  encoded-T-m-9-u-Z-Q-=-=
+        MaxDepth  :  4
         AgileCentral_DefaultBuildProject :  Jenkins
 
-        Folders:
-            - Folder: frozique
-              AgileCentral_Project: Jenkins // Corral // Salamandra
-        
         Jobs:
-            - Job: centaur-mordant
-              AgileCentral_Project: Jenkins // Salamandra
-        
+            - Job: black-swan-2
+
+        Folders:
+            - Folder : Parkour
+              AgileCentral_Project: Salamandra
+
+
+        Views:
+            - View: dark flock
 
     Service:
-            Preview: False
-            LogLevel: DEBUG
-            MaxBuilds: 50
-            ShowVCSData: True
-...
+        Preview       : False
+        LogLevel      : DEBUG
+        MaxBuilds     : 50
+        ShowVCSData   : True
 
+...

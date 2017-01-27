@@ -13,23 +13,21 @@ JenkinsBuildConnector:
         Port      :  8080
         API_Token :  e008e30c73820b7eeb097ae1f1fa1dd8
         Username  :  jenkins
-        Password  :  encoded-c-m-F-s-b-H-l-k-Z-X-Y-=
+        Password  :  None
         MaxDepth  :  5
         AgileCentral_DefaultBuildProject :  Jenkins
 
-        Folders:
-            - Folder: frozique
-              AgileCentral_Project: Jenkins // Corral // Salamandra
-        
         Jobs:
             - Job: centaur-mordant
               AgileCentral_Project: Jenkins // Salamandra
-        
+            - Job: Azure Dragon of the East
+              AgileCentral_Project: Jenkins // Corral // Salamandra
 
     Service:
-            Preview: False
+            Purview: False
             LogLevel: DEBUG
             MaxBuilds: 50
-            ShowVCSData: True
+            Builds : many
+            ShowVCSdata: True
+            ShowVCSData: False
 ...
-

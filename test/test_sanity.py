@@ -3,6 +3,7 @@ import time
 import yaml
 import shutil
 import pytest
+import requests
 import spec_helper         as sh
 import build_spec_helper   as bsh
 import jenkins_spec_helper as jsh
@@ -10,9 +11,31 @@ from datetime import datetime, timedelta
 from bldeif.utils.test_konfabulus import TestKonfabulator
 from bldeif.utils.klog       import ActivityLogger
 from bldeif.bld_connector import BLDConnector
+from bldeif.bld_connector_runner import BuildConnectorRunner
 
 import time
 
+def read_config(config_file):
+    config_path = "config/{}".format(config_file)
+    with open(config_path, 'r') as cf:
+        content = cf.read()
+        conf = yaml.load(content)
+    return conf
+
+def construct_jenkins_url(jenk_conf):
+    protocol = jenk_conf['Protocol']
+    server   = jenk_conf['Server']
+    port     = jenk_conf['Port']
+    return "%s://%s:%d" %(protocol, server, port)
+
+def build(config, jenkins, job_name, view="All", folder=None):
+    headers = {'Content-Type':'application/json'}
+    if not folder:
+        url = "{}/job/{}/build".format(jenkins, job_name)
+    else:
+        url = "{}/job/{}/job/{}/build".format(jenkins, folder, job_name)
+    r = requests.post(url, auth=(config['Username'], config['API_Token']), headers=headers)
+    return r
 
 def test_mock_build():
     two_days_ago = bsh.epochSeconds("-2d")
@@ -67,8 +90,10 @@ def test_folder_config():
     jc.connect()
     jc.validate()
     builds = jc.getRecentBuilds(ref_time)
-
-    assert (job_name in builds["%s::%s" % (folder, jenk_conf['AgileCentral_DefaultBuildProject'])]) == True
+    bkey = "%s::%s" % (folder, jenk_conf['AgileCentral_DefaultBuildProject'])
+    target_builds = builds[bkey]   # target_builds is a dict keyed by a JenkinsJob instance
+    build_jobs = [job for job in target_builds if job.name == job_name]
+    assert len(build_jobs) == 1
 
     r3 = jsh.delete_job(jenk_conf, jenkins_url, job_name, folder=folder)
     assert r3.status_code == 200
@@ -119,13 +144,14 @@ def test_manipulate_jenkins_jobs():
     config_path = "config/buildorama.yml"
     assert jenkins_job_lifecycle(naked_job, config_path) == True
 
-    view_job = "troblodyte{}".format(time.time())
-    view = 'Prairie'
-    assert jenkins_job_lifecycle(view_job, config_path, view=view) == True
-
     folder_job_name = "troblodyte{}".format(time.time())
     folder = 'Parkour'
     assert jenkins_job_lifecycle(folder_job_name, config_path, folder=folder) == True
+
+    # apparently Jenkins 2.32 and beyond goofs up the ability to create jobs in views...
+    #view_job = "troblodyte{}".format(time.time())
+    #view = 'Prairie'
+    #assert jenkins_job_lifecycle(view_job, config_path, view=view) == True
 
 def test_find_build():
     t = datetime.now() - timedelta(minutes=60)
@@ -146,29 +172,27 @@ def test_find_build():
     r2 = jsh.build(jenk_conf, jenkins_url, naked_job)
     assert r2.status_code in [200, 201]
     # find it
-    target_job_builds = []
     time.sleep(10)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
     jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
-    for view_project, jobs in builds.items():
-        if jobs and naked_job in jobs:  # jobs is dict keyed by the job name with a value of a list of JenkinsBuild instances
-            target_job_builds = jobs[naked_job]
+    view = 'All'   # because we created the naked job at the top level
+    bkey = "%s::%s" % (view, jenk_conf['AgileCentral_DefaultBuildProject'])
+    target_builds = builds[bkey]  # target_builds is a dict keyed by a JenkinsJob instance
+    build_jobs = [job for job in target_builds if job.name == naked_job]
 
-    #target_job_builds = [build_info[naked_job] for view_project, build_info  in builds.items() if naked_job in build_info.keys() ]
+    # for key, val in builds.items():
+    #     print("key: %s, val: %s" % (key, val))
+    #     print(key)
+    #     #for k, v in val.items():
+    #     #    print("...k: %s, v: %s" % (k, v))
+    #     for builds in val.values():
+    #         for build in builds:
+    #             print("    %s" % build)
 
-    for key, val in builds.items():
-        #print("key: %s, val: %s" % (key, val))
-        print(key)
-        #for k, v in val.items():
-        #    print("...k: %s, v: %s" % (k, v))
-        for builds in val.values():
-            for build in builds:
-                print("    %s" % build)
-
-    assert len(target_job_builds) == 1
+    assert len(build_jobs) == 1
 
     # delete the job
     r3 = jsh.delete_job(jenk_conf, jenkins_url, naked_job)
@@ -197,29 +221,28 @@ def test_find_two_builds():
     assert r2.status_code in [200, 201]
 
     # find two builds
-    target_job_builds = []
     time.sleep(10)
     jc = bsh.JenkinsConnection(jenk_conf, logger)
     jc.connect()
     jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
-    for view_project, jobs in builds.items():
-        if jobs and naked_job in jobs:  # jobs is dict keyed by the job name with a value of a list of JenkinsBuild instances
-            target_job_builds = jobs[naked_job]
+    # for key, val in builds.items():
+    #     print("key: %s, val: %s" % (key, val))
+    #     print(key)
+    #     # for k, v in val.items():
+    #     #    print("...k: %s, v: %s" % (k, v))
+    #     for builds in val.values():
+    #         for build in builds:
+    #             print("    %s" % build)
 
-    # target_job_builds = [build_info[naked_job] for view_project, build_info  in builds.items() if naked_job in build_info.keys() ]
-
-    for key, val in builds.items():
-        # print("key: %s, val: %s" % (key, val))
-        print(key)
-        # for k, v in val.items():
-        #    print("...k: %s, v: %s" % (k, v))
-        for builds in val.values():
-            for build in builds:
-                print("    %s" % build)
-
-    assert len(target_job_builds) == 2
+    view = 'All'  # because we created the naked job at the top level
+    bkey = "%s::%s" % (view, jenk_conf['AgileCentral_DefaultBuildProject'])
+    target_builds = builds[bkey]  # target_builds is a dict keyed by a JenkinsJob instance
+    build_jobs = [job for job in target_builds if job.name == naked_job]
+    target_job = build_jobs[0]
+    assert len(build_jobs) == 1
+    assert len(target_builds[target_job]) == 2
 
     # delete the job
     r3 = jsh.delete_job(jenk_conf, jenkins_url, naked_job)
@@ -263,27 +286,22 @@ def test_find_builds_of_two_jobs():
     jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
-    # for view_project, jobs in builds.items():
-    #     if jobs and naked_job in jobs:  # jobs is dict keyed by the job name with a value of a list of JenkinsBuild instances
-    #         target_job_builds = jobs[naked_job]
 
-    for job_name in two_jobs:
-        for view_project, jobs in builds.items():
-            if jobs and job_name in jobs:
-                target_job_builds.append(jobs[job_name])
+    view = 'All'  # because we created the two jobs at the top level
+    bkey = "%s::%s" % (view, jenk_conf['AgileCentral_DefaultBuildProject'])
+    target_builds = builds[bkey]  # target_builds is a dict keyed by a JenkinsJob instance
+    build_jobs = [job for job in target_builds if job.name in [job1, job2]]
 
-    # target_job_builds = [build_info[naked_job] for view_project, build_info  in builds.items() if naked_job in build_info.keys() ]
 
-    for key, val in builds.items():
-        # print("key: %s, val: %s" % (key, val))
-        print(key)
-        # for k, v in val.items():
-        #    print("...k: %s, v: %s" % (k, v))
-        for builds in val.values():
-            for build in builds:
-                print("    %s" % build)
+    # for key, val in builds.items():
+    #     print(key)
+    #     # for k, v in val.items():
+    #     #    print("...k: %s, v: %s" % (k, v))
+    #     for builds in val.values():
+    #         for build in builds:
+    #             print("    %s" % build)
 
-    assert len(target_job_builds) == 2
+    assert len(build_jobs) == 2
 
     # delete the jobs
     for job_name in two_jobs:
@@ -323,7 +341,6 @@ def test_find_builds_in_different_containers():
     r1 = jsh.create_job(jenk_conf, jenkins_url, job2, folder=folder1)
     assert r1.status_code in [200, 201]
     tkonf.add_to_container({'Folder': folder1})
-    #tkonf.add_to_container({'Folder': folder2})
 
     # create a job in a folder in Jenkins but do not add this folder name to config
     r1 = jsh.create_job(jenk_conf, jenkins_url, job3, folder=folder2)
@@ -354,23 +371,33 @@ def test_find_builds_in_different_containers():
     jc.validate()
     builds = jc.getRecentBuilds(ref_time)
 
-    for job_name in three_jobs:
-        for view_project, jobs in builds.items():
-            if jobs and job_name in jobs:
-                target_job_builds.append(jobs[job_name])
+    view = 'All'
 
-    # target_job_builds = [build_info[naked_job] for view_project, build_info  in builds.items() if naked_job in build_info.keys() ]
+    bkey1 = "%s::%s" % (view, jenk_conf['AgileCentral_DefaultBuildProject'])
+    target_builds = builds[bkey1]  # target_builds is a dict keyed by a JenkinsJob instance
+    build_jobs1 = [job for job in target_builds if job.name == job1]
 
-    for key, val in builds.items():
-        # print("key: %s, val: %s" % (key, val))
-        print(key)
-        # for k, v in val.items():
-        #    print("...k: %s, v: %s" % (k, v))
-        for builds in val.values():
-            for build in builds:
-                print("    %s" % build)
+    bkey2 = "%s::%s" % (folder1, jenk_conf['AgileCentral_DefaultBuildProject'])
+    target_builds = builds[bkey2]  # target_builds is a dict keyed by a JenkinsJob instance
+    build_jobs2 = [job for job in target_builds if job.name == job2]
 
-    assert len(target_job_builds) == 2
+    bkey3 = "%s::%s" % (folder2, jenk_conf['AgileCentral_DefaultBuildProject'])
+    assert bkey3 not in builds
+    #target_builds = builds[bkey3]  # target_builds is a dict keyed by a JenkinsJob instance
+    #build_jobs3 = [job for job in target_builds if job.name == job3]
+
+
+    # for key, val in builds.items():
+    #     print("key: %s, val: %s" % (key, val))
+    #     print(key)
+    #     # for k, v in val.items():
+    #     #    print("...k: %s, v: %s" % (k, v))
+    #     for builds in val.values():
+    #         for build in builds:
+    #             print("    %s" % build)
+
+    assert len(build_jobs1) == 1
+    assert len(build_jobs2) == 1
 
     # delete the jobs
 
@@ -389,102 +416,6 @@ def test_find_builds_in_different_containers():
     r3 = jsh.delete_job(jenk_conf, jenkins_url, folder2)
     assert r3.status_code == 200
 
-def test_same_name_jobs_in_diff_folders():
-    folder1  = "A1{}".format(time.time())
-    folder2  = "A2{}".format(time.time())
-    job_name = "frog"
-
-    config = "config/buildorama.yml"
-    logger, tkonf = sh.setup_test_config(config)
-    assert tkonf.topLevels() == ['AgileCentral', 'Jenkins', 'Service']
-    agicen_konf =  tkonf.topLevel('AgileCentral')
-    agicen_konf['Workspace'] = 'Alligators BLD Unigrations'
-    tkonf.topLevel('Jenkins')['AgileCentral_DefaultBuildProject'] = 'Jenkins'
-    jenk_conf = tkonf.topLevel('Jenkins')
-    jenkins_url = jsh.construct_jenkins_url(jenk_conf)
-
-    r0 = jsh.create_folder(jenk_conf, jenkins_url, folder1)
-    assert r0.status_code in [200, 201]
-    r0 = jsh.create_folder(jenk_conf, jenkins_url, folder2)
-    assert r0.status_code in [200, 201]
-
-    r1 = jsh.create_job(jenk_conf, jenkins_url, job_name, folder=folder1)
-    assert r1.status_code in [200, 201]
-
-    r1 = jsh.create_job(jenk_conf, jenkins_url, job_name, folder=folder2)
-    assert r1.status_code in [200, 201]
-
-    tkonf.add_to_container({'Folder': folder1, 'AgileCentral_Project': 'Dunder Donut'})
-    tkonf.add_to_container({'Folder': folder2, 'AgileCentral_Project': 'Corral'})
-    tkonf.remove_from_container({'Folder' : 'Parkour'})
-    tkonf.remove_from_container({'View': 'Shoreline'})
-    tkonf.remove_from_container({'Job': 'truculent elk medallions'})
-
-    assert tkonf.has_item('Folder', folder1)
-    assert tkonf.has_item('Folder', folder2)
-    assert tkonf.has_item('Folder', 'Parkour') == False
-
-    ref_time = datetime.now() - timedelta(minutes=5)
-
-    jenkins_url = jsh.construct_jenkins_url(jenk_conf)
-
-    r1 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder1)
-    assert r1.status_code in [200, 201]
-    time.sleep(10)
-
-    r2 = jsh.build(jenk_conf, jenkins_url, job_name, folder=folder2)
-    assert r2.status_code in [200, 201]
-    time.sleep(10)
-
-    assert folder1 in [folder_rec['Folder'] for folder_rec  in jenk_conf['Folders']]
-    assert folder2 in [folder_rec['Folder'] for folder_rec  in jenk_conf['Folders']]
-    assert 'Parkour' not in [folder_rec['Folder'] for folder_rec  in jenk_conf['Folders']]
-
-    # find two builds
-    target_job_builds = []
-    jc = bsh.JenkinsConnection(jenk_conf, logger)
-    jc.connect()
-    jc.validate()
-    jenkins_builds = jc.getRecentBuilds(ref_time.utctimetuple())
-
-    target_job_builds = [build_info[job_name] for view_project, build_info  in jenkins_builds.items() if job_name in build_info.keys() ]
-    bc = bsh.BLDConnector(tkonf, logger)
-
-    agicen = bc.agicen_conn.agicen
-    query = ['CreationDate >= %s' % ref_time.isoformat()]
-    for view_proj, build_view in jenkins_builds.items():
-        print(view_proj)
-        for builds in build_view.values():
-            for build in builds:
-                print("    %s" % build)
-                project = view_proj.split('::')[1]
-                print ("PROJECT %s" %project)
-                build_defn = bc.agicen_conn.ensureBuildDefinitionExists(job_name, project, build.url)
-                assert build_defn.Project.Name == project
-                agicen_build = bc.postBuildsToAgileCentral(build_defn, build, [], job_name)
-                assert agicen_build is not None
-                assert agicen_build.BuildDefinition.Project.Name == project
-
-                ac_response = bc.agicen_conn._retrieveBuilds(project, query)
-                for build in ac_response:
-                    print("    %24.24s Job Name: %24.24s build number: %s " % (build.BuildDefinition.Project.Name, build.BuildDefinition.Name, build.Number))
-                for build in ac_response:
-                    assert (build.BuildDefinition.Project.Name) == project
-                    assert (build.BuildDefinition.Name) == job_name
-
-    # delete the jobs
-
-    r3 = jsh.delete_job(jenk_conf, jenkins_url, job_name, folder=folder1)
-    assert r3.status_code == 200
-
-    r3 = jsh.delete_job(jenk_conf, jenkins_url, job_name, folder=folder2)
-    assert r3.status_code == 200
-
-    r3 = jsh.delete_job(jenk_conf, jenkins_url, folder1)
-    assert r3.status_code == 200
-
-    r3 = jsh.delete_job(jenk_conf, jenkins_url, folder2)
-    assert r3.status_code == 200
 
 def test_depth():
     t = datetime.now() - timedelta(minutes=2)
@@ -502,55 +433,48 @@ def test_depth():
 
     assert 'freddy-flintstone' not in jc.all_jobs
 
-def test_existing_job():
-    ref_time = datetime.now() - timedelta(minutes=2)
-    folder = "immovable wombats"
-    my_job = "Top"
-    other_job = "Carver"
-    jobs = [my_job, other_job ]
-    jc = sh.build_immovable_wombats(folder, jobs)
-    jc.validate()
-    time.sleep(10)
 
-    builds = jc.getRecentBuilds(ref_time.utctimetuple())
-    #target_job_builds = [build_info[my_job] for container_proj, build_info in builds.items() if my_job in build_info.keys()][0]
-    #print (target_job_builds)
+def test_existing_job():
+    ref_time = datetime.utcnow() - timedelta(minutes=2)
+    config_file = "koalas.yml"
+    folder = "koalas"
+    my_job = "lunch"
+    other_job = "dinner"
+    conf = read_config(config_file)
+    jenk_conf = conf['JenkinsBuildConnector']['Jenkins']
+    jenk_url  = construct_jenkins_url(jenk_conf)
+
+    r1 = build(jenk_conf, jenk_url, my_job, folder=folder)
+    assert r1.status_code in [200, 201]
+    time.sleep(15)
+
+    args = [config_file]
+    runner = BuildConnectorRunner(args)
+    assert runner.first_config == config_file
+    config_path = "config/{}".format(config_file)
+    config = runner.getConfiguration(config_path)
+
+    assert config_file in runner.config_file_names
+
+    connector = BLDConnector(config, runner.log)
+    connector.validate()
+
+    jenk_builds = connector.bld_conn.getRecentBuilds(ref_time.utctimetuple())
 
     jobs_snarfed = []
-    builds_snarfed = []
-    for container_proj, build_info in builds.items():
+    jenk_builds_snarfed = []
+    for container_proj, build_info in jenk_builds.items():
         print (container_proj)
         for job, builds in build_info.items():
             jobs_snarfed.append(job)
-            builds_snarfed.extend(builds)
+            jenk_builds_snarfed.extend(builds)
             print (builds)
-    assert other_job not in jobs_snarfed
-    assert my_job in jobs_snarfed
 
-    ref_time = datetime.now() - timedelta(minutes=10)
-    folder = "immovable wombats"
-    my_job = "Top"
-    other_job = "Carver"
-    jobs = [my_job, other_job]
-    jc = sh.build_immovable_wombats(folder, jobs)
-    jc.validate()
-    time.sleep(10)
+    job_names = [job.name for job in jobs_snarfed]
+    assert my_job in job_names
+    assert other_job in job_names
 
-    builds = jc.getRecentBuilds(ref_time.utctimetuple())
-    # target_job_builds = [build_info[my_job] for container_proj, build_info in builds.items() if my_job in build_info.keys()][0]
-    # print (target_job_builds)
-
-    more_jobs_snarfed = []
-    more_builds_snarfed = []
-    for container_proj, build_info in builds.items():
-        print (container_proj)
-        for job, builds in build_info.items():
-            more_jobs_snarfed.append(job)
-            more_builds_snarfed.extend(builds)
-            print (builds)
-    assert other_job not in jobs_snarfed
-    assert my_job in more_jobs_snarfed
-
-    assert len(more_builds_snarfed) > len(builds_snarfed)
-
+    jenk_build_names = [build.name for build in jenk_builds_snarfed]
+    assert not other_job in jenk_build_names
+    assert my_job in job_names
 

@@ -26,7 +26,7 @@ from bldeif.utils.eif_exception import OperationalError, logAllExceptions
 ############################################################################################################
 
 ARCHITECTURE_ACRONYM = 'eif'
-__version__ = "0.9.6"
+__version__ = "0.9.9"
 
 EXISTENCE_PROCLAMATION = """
 ************************************************************************************************************************
@@ -146,6 +146,7 @@ class BuildConnectorRunner(object):
                 if own_lock: self.releaseLock()
             except Exception as msg:
                 raise OperationalError("ERROR: unable to remove lock file '%s', %s" % (LOCK_FILE, msg))
+        self.log.info('run completed')
 
     def identifyBuildSystemName(self):
         file_name = self.find_config_file(self.first_config)
@@ -157,7 +158,7 @@ class BuildConnectorRunner(object):
         bsn = 'UNKNOWN'
         limit = 5
         ix = 0
-        with open(file_name, 'r') as fcf:
+        with open(file_name, 'r', encoding="utf-8") as fcf:
             while ix < limit:
                 text_line = fcf.readline()
                 ix += 1
@@ -211,6 +212,7 @@ class BuildConnectorRunner(object):
         self.connector = BLDConnector(config, self.log)
         self.log.debug("Got a BLDConnector instance, calling the BLDConnector.run ...")
         status, builds = self.connector.run(last_run, self.extension)
+        # builds is an OrderedDict instance, keyed by job name, value is a list of Build instances
 
         finished = time.time()
         elapsed = int(round(finished - this_run))
@@ -230,13 +232,11 @@ class BuildConnectorRunner(object):
             return
 
         # we've added builds successfully, so update the Time File (config/<config>_time.file)
-        #last_job_name = [k for k,v in builds.items()][-1]  #builds is an OrderedDict, so the last job name is the last key added
-        #last_job = builds[last_job_name][-1] # builds[last_job_name] is a list, take the last one
-        #last_build_timestamp = last_job.Start.replace('T', ' ')[:19]
         try:
-            last_build_timestamp = min([v[-1].Start for k,v in builds.items()]).replace('T', ' ')[:19]
-            self.time_file.write(last_build_timestamp)
-            self.log.info("time file written with value of %s Z" % last_build_timestamp)
+            earliest_build_start = min(build_list[-1].Start for job_name, build_list in builds.items())
+            time_file_timestamp = earliest_build_start.replace('T', ' ')[:19]
+            self.time_file.write(time_file_timestamp)
+            self.log.info("time file written with value of %s Z" % time_file_timestamp)
         except Exception as msg:
             raise OperationalError(msg)
 

@@ -19,6 +19,7 @@ BAD_CONFIG2     = 'genghis.yml'
 BAD_CONFIG3     = 'caligula.yml'
 SHALLOW_CONFIG  = 'shallow.yml'
 DEEP_CONFIG     = 'deepstate.yml'
+DUPES           = 'dupes.yml'
 
 def connect_to_jenkins(config_file):
     #config_file = 'config/honey-badger.yml'
@@ -40,6 +41,20 @@ def test_jobs_bucket():
         print(j.job_path)
     assert next((job for job in jobs if job.job_path == "/frozique::australopithicus"))
     assert next((job for job in jobs if job.name == "troglodyte"))
+
+    pipeline_jobs = [job for job in jc.inventory.jobs if job._type == 'WorkflowJob']
+    assert len(pipeline_jobs) == 2
+    plj = pipeline_jobs[0]
+    assert plj.name == 'pipe dream'
+    multijob_jobs = [job for job in jc.inventory.jobs if job._type == 'MultiJobProject']
+    assert len(multijob_jobs) == 1
+
+    folder_jobs = jc.inventory.folders['/frozique'].jobs
+    pipeline_jobs = [job for job in folder_jobs if job._type == 'WorkflowJob']
+    assert len(pipeline_jobs) == 1
+    assert pipeline_jobs[0].name == 'peace on earth'
+
+
 
 def test_views_bucket():
     jc = connect_to_jenkins(STANDARD_CONFIG)
@@ -95,32 +110,66 @@ def test_folder_full_path():
     expected_value = '/abacab/bontamy/crinkely'
     assert fqp == expected_value
 
+def test_duplicate_job_names():
+    jc = connect_to_jenkins(STANDARD_CONFIG)
+    assert jc.connect()
+    # 1 black-swan-2 job at the top level  in jc.inventory.jobs
+    # 1 black-swan-2 job in the Parkour folder in jc.inventory.folder['Parkour']
+    # 1 black-swan2 job in the abacab->bontamy folder in jc.inventory['bontamy']
+    # the same black-swan-2 job as above in abacab folder -> 'dark flock' view in jc.inventory.views['dark flock]
+    # and the job.container value should be different in each job to reflect the above
+    black_swan2_job = [job for job in jc.inventory.jobs if job.name == 'black-swan-2'][0]
+    p_folder = jc.inventory.getFolder('/Parkour')
+    parkour_folder_black_swan2_job = [job for job in p_folder.jobs if job.name == 'black-swan-2'][0]
+    b_folder = jc.inventory.getFolder('/abacab/bontamy')
+    bontamy_folder_black_swan2_job = [job for job in b_folder.jobs if job.name == 'black-swan-2'][0]
+    df_view = jc.inventory.getView('dark flock')
+    darkflock_view_black_swan2_job = [job for job in  df_view.jobs if job.name == 'black-swan-2'][0]
+
+    #for job in [black_swan2_job, parkour_folder_black_swan2_job, bontamy_folder_black_swan2_job, darkflock_view_black_swan2_job] :
+    #    print("%s  %s  %s" % (job.container, job.name, job.url))
+
+    assert black_swan2_job.container.split('//')[1] == 'tiema03-u183073.ca.com:8080'
+    assert parkour_folder_black_swan2_job.container.split('//')[1] == 'tiema03-u183073.ca.com:8080/job/Parkour'
+    assert bontamy_folder_black_swan2_job.container.split('//')[1] == 'tiema03-u183073.ca.com:8080/job/abacab/job/bontamy'
+    assert darkflock_view_black_swan2_job.container.split('//')[1] == 'tiema03-u183073.ca.com:8080/job/abacab/job/bontamy/view/dark flock'
+    assert black_swan2_job.name == 'black-swan-2'
+
+    assert  darkflock_view_black_swan2_job.fully_qualified_path() == 'tiema03-u183073.ca.com:8080/job/abacab/job/bontamy/view/dark flock/job/black-swan-2'
+
+
 def test_job_vetting():
     jc = connect_to_jenkins(MIN_CONFIG1)
     assert jc.connect()
-    assert jc.configItemsVetted()
+    #assert jc.configItemsVetted()
+    assert jc.nonFullyPathedConfigItemsVetted()
 
     jc = connect_to_jenkins(BAD_CONFIG1)
     assert jc.connect()
-    assert not jc.configItemsVetted()
+    #assert not jc.configItemsVetted()
+    assert not jc.nonFullyPathedConfigItemsVetted()
 
 def test_view_vetting():
     jc = connect_to_jenkins(MIN_CONFIG2)
     assert jc.connect()
-    assert jc.configItemsVetted()
+    #assert jc.configItemsVetted()
+    assert jc.nonFullyPathedConfigItemsVetted()
 
     jc = connect_to_jenkins(BAD_CONFIG2)
     assert jc.connect()
-    assert not jc.configItemsVetted()
+    #assert not jc.configItemsVetted()
+    assert not jc.nonFullyPathedConfigItemsVetted()
 
 def test_folder_vetting():
     jc = connect_to_jenkins(MIN_CONFIG3)
     assert jc.connect()
-    assert jc.configItemsVetted()
+    #assert jc.configItemsVetted()
+    assert jc.nonFullyPathedConfigItemsVetted()
 
     jc = connect_to_jenkins(BAD_CONFIG3)
     assert jc.connect()
-    assert not jc.configItemsVetted()
+    #assert not jc.configItemsVetted()
+    assert not jc.nonFullyPathedConfigItemsVetted()
 
 def test_log_for_config_vetting():
     config_file = BAD_CONFIG1
@@ -147,7 +196,8 @@ def test_shallow_depth_config():
     ref_time = t.utctimetuple()
     jc = connect_to_jenkins(SHALLOW_CONFIG)
     assert jc.connect()
-    assert not jc.configItemsVetted()
+    #assert not jc.configItemsVetted()
+    assert not jc.nonFullyPathedConfigItemsVetted()
 
     log_output = of.readlines()
     error_lines = [line for line in log_output if 'ERROR' in line][0]
@@ -160,7 +210,8 @@ def test_deepy_depth_config():
     ref_time = t.utctimetuple()
     jc = connect_to_jenkins(DEEP_CONFIG)
     assert jc.connect()
-    assert jc.configItemsVetted()
+    #assert jc.configItemsVetted()
+    assert jc.nonFullyPathedConfigItemsVetted()
 
     log_output = of.readlines()
     error_lines = [line for line in log_output if 'ERROR' in line]
@@ -169,3 +220,28 @@ def test_deepy_depth_config():
     builds = jc.getRecentBuilds(ref_time)
     assert builds
 
+def test_validate_jobs():
+    jc = connect_to_jenkins(DUPES)
+    assert jc.connect()
+    #assert jc.configItemsVetted()
+    assert jc.nonFullyPathedConfigItemsVetted()
+
+    assert type(jc.vetted_jobs) == type(['a', 'b'])
+    bs2 = [job for job in jc.vetted_jobs if job.job_path.split('::') == ['', 'black-swan-2']]
+    assert len(bs2) == 1
+    bs2 = bs2[0]
+    assert bs2.name == 'black-swan-2'
+    assert bs2.fully_qualified_path().endswith('/job/black-swan-2')
+
+    # look for a specific job in the Parkour folder
+    parkour_jobs = [jobs for  viewproject, jobs in jc.vetted_folder_jobs.items() if viewproject.startswith('Parkour::')][0]
+    bs2f = [job  for job in parkour_jobs if job.fully_qualified_path().endswith('/job/Parkour/job/black-swan-2')]
+    assert bs2f
+
+    #make sure a job in a folder not specified in the config doesn't show up in vetted_folder_jobs
+    bontamy_jobs = [jobs for viewproject, jobs in jc.vetted_folder_jobs.items() if viewproject.startswith('abacab/bontamy::')]
+    assert not bontamy_jobs
+
+    dfv_jobs = [jobs for viewproject, jobs in jc.vetted_view_jobs.items() if viewproject.startswith('dark flock::')][0]
+    bs2v = [job for job in dfv_jobs if job.fully_qualified_path().endswith('/job/abacab/job/bontamy/view/dark flock/job/black-swan-2')]
+    assert bs2v

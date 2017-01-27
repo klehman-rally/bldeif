@@ -7,6 +7,8 @@ import build_spec_helper   as bsh
 #import jenkins_spec_helper as jsh
 from datetime import datetime, timedelta
 from collections import OrderedDict
+from bldeif.bld_connector    import BLDConnector
+from bldeif.bld_connector_runner import BuildConnectorRunner
 
 
 def test_create_build_with_no_commits():
@@ -129,3 +131,38 @@ def test_create_build_having_commits():
     print("loons are crazy %s" % len(changesets))
 
 
+def test_very_long_job_name():
+    config_path = 'config/nebuchadnezzar.yml'
+    config_name = config_path.replace('config/', '')
+    config_lookback = 0  # in minutes
+    args = [config_name]
+    runner = BuildConnectorRunner(args)
+    config = runner.getConfiguration(config_path)
+
+    connector = BLDConnector(config, runner.log)
+    agicen = connector.agicen_conn
+
+    # see if a BuildDefinition exists in AgileCentral whose Name contains '/job/Marduk-apla-iddina%20II/'
+    # if so, delete it
+    funky_job_name = '/job/Marduk-apla-iddina%20II/'
+    response = agicen.agicen.get('BuildDefinition', query='Name contains "%s"' % funky_job_name)
+    for build_def in response:
+        agicen.agicen.delete('BuildDefinition', build_def.ObjectID)
+
+    project = 'Dunder Donut'
+    path = 'http://tiema03-u183073.ca.com:8080/job/Zoolander/job/Apatosaurus/job/Brachiosaurus/job/Compsognathus/job/TorturedCircularLogicThatIsOrbulentAndVeryRoundishlyCircular/job/Babylon/job/Nebuchadnezzar%20III/job/AndHisKids-Shmeb-Dolly-PollyanaBillyJoe-Zukobnitsche/job/Marduk-apla-iddina%20II/'
+    scm = 'git'
+    build_defn = agicen.ensureBuildDefinitionExists(path, project, scm)
+    print(path[-40:])
+    print(build_defn.Name[-40:])
+    assert build_defn
+    assert build_defn.Name.endswith(funky_job_name)
+    assert len(build_defn.Name) == 256
+    print(build_defn.Name)
+
+    build_defn2 = agicen.ensureBuildDefinitionExists(path, project, scm)
+    assert build_defn2.oid == build_defn.oid
+
+    response = agicen.agicen.get('BuildDefinition', query='Name contains "%s"' % funky_job_name)
+    for build_def in response:
+        agicen.agicen.delete('BuildDefinition', build_def.ObjectID)
