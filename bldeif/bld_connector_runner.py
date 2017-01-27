@@ -233,7 +233,6 @@ class BuildConnectorRunner(object):
 
         # we've added builds successfully, so update the Time File (config/<config>_time.file)
         try:
-            #last_build_timestamp = min([v[-1].Start for k,v in builds.items()]).replace('T', ' ')[:19]
             earliest_build_start = min(build_list[-1].Start for job_name, build_list in builds.items())
             time_file_timestamp = earliest_build_start.replace('T', ' ')[:19]
             self.time_file.write(time_file_timestamp)

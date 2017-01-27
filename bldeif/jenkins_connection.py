@@ -774,8 +774,8 @@ class JenkinsInventory:
 
 
     def getFullyQualifiedViewMapping(self):
-        # maps view's path representation from the config file to the folder's path
-        #fm = {" // ".join(re.split(r'\/', key)[1:]) : key for key in self.folders.keys()}
+        # maps view's path representation from the config file to the view's path
+        #vm = {" // ".join(re.split(r'\/', key)[1:]) : key for key in self.views.keys()}
         vm = {}
         for vk in sorted(self.views.keys()):
             path_components = re.split(r'\/', vk)[1:]

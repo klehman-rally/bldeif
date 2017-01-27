@@ -315,8 +315,8 @@ class AgileCentralConnection(BLDConnection):
                                        projectScopeDown=False,
                                        projectScopeUp=False,
                                        order="CreationDate",
-                                       pagesize=200, limit=2000
-                                       )
+                                       pagesize=1000
+                                      )
         except Exception as msg:
             excp_type, excp_value, tb = sys.exc_info()
             mo = re.search(r"'(?P<ex_name>.+)'", str(excp_type))
