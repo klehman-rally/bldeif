@@ -35,10 +35,10 @@
       pip3.5 install requests==2.8.1
       pip3.5 install pyral==1.2.3
       pip3.5 install PyYAML==3.12
-      unpack bldeif-0.9.0.zip
+      unpack bldeif-1.0.0.zip
          change your working directory (cd) to a directory where you want to install the connector
-         unzip bldeif-0.9.0.zip   (or use a suitable program that can unzip a .zip file)
-         cd bldeif-0.9.0
+         unzip bldeif-1.0.0.zip   (or use a suitable program that can unzip a .zip file)
+         cd bldeif-1.0.0
          ls -laR   # observe the unpacked contents, or use dir on Windows
 
             bldeif              # bldeif module root directory
@@ -49,6 +49,15 @@
 
 
    Setup
+
+      General recommendations:
+         - start simple
+         - use fully qualified path for folders and views if you have duplicate job, folder and view names in your jenkins structure
+              (See Appendix B if your Jenkins installation contains duplicate job/folder/view names)
+         - use an appropriate MaxDepth value if your Jenkins structure is deeply nested
+
+      When you have a deeply nested Jenkins structure and duplicate folder view and job names,
+      we strongly recommend using appropriate MaxDepth and FullFolderPath in order to insure a deterministic outcome.
 
       Locate the config subdirectory
       Copy the sample.yml file to a file named suitably for your environment
@@ -65,7 +74,7 @@
 
       Manual
          Using a terminal window or console:
-            cd to the installation root directory  eg.  /opt/local/sw/bldeif-0.9.0
+            cd to the installation root directory  eg.  /opt/local/sw/bldeif-1.0.0
             python3.5 bldeif_connector product_x.yml
 
          This software requires that the configuration file reside in the config subdirectory.  You specify the name
@@ -80,7 +89,7 @@
             where $BLDEIF is the reference to an environment variable containing the
             fully qualified path to the directory where the software is installed.  Here's an example:
             If you unzipped the package in /opt/local/sw, then your BLDEIF would be set like this:
-               export BLDEIF=/opt/local/sw/bldeif-0.9.0
+               export BLDEIF=/opt/local/sw/bldeif-1.0.0
 
 
   Time File
@@ -115,7 +124,7 @@
       can show you what Jenkins jobs would actually be considered without actually posting
       any build information to Agile Central.
 
-  Known Limitations
+   Known Size Limitation on Job Names
 
       Within AgileCentral there is an entity called a BuildDefinition which for the purposes
       of the Build Connector for Jenkins contains the name of the Jenkins job.  The Jenkins job
@@ -134,36 +143,11 @@
          Example Jenkins Job URL:  http://bigjenkins.stegasaurus.ancient:8080/job/ReallyLongScientificFolderName/.../job/FernCoveredLowlands/job/MickyDinosaur
          Result   .../job/FernCoveredLowlands/job/MickyDinosaur
 
+   How the connector handles duplicately named Jobs/Folders/Views
+       see Appendix B
 
-      The connector will process jobs under named folders, there is not currently the facility to specify an upper level
-      folder and process all jobs directly in that folder and in any contained folders in any level of nesting.
-      To get jobs in folders to be processed you must specify the folder name in the config file.
-
-      You may have a nested folder structure as illustrated below:
-       - upper folder
-         -- job 1
-         -- lower folder
-            -- job 2
-
-       To insure that both job 1 and job 2 are picked up by the connector the Folders section of the config file must look as follows:
-          Folders:
-            - Folder : upper folder
-            - Folder : lower folder
-
-       If you have multiple folders in various locations in your Jenkins Job organization that have the same name,
-       you must specify each folder using a fully qualified path with ' // ' as a separator between each folder/view level.
-         Example config file snippet...
-             Jenkins:
-                 ...
-                 MaxDepth : 5
-                 FullFolderPath : True
-                 ...
-                 Folders:
-                     - Folder: Area 51 // Intermediate Stuff // Good Stuff
-                     - Folder: Level1 //  Level 2 // Level 3 // Good Stuff
-
-
-       VCS support: currently connector will process changesets related to builds as long as related job is using a Git repository.
+   VCS Support
+       Currently the connector will process changesets related to builds as long as related job is using a Git repository.
        Some configurations with Subversion have been successful, but there are combinations of Jenkins version, Subversion version and
          Jenkins Subversion plugin version that do not work with our connector due to variances in the json data returned for the
          build information.
@@ -171,7 +155,7 @@
          In those cases set ShowVCSData property in the Jenkins config file to False.
 
 
-  Appendix A  - Configuration file editing
+  Appendix A:  Configuration file editing
                 --------------------------
      The Agile Central bldeif connector for Jenkins uses a text file in the YAML format.
      For complete information, consult the web page at www.yaml.org/start.html or any of the
@@ -274,6 +258,36 @@
                                # are made successfully, you can change this value to True
          LogLevel     : INFO   # This is the default value, can also be DEBUG, WARN, ERROR. DEBUG is very verbose
          MaxBuilds    : 100    # Use a non-negative integer value. This "limit" pertains to builds for a particular job.
+
+
+ Appendix B: Handling duplicate names in Jenkins
+
+   The connector will process jobs under named folders, there is not currently the facility to specify an upper level
+      folder and process all jobs directly in that folder and in any contained folders in any level of nesting.
+      To get jobs in folders to be processed you must specify the folder name in the config file.
+
+      You may have a nested folder structure as illustrated below:
+       - upper folder
+         -- job 1
+         -- lower folder
+            -- job 2
+
+       To insure that both job 1 and job 2 are picked up by the connector the Folders section of the config file must look as follows:
+          Folders:
+            - Folder : upper folder
+            - Folder : lower folder
+
+       If you have multiple folders in various locations in your Jenkins Job organization that have the same name,
+       you must specify each folder using a fully qualified path with ' // ' as a separator between each folder/view level.
+         Example config file snippet...
+             Jenkins:
+                 ...
+                 MaxDepth : 5
+                 FullFolderPath : True
+                 ...
+                 Folders:
+                     - Folder: Area 51 // Intermediate Stuff // Good Stuff
+                     - Folder: Level1 //  Level 2 // Level 3 // Good Stuff
 
 
  Appendix C: AgileCentral Project specification

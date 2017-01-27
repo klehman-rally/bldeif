@@ -3,6 +3,7 @@ import time
 import yaml
 import shutil
 import pytest
+import requests
 import spec_helper         as sh
 import build_spec_helper   as bsh
 import jenkins_spec_helper as jsh
@@ -10,9 +11,31 @@ from datetime import datetime, timedelta
 from bldeif.utils.test_konfabulus import TestKonfabulator
 from bldeif.utils.klog       import ActivityLogger
 from bldeif.bld_connector import BLDConnector
+from bldeif.bld_connector_runner import BuildConnectorRunner
 
 import time
 
+def read_config(config_file):
+    config_path = "config/{}".format(config_file)
+    with open(config_path, 'r') as cf:
+        content = cf.read()
+        conf = yaml.load(content)
+    return conf
+
+def construct_jenkins_url(jenk_conf):
+    protocol = jenk_conf['Protocol']
+    server   = jenk_conf['Server']
+    port     = jenk_conf['Port']
+    return "%s://%s:%d" %(protocol, server, port)
+
+def build(config, jenkins, job_name, view="All", folder=None):
+    headers = {'Content-Type':'application/json'}
+    if not folder:
+        url = "{}/job/{}/build".format(jenkins, job_name)
+    else:
+        url = "{}/job/{}/job/{}/build".format(jenkins, folder, job_name)
+    r = requests.post(url, auth=(config['Username'], config['API_Token']), headers=headers)
+    return r
 
 def test_mock_build():
     two_days_ago = bsh.epochSeconds("-2d")
@@ -411,68 +434,47 @@ def test_depth():
     assert 'freddy-flintstone' not in jc.all_jobs
 
 
-# Other general testing implies the intent of this test actually does work
-#  However, it uses the wombat.yml config which is used by other tests and may conflict with this
-#  Recommend creating another Jenkins folder (koala) and config and not use wombat to get this test working.
-# def test_existing_job():
-#     ref_time = datetime.now() - timedelta(minutes=2)
-#     folder = "immovable wombats"
-#     my_job = "Top"
-#     other_job = "Carver"
-#     jobs = [my_job, other_job ]
-#     jc = sh.build_immovable_wombats(folder, jobs)
-#     jc.validate()
-#     time.sleep(15)
-#
-#     builds = jc.getRecentBuilds(ref_time.utctimetuple())
-#     #target_job_builds = [build_info[my_job] for container_proj, build_info in builds.items() if my_job in build_info.keys()][0]
-#     #print (target_job_builds)
-#
-#     jobs_snarfed = []
-#     builds_snarfed = []
-#     for container_proj, build_info in builds.items():
-#         print (container_proj)
-#         for job, builds in build_info.items():
-#             jobs_snarfed.append(job)
-#             builds_snarfed.extend(builds)
-#             print (builds)
-#
-#
-#     job1 = [job for job in jobs_snarfed if job.name == my_job]
-#     assert job1
-#
-#     no_jobs = [job for job in jobs_snarfed if job.name == other_job]
-#     assert not no_jobs
-#
-#     ref_time = datetime.now() - timedelta(minutes=10)
-#     folder = "immovable wombats"
-#     my_job = "Top"
-#     other_job = "Carver"
-#     jobs = [my_job, other_job]
-#     jc = sh.build_immovable_wombats(folder, jobs)
-#     jc.validate()
-#     time.sleep(10)
-#
-#     builds = jc.getRecentBuilds(ref_time.utctimetuple())
-#     # target_job_builds = [build_info[my_job] for container_proj, build_info in builds.items() if my_job in build_info.keys()][0]
-#     # print (target_job_builds)
-#
-#     more_jobs_snarfed = []
-#     more_builds_snarfed = []
-#     for container_proj, build_info in builds.items():
-#         print (container_proj)
-#         for job, builds in build_info.items():
-#             more_jobs_snarfed.append(job)
-#             more_builds_snarfed.extend(builds)
-#             print (builds)
-#
-#     #assert other_job not in jobs_snarfed
-#     job1 = [job for job in jobs_snarfed if job.name == my_job]
-#     assert job1
-#
-#     job2 = [job for job in jobs_snarfed if job.name == other_job]
-#     assert not job2
-#
-#     assert len(more_builds_snarfed) > len(builds_snarfed)
+def test_existing_job():
+    ref_time = datetime.utcnow() - timedelta(minutes=2)
+    config_file = "koalas.yml"
+    folder = "koalas"
+    my_job = "lunch"
+    other_job = "dinner"
+    conf = read_config(config_file)
+    jenk_conf = conf['JenkinsBuildConnector']['Jenkins']
+    jenk_url  = construct_jenkins_url(jenk_conf)
 
+    r1 = build(jenk_conf, jenk_url, my_job, folder=folder)
+    assert r1.status_code in [200, 201]
+    time.sleep(15)
+
+    args = [config_file]
+    runner = BuildConnectorRunner(args)
+    assert runner.first_config == config_file
+    config_path = "config/{}".format(config_file)
+    config = runner.getConfiguration(config_path)
+
+    assert config_file in runner.config_file_names
+
+    connector = BLDConnector(config, runner.log)
+    connector.validate()
+
+    jenk_builds = connector.bld_conn.getRecentBuilds(ref_time.utctimetuple())
+
+    jobs_snarfed = []
+    jenk_builds_snarfed = []
+    for container_proj, build_info in jenk_builds.items():
+        print (container_proj)
+        for job, builds in build_info.items():
+            jobs_snarfed.append(job)
+            jenk_builds_snarfed.extend(builds)
+            print (builds)
+
+    job_names = [job.name for job in jobs_snarfed]
+    assert my_job in job_names
+    assert other_job in job_names
+
+    jenk_build_names = [build.name for build in jenk_builds_snarfed]
+    assert not other_job in jenk_build_names
+    assert my_job in job_names
 
